@@ -13,6 +13,8 @@ import {
   ScrollView,
 } from 'react-native';
 
+import { addUser, findUserByEmail } from '../utils/UserStore';
+
 export default function CreateAccountScreen({ navigation }) {
   const [form, setForm] = useState({
     firstName: '',
@@ -24,10 +26,89 @@ export default function CreateAccountScreen({ navigation }) {
     city: '',
     state: '',
     zip: '',
+    password: '', // Added password field here (you need this for login)
   });
+
+  const [error, setError] = useState('');
 
   const handleChange = (name, value) => {
     setForm({ ...form, [name]: value });
+    setError(''); // Clear error on input change
+  };
+
+  // Simple email validation: contains @ symbol
+  const isValidEmail = (email) => {
+    return email.includes('@');
+  };
+
+  const allRequiredFieldsFilled = () => {
+    // List all required fields (except address2 which is optional)
+    const requiredFields = ['firstName','lastName','email','phone','address1','city','state','zip','password'];
+    return requiredFields.every(field => form[field].trim() !== '');
+  };
+
+  const onContinue = () => {
+    setError('');
+
+    if (!allRequiredFieldsFilled()) {
+      setError('missingFields');
+      return;
+    }
+
+    if (!isValidEmail(form.email)) {
+      setError('invalidEmail');
+      return;
+    }
+
+    if (findUserByEmail(form.email)) {
+      setError('emailExists');
+      return;
+    }
+
+    // Add user to store
+    addUser({
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+      address1: form.address1,
+      address2: form.address2,
+      city: form.city,
+      state: form.state,
+      zip: form.zip,
+      password: form.password,
+    });
+
+    // Navigate to Welcomepage with firstName param
+    navigation.navigate('Welcomepage', { name: form.firstName });
+  };
+
+  const renderError = () => {
+    if (!error) return null;
+
+    let message = '';
+    switch (error) {
+      case 'missingFields':
+        message = 'All fields must be completed';
+        break;
+      case 'invalidEmail':
+        message = 'Enter a valid email address';
+        break;
+      case 'emailExists':
+        message = 'Account already exists with that email';
+        break;
+      default:
+        return null;
+    }
+
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIcon}>
+          <Text style={styles.errorIconText}>!</Text>
+        </View>
+        <Text style={styles.errorText}>{message}</Text>
+      </View>
+    );
   };
 
   return (
@@ -39,10 +120,7 @@ export default function CreateAccountScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
@@ -51,6 +129,9 @@ export default function CreateAccountScreen({ navigation }) {
             <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
             <View style={{ width: 24 }} />
           </View>
+
+          {/* Show error */}
+          {renderError()}
 
           {/* Personal Info */}
           <Text style={styles.sectionTitle}>Personal Info</Text>
@@ -71,6 +152,7 @@ export default function CreateAccountScreen({ navigation }) {
             value={form.email}
             onChangeText={(text) => handleChange('email', text)}
             keyboardType="email-address"
+            autoCapitalize="none"
             style={styles.input}
           />
           <TextInput
@@ -78,6 +160,13 @@ export default function CreateAccountScreen({ navigation }) {
             value={form.phone}
             onChangeText={(text) => handleChange('phone', text)}
             keyboardType="phone-pad"
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Password*"
+            value={form.password}
+            onChangeText={(text) => handleChange('password', text)}
+            secureTextEntry
             style={styles.input}
           />
 
@@ -125,7 +214,7 @@ export default function CreateAccountScreen({ navigation }) {
           </Text>
 
           {/* Continue Button */}
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={onContinue}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -137,11 +226,11 @@ export default function CreateAccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent', // make it transparent
+    backgroundColor: 'transparent',
   },
   container: {
     padding: 24,
-    backgroundColor: 'transparent', // make it transparent
+    backgroundColor: 'transparent',
     paddingBottom: 80,
     flexGrow: 1,
   },
@@ -199,6 +288,31 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  errorIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'red',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  errorIconText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    lineHeight: 14,
+  },
+  errorText: {
+    color: 'red',
     fontWeight: '600',
   },
 });
