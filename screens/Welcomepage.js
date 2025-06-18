@@ -17,58 +17,50 @@ export default function Welcomepage({ route }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Top Row */}
-        <View style={styles.headerRow}>
+
+        {/* Top Bar */}
+        <View style={styles.topBar}>
           <Image
             source={require('../assets/Logo Dark.png')}
             style={styles.logo}
             resizeMode="contain"
           />
+          <View style={styles.profilePlaceholder} />
         </View>
 
-        {/* Welcome */}
+        {/* Welcome Block */}
         <Text style={styles.wave}>👋</Text>
-        <Text style={styles.greeting}>WELCOME, {name.toUpperCase()}!</Text>
-        <Text style={styles.title}>Let’s get started.</Text>
-        <Text style={styles.subtitle}>
+        <Text style={styles.welcome}>WELCOME, {name.toUpperCase()}!</Text>
+        <Text style={styles.headline}>Let’s get started.</Text>
+        <Text style={styles.subheadline}>
           You don’t have any active Couri transactions.
         </Text>
 
-        {/* Begin a Transaction Button */}
-        <TouchableOpacity style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>+  Begin a Transaction</Text>
+        <TouchableOpacity style={styles.beginButton}>
+          <Text style={styles.beginButtonText}>+  Begin a Transaction</Text>
         </TouchableOpacity>
 
-        {/* Info Section */}
+        {/* Middle Info Block */}
         <View style={styles.infoBlock}>
           <Text style={styles.infoIcon}>👓</Text>
-          <Text style={styles.infoTitle}>
-            Couri is transforming peer-to-peer transactions.
-          </Text>
+          <Text style={styles.infoTitle}>Couri is transforming{"\n"}peer-to-peer transactions.</Text>
           <Text style={styles.infoSub}>Check out how it works.</Text>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Learn more</Text>
+          <TouchableOpacity style={styles.learnMoreButton}>
+            <Text style={styles.learnMoreText}>Learn more</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Promo Section */}
-        <View style={styles.promoBlock}>
-          <View style={styles.promoTextContainer}>
-            <Text style={styles.promoText}>Get hype,{"\n"}something big is coming</Text>
-            <Text style={styles.arrow}>→</Text>
+        {/* Black Promo Section without image */}
+        <View style={styles.promoSection}>
+          <View style={styles.promoTextBlock}>
+            <Text style={styles.promoHeadline}>Get hype,{"\n"}something big is coming</Text>
+            <Text style={styles.arrow}>➝</Text>
           </View>
-          <Image
-            source={require('../assets/sneaker-promo.PNG')}
-            style={styles.promoImage}
-            resizeMode="contain"
-          />
         </View>
 
         {/* Footer Strip */}
-        <View style={styles.footerStrip}>
-          <Text style={styles.footerText}>
-            . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE
-          </Text>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>. COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -85,61 +77,66 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
   },
-  headerRow: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   logo: {
-    width: 80,
+    width: 90,
     height: 40,
   },
-  wave: {
-    fontSize: 30,
-    marginTop: 10,
+  profilePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ccc',
   },
-  greeting: {
+  wave: {
+    fontSize: 28,
+  },
+  welcome: {
     fontSize: 14,
     fontWeight: '600',
-    marginTop: 6,
+    marginTop: 8,
   },
-  title: {
+  headline: {
     fontSize: 32,
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 16,
   },
-  subtitle: {
+  subheadline: {
     fontSize: 16,
     color: '#444',
     textAlign: 'center',
-    marginVertical: 10,
+    marginTop: 8,
+    marginBottom: 20,
   },
-  primaryButton: {
+  beginButton: {
     backgroundColor: '#000',
-    borderRadius: 50,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    marginTop: 16,
+    borderRadius: 50,
     marginBottom: 32,
   },
-  primaryButtonText: {
+  beginButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
   infoBlock: {
+    width: '100%',
     backgroundColor: '#FDEAFF',
     borderRadius: 16,
     padding: 24,
-    width: '100%',
     alignItems: 'center',
     marginBottom: 32,
   },
   infoIcon: {
-    fontSize: 28,
+    fontSize: 24,
     marginBottom: 12,
   },
   infoTitle: {
@@ -153,53 +150,47 @@ const styles = StyleSheet.create({
     color: '#444',
     marginBottom: 20,
   },
-  secondaryButton: {
-    borderRadius: 50,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+  learnMoreButton: {
     borderWidth: 1,
     borderColor: '#000',
+    borderRadius: 50,
     backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     elevation: 6,
   },
-  secondaryButtonText: {
+  learnMoreText: {
     fontSize: 16,
     fontWeight: '600',
   },
-  promoBlock: {
-    backgroundColor: '#000',
+  promoSection: {
     width: '100%',
+    backgroundColor: '#000',
     padding: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
-  promoTextContainer: {
+  promoTextBlock: {
     flex: 1,
   },
-  promoText: {
-    fontSize: 24,
+  promoHeadline: {
+    fontSize: 26,
     fontWeight: '500',
     color: '#fff',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   arrow: {
-    fontSize: 26,
+    fontSize: 24,
     color: '#fff',
   },
-  promoImage: {
-    width: 120,
-    height: 120,
-    marginLeft: 12,
-  },
-  footerStrip: {
+  footer: {
     backgroundColor: '#FBFFB1',
     width: '100%',
-    paddingVertical: 12,
     alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 0,
   },
   footerText: {
-    fontSize: 14,
     fontWeight: '600',
     color: '#000',
   },
