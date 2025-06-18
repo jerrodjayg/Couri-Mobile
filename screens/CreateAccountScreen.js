@@ -4,9 +4,13 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  ScrollView,
   TouchableOpacity,
   Pressable,
+  SafeAreaView,
+  StatusBar,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 
 export default function CreateAccountScreen({ navigation }) {
@@ -27,100 +31,119 @@ export default function CreateAccountScreen({ navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
-        <View style={{ width: 24 }} /> {/* Filler for alignment */}
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* Personal Info */}
-      <Text style={styles.sectionTitle}>Personal Info</Text>
-      <TextInput
-        placeholder="First Name*"
-        value={form.firstName}
-        onChangeText={(text) => handleChange('firstName', text)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Last Name*"
-        value={form.lastName}
-        onChangeText={(text) => handleChange('lastName', text)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Email Address*"
-        value={form.email}
-        onChangeText={(text) => handleChange('email', text)}
-        keyboardType="email-address"
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Mobile Number*"
-        value={form.phone}
-        onChangeText={(text) => handleChange('phone', text)}
-        keyboardType="phone-pad"
-        style={styles.input}
-      />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()}>
+              <Text style={styles.backArrow}>←</Text>
+            </Pressable>
+            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+            <View style={{ width: 24 }} />
+          </View>
 
-      {/* Address */}
-      <Text style={styles.sectionTitle}>Home Address</Text>
-      <TextInput
-        placeholder="Address Line 1*"
-        value={form.address1}
-        onChangeText={(text) => handleChange('address1', text)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Address Line 2 (Optional)"
-        value={form.address2}
-        onChangeText={(text) => handleChange('address2', text)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="City*"
-        value={form.city}
-        onChangeText={(text) => handleChange('city', text)}
-        style={styles.input}
-      />
-      <View style={styles.row}>
-        <TextInput
-          placeholder="State*"
-          value={form.state}
-          onChangeText={(text) => handleChange('state', text)}
-          style={[styles.input, styles.halfInput]}
-        />
-        <TextInput
-          placeholder="Zip*"
-          value={form.zip}
-          onChangeText={(text) => handleChange('zip', text)}
-          keyboardType="numeric"
-          style={[styles.input, styles.halfInput]}
-        />
-      </View>
+          {/* Personal Info */}
+          <Text style={styles.sectionTitle}>Personal Info</Text>
+          <TextInput
+            placeholder="First Name*"
+            value={form.firstName}
+            onChangeText={(text) => handleChange('firstName', text)}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Last Name*"
+            value={form.lastName}
+            onChangeText={(text) => handleChange('lastName', text)}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Email Address*"
+            value={form.email}
+            onChangeText={(text) => handleChange('email', text)}
+            keyboardType="email-address"
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Mobile Number*"
+            value={form.phone}
+            onChangeText={(text) => handleChange('phone', text)}
+            keyboardType="phone-pad"
+            style={styles.input}
+          />
 
-      {/* Legal Text (FIXED) */}
-      <Text style={styles.legal}>
-        By creating an account, you agree to Couri’s{' '}
-        <Text style={[styles.legal, styles.link]}>Terms of Use</Text> and{' '}
-        <Text style={[styles.legal, styles.link]}>Privacy Policy</Text>.
-      </Text>
+          {/* Address */}
+          <Text style={styles.sectionTitle}>Home Address</Text>
+          <TextInput
+            placeholder="Address Line 1*"
+            value={form.address1}
+            onChangeText={(text) => handleChange('address1', text)}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Address Line 2 (Optional)"
+            value={form.address2}
+            onChangeText={(text) => handleChange('address2', text)}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="City*"
+            value={form.city}
+            onChangeText={(text) => handleChange('city', text)}
+            style={styles.input}
+          />
+          <View style={styles.row}>
+            <TextInput
+              placeholder="State*"
+              value={form.state}
+              onChangeText={(text) => handleChange('state', text)}
+              style={[styles.input, styles.halfInput]}
+            />
+            <TextInput
+              placeholder="Zip*"
+              value={form.zip}
+              onChangeText={(text) => handleChange('zip', text)}
+              keyboardType="numeric"
+              style={[styles.input, styles.halfInput]}
+            />
+          </View>
 
-      {/* Continue Button */}
-      <TouchableOpacity style={styles.button}>
-        <Text style={styles.buttonText}>Continue</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          {/* Legal Text */}
+          <Text style={styles.legal}>
+            By creating an account, you agree to Couri’s{' '}
+            <Text style={[styles.legal, styles.link]}>Terms of Use</Text> and{' '}
+            <Text style={[styles.legal, styles.link]}>Privacy Policy</Text>.
+          </Text>
+
+          {/* Continue Button */}
+          <TouchableOpacity style={styles.button}>
+            <Text style={styles.buttonText}>Continue</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent', // make it transparent
+  },
   container: {
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent', // make it transparent
+    paddingBottom: 80,
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -134,6 +157,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#000',
   },
   sectionTitle: {
     fontSize: 20,
@@ -171,11 +195,6 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: 'center',
     marginBottom: 50,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 10,
   },
   buttonText: {
     color: '#fff',
