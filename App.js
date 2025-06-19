@@ -5,7 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SplashScreen from './screens/SplashScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateAccountScreen from './screens/CreateAccountScreen';
-import LoginScreen from './screens/LogInScreen'; //✅ Add this
+import LogInScreen from './screens/LogInScreen';
+import Welcomepage from './screens/Welcomepage'; // ✅ Correct casing
 
 const Stack = createNativeStackNavigator();
 
@@ -16,7 +17,8 @@ export default function App() {
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} /> {/* ✅ Add this line */}
+        <Stack.Screen name="Login" component={LogInScreen} />
+        <Stack.Screen name="Welcome" component={Welcomepage} />
       </Stack.Navigator>
     </NavigationContainer>
   );
