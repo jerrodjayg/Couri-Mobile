@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,32 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Animated,
 } from 'react-native';
 
-export default function Welcomepage({ route }) {
+export default function Welcomepage({ route, navigation }) {
   const { name } = route.params || { name: 'Lana' };
+
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(scrollX, {
+        toValue: -1000,
+        duration: 15000,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  const handleSignOut = () => {
+    navigation.replace('Login'); // You can also use navigate if you want to preserve stack
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <ScrollView contentContainerStyle={styles.container}>
-
         {/* Top Bar */}
         <View style={styles.topBar}>
           <Image
@@ -50,7 +66,7 @@ export default function Welcomepage({ route }) {
           </TouchableOpacity>
         </View>
 
-        {/* Black Promo Section without image */}
+        {/* Black Promo Section */}
         <View style={styles.promoSection}>
           <View style={styles.promoTextBlock}>
             <Text style={styles.promoHeadline}>Get hype,{"\n"}something big is coming</Text>
@@ -58,10 +74,20 @@ export default function Welcomepage({ route }) {
           </View>
         </View>
 
-        {/* Footer Strip */}
+        {/* Footer Strip with scrolling text */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>. COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE</Text>
+          <Animated.Text
+            style={[styles.footerText, { transform: [{ translateX: scrollX }] }]}
+            numberOfLines={1}
+          >
+            {'. COURI EXCLUSIVE '.repeat(20)}
+          </Animated.Text>
         </View>
+
+        {/* Sign Out Button */}
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -186,12 +212,27 @@ const styles = StyleSheet.create({
   footer: {
     backgroundColor: '#FBFFB1',
     width: '100%',
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginTop: 0,
+    overflow: 'hidden',
+    height: 40,
+    justifyContent: 'center',
+    marginTop: 20,
   },
   footerText: {
     fontWeight: '600',
     color: '#000',
+    fontSize: 14,
+    paddingLeft: '100%',
+  },
+  signOutButton: {
+    marginTop: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 50,
+    backgroundColor: '#E74C3C',
+  },
+  signOutText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
