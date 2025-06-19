@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { findUserByEmailOrPhone } from '../Couri-Mobile/UserStore.js';
+import { findUserByEmailOrPhone } from '..UserStore';
 
 export default function LogInScreen({ navigation }) {
   const [emailOrPhone, setEmailOrPhone] = useState('');
