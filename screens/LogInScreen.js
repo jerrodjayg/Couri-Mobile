@@ -13,9 +13,45 @@ import {
   ScrollView,
 } from 'react-native';
 
+import { findUserByEmailOrPhone } from '../utils/UserStore';
+
 export default function LogInScreen({ navigation }) {
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const onContinue = () => {
+    setError('');
+
+    if (!emailOrPhone.trim() || !password.trim()) {
+      setError('invalidLogin');
+      return;
+    }
+
+    // Try to find user by email or phone
+    const user = findUserByEmailOrPhone(emailOrPhone);
+
+    if (!user || user.password !== password) {
+      setError('invalidLogin');
+      return;
+    }
+
+    // Login success: navigate to Welcomepage with user's first name
+    navigation.navigate('Welcomepage', { name: user.firstName });
+  };
+
+  const renderError = () => {
+    if (!error) return null;
+
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIcon}>
+          <Text style={styles.errorIconText}>!</Text>
+        </View>
+        <Text style={styles.errorText}>Invalid email or password</Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -26,10 +62,7 @@ export default function LogInScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
@@ -39,12 +72,16 @@ export default function LogInScreen({ navigation }) {
             <View style={{ width: 24 }} />
           </View>
 
+          {/* Show error */}
+          {renderError()}
+
           {/* Email / Phone Input */}
           <TextInput
             style={styles.input}
             placeholder="Email or Mobile Number"
             value={emailOrPhone}
             onChangeText={setEmailOrPhone}
+            autoCapitalize="none"
           />
 
           {/* Password Input */}
@@ -57,7 +94,7 @@ export default function LogInScreen({ navigation }) {
           />
 
           {/* Continue Button */}
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={onContinue}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
 
@@ -133,5 +170,30 @@ const styles = StyleSheet.create({
   signUpRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+  },
+
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  errorIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'red',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  errorIconText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    lineHeight: 14,
+  },
+  errorText: {
+    color: 'red',
+    fontWeight: '600',
   },
 });
