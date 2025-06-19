@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   View,
   Text,
@@ -20,7 +21,7 @@ export default function LogInScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const onContinue = () => {
+  const onContinue = async() => {
     setError('');
 
     if (!emailOrPhone.trim() || !password.trim()) {
@@ -28,16 +29,30 @@ export default function LogInScreen({ navigation }) {
       return;
     }
 
-    // Try to find user by email or phone
-    const user = findUserByEmailOrPhone(emailOrPhone);
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+    email: emailOrPhone,
+    password: password,
+  });
 
-    if (!user || user.password !== password) {
-      setError('invalidLogin');
-      return;
-    }
+  if (authError || !data.user) {
+    setError('invalidLogin');
+    return;
+  }
 
-    // Login success: navigate to Welcomepage with user's first name
-    navigation.navigate('Welcomepage', { name: user.firstName });
+  // Get user's first name from profiles table
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('first_name')
+    .eq('id', data.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    setError('Could not retrieve profile');
+    return;
+  }
+
+  // Success: go to welcome screen
+  navigation.navigate('Welcomepage', { name: profile.first_name });
   };
 
   const renderError = () => {
@@ -98,11 +113,28 @@ export default function LogInScreen({ navigation }) {
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
 
+          {/* Sign Up with Providers */}
+          <View style={styles.signUpBox}>
+            <Text style={styles.signUpWithText}>or signup with</Text>
+            <View style={styles.providerRow}>
+              <TouchableOpacity style={styles.providerButton}>
+                <Text style={styles.providerIcon}></Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.providerButton}>
+                <Text style={styles.providerIcon}>G</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.providerButton}>
+                <Text style={styles.providerIcon}>f</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+
           {/* Sign Up Prompt */}
           <View style={styles.signUpRow}>
-            <Text style={styles.bottomText}>Don’t have an account? </Text>
+            <Text style={styles.bottomText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
-              <Text style={[styles.bottomText, styles.link]}>Sign up</Text>
+              <Text style={[styles.bottomText, styles.link]}>Login</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -196,4 +228,43 @@ const styles = StyleSheet.create({
     color: 'red',
     fontWeight: '600',
   },
+  signUpBox: {
+  alignItems: 'center',
+  borderColor: '#000',
+  borderWidth: 1,
+  borderRadius: 16,
+  paddingVertical: 16,
+  paddingHorizontal: 12,
+  marginBottom: 24,
+  backgroundColor: '#fff',
+},
+signUpWithText: {
+  fontSize: 14,
+  marginBottom: 12,
+  color: '#000',
+},
+providerRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-evenly',
+  width: '100%',
+},
+providerButton: {
+  borderWidth: 1,
+  borderColor: '#000',
+  borderRadius: 28,
+  paddingVertical: 10,
+  paddingHorizontal: 20,
+  marginHorizontal: 6,
+  backgroundColor: '#fff',
+  elevation: 4,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 3,
+},
+providerIcon: {
+  fontSize: 18,
+  fontWeight: '600',
+  color: '#000',
+},
 });

@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase'
 import React, { useState } from 'react';
 import {
   View,
@@ -47,41 +48,55 @@ export default function CreateAccountScreen({ navigation }) {
     return requiredFields.every(field => form[field].trim() !== '');
   };
 
-  const onContinue = () => {
+  const onContinue = async() => {
     setError('');
 
     if (!allRequiredFieldsFilled()) {
-      setError('missingFields');
-      return;
-    }
+    setError('missingFields');
+    return;
+  }
 
-    if (!isValidEmail(form.email)) {
-      setError('invalidEmail');
-      return;
-    }
+  if (!isValidEmail(form.email)) {
+    setError('invalidEmail');
+    return;
+  }
 
-    if (findUserByEmail(form.email)) {
-      setError('emailExists');
-      return;
-    }
+  // Sign up the user with Supabase Auth
+  const { data, error: signUpError } = await supabase.auth.signUp({
+    email: form.email,
+    password: form.password,
+  });
 
-    // Add user to store
-    addUser({
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
+  if (signUpError) {
+    console.error(signUpError);
+    setError('emailExists');
+    return;
+  }
+
+  // Save additional profile info in your "profiles" table
+  const { error: profileError } = await supabase.from('profiles').insert([
+    {
+      id: data.user.id,
+      first_name: form.firstName,
+      last_name: form.lastName,
       phone: form.phone,
       address1: form.address1,
       address2: form.address2,
       city: form.city,
       state: form.state,
       zip: form.zip,
-      password: form.password,
-    });
+    },
+  ]);
 
-    // Navigate to Welcomepage with firstName param
-    navigation.navigate('Welcomepage', { name: form.firstName });
+  if (profileError) {
+    console.error(profileError);
+    setError('profileSaveFailed');
+    return;
+  }
+
+  navigation.navigate('Welcomepage', { name: form.firstName });
   };
+
 
   const renderError = () => {
     if (!error) return null;
@@ -221,7 +236,6 @@ export default function CreateAccountScreen({ navigation }) {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -315,4 +329,5 @@ const styles = StyleSheet.create({
     color: 'red',
     fontWeight: '600',
   },
-});
+})
+};
