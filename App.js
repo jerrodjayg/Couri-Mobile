@@ -6,7 +6,7 @@ import SplashScreen from './screens/SplashScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateAccountScreen from './screens/CreateAccountScreen';
 import LogInScreen from './screens/LogInScreen';
-import Welcomepage from './screens/Welcomepage'; // Make sure the file name and export match
+import Welcomepage from './screens/Welcomepage'; // ✅ Ensure this matches the actual file and default export
 
 const Stack = createNativeStackNavigator();
 
@@ -18,7 +18,7 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
         <Stack.Screen name="Login" component={LogInScreen} />
-        <Stack.Screen name="Welcomepage" component={Welcomepage} /> {/*No spaces or extra elements */}
+        <Stack.Screen name="Welcomepage" component={Welcomepage} />
       </Stack.Navigator>
     </NavigationContainer>
   );
