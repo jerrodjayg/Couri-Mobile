@@ -14,8 +14,6 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { addUser, findUserByEmail } from '../UserStore';
-
 export default function CreateAccountScreen({ navigation }) {
   const [form, setForm] = useState({
     firstName: '',
@@ -236,6 +234,7 @@ export default function CreateAccountScreen({ navigation }) {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -329,5 +328,4 @@ const styles = StyleSheet.create({
     color: 'red',
     fontWeight: '600',
   },
-})
-};
+});

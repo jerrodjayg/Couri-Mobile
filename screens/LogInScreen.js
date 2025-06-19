@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import applelogo from '../assets/appleicon.png';
+import googlelogo from '../assets/googleicon.png';
+import facebooklogo from '../assets/facebookicon.png';
+import { Image } from 'react-native';
 import { supabase } from '../lib/supabase';
 import {
   View,
@@ -13,8 +17,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-
-import { findUserByEmailOrPhone } from '../UserStore';
 
 export default function LogInScreen({ navigation }) {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -114,20 +116,18 @@ export default function LogInScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* Sign Up with Providers */}
-          <View style={styles.signUpBox}>
-            <Text style={styles.signUpWithText}>or signup with</Text>
-            <View style={styles.providerRow}>
-              <TouchableOpacity style={styles.providerButton}>
-                <Text style={styles.providerIcon}></Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.providerButton}>
-                <Text style={styles.providerIcon}>G</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.providerButton}>
-                <Text style={styles.providerIcon}>f</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.providerRow}>
+            <TouchableOpacity style={styles.providerButton}>
+              <Image source={AppleLogo} style={styles.providerLogo} resizeMode="contain" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.providerButton}>
+              <Image source={GoogleLogo} style={styles.providerLogo} resizeMode="contain" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.providerButton}>
+              <Image source={FacebookLogo} style={styles.providerLogo} resizeMode="contain" />
+            </TouchableOpacity>
           </View>
+
 
 
           {/* Sign Up Prompt */}
@@ -267,4 +267,8 @@ providerIcon: {
   fontWeight: '600',
   color: '#000',
 },
+providerLogo: {
+  width: 24,
+  height: 24,
+}
 });
