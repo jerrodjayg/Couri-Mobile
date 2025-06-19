@@ -6,7 +6,7 @@ import SplashScreen from './screens/SplashScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateAccountScreen from './screens/CreateAccountScreen';
 import LoginScreen from './screens/LogInScreen';
-import WelcomePage from './screens/Welcomepage'; // ✅ Add this line
+import WelcomePage from './screens/Welcomepage'; // Make sure the file name and export match
 
 const Stack = createNativeStackNavigator();
 
@@ -18,7 +18,7 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Welcomepage" component={WelcomePage} /> {/* ✅ Add this line */}
+        <Stack.Screen name="Welcomepage" component={WelcomePage} /> {/*No spaces or extra elements */}
       </Stack.Navigator>
     </NavigationContainer>
   );
