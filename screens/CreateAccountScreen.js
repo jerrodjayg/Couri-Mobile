@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { addUser, findUserByEmail } from '../utils/UserStore';
+import { addUser, findUserByEmail } from '../Couri-Mobile/UserStore.js';
 
 export default function CreateAccountScreen({ navigation }) {
   const [form, setForm] = useState({
