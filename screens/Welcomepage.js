@@ -64,7 +64,7 @@ export default function Welcomepage({ route, navigation }) {
             <Text style={styles.arrow}>➝</Text>
           </View>
           <Image
-            source={require('../assets/Sneaker-head.PNG')}
+            source={require('../assets/sneaker-head.jpg')}
             style={styles.promoImage}
             resizeMode="contain"
           />
@@ -74,7 +74,7 @@ export default function Welcomepage({ route, navigation }) {
         <View style={styles.footer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <Text style={styles.footerText}>
-              . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE .
+              . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE .
             </Text>
           </ScrollView>
         </View>
@@ -212,6 +212,7 @@ const styles = StyleSheet.create({
   promoImage: {
     width: 150,
     height: 150,
+    marginLeft: 16,
   },
   footer: {
     backgroundColor: '#FBFFB1',
