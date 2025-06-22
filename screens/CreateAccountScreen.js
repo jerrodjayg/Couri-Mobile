@@ -148,6 +148,9 @@ export default function CreateAccountScreen({ navigation }) {
       case 'emailExists':
         message = 'Account already exists with that email';
         break;
+      case 'profileSavedFailed':
+          message = 'Failed to save your profile info';
+          break;
       default:
         return null;
     }
