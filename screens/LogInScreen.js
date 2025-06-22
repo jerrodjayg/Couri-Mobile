@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import applelogo from '../assets/appleicon.png';
-import googlelogo from '../assets/googleicon.png';
-import facebooklogo from '../assets/facebookicon.png';
+import AppleLogo from '../assets/appleicon.png';
+import GoogleLogo from '../assets/googleicon.png';
+import FacebookLogo from '../assets/facebookicon.png';
 import { Image } from 'react-native';
 import { supabase } from '../lib/supabase';
 import {

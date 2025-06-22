@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import {View, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { supabase } from './lib/supabase';
+import 'react-native-url-polyfill/auto';
 
 import SplashScreen from './screens/SplashScreen';
 import HomeScreen from './screens/HomeScreen';

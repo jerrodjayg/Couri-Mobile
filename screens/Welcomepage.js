@@ -28,7 +28,7 @@ export default function Welcomepage({ route, navigation }) {
         {/* Top Bar */}
         <View style={styles.topBar}>
           <Image
-            source={require('../assets/Logo Dark.png')}
+            source={require('../assets/Logo_Dark.png')}
             style={styles.logo}
             resizeMode="contain"
           />
