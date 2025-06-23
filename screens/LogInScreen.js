@@ -1,7 +1,4 @@
 import React, { useState } from 'react';
-import AppleLogo from '../assets/appleicon.png';
-import GoogleLogo from '../assets/googleicon.png';
-import FacebookLogo from '../assets/facebookicon.png';
 import { Image } from 'react-native';
 import { supabase } from '../lib/supabase';
 import {
@@ -118,13 +115,24 @@ export default function LogInScreen({ navigation }) {
           {/* Sign Up with Providers */}
           <View style={styles.providerRow}>
             <TouchableOpacity style={styles.providerButton}>
-              <Image source={AppleLogo} style={styles.providerLogo} resizeMode="contain" />
+              <Image source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg' }}
+               style={styles.providerLogo} 
+               resizeMode="contain" 
+               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.providerButton}>
-              <Image source={GoogleLogo} style={styles.providerLogo} resizeMode="contain" />
+              <Image
+               source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }} 
+               style={styles.providerLogo} 
+               resizeMode="contain" 
+               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.providerButton}>
-              <Image source={FacebookLogo} style={styles.providerLogo} resizeMode="contain" />
+              <Image
+              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png' }} 
+              style={styles.providerLogo} 
+              resizeMode="contain" 
+              />
             </TouchableOpacity>
           </View>
 
