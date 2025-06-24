@@ -50,7 +50,7 @@ export default function App() {
       <Stack.Navigator screenOptions={{ 
         headerBackImage: () => (
           <Image
-          source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//back-icon.png' }}
+          source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/back-icon.png' }}
           style={{ width: 24, height: 24 }} 
         />
         ),

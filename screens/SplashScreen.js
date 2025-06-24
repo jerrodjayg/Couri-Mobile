@@ -21,7 +21,7 @@ export default function SplashScreen({ navigation }) {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <Image
-        source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//Logo_Dark.png'}}
+        source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png'}}
         style={styles.logo}
         resizeMode="contain"
       />

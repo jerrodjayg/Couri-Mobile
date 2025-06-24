@@ -28,7 +28,7 @@ export default function Welcomepage({ route, navigation }) {
         {/* Top Bar */}
         <View style={styles.topBar}>
           <Image
-            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//Logo_Dark.png'}}
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png'}}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -64,7 +64,7 @@ export default function Welcomepage({ route, navigation }) {
             <Text style={styles.arrow}>➝</Text>
           </View>
           <Image
-            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//sneaker-head.jpg'}}
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/sneaker-head.jpg'}}
             style={styles.promoImage}
             resizeMode="contain"
           />
