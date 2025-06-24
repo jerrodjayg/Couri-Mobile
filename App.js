@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {View, Text, ActivityIndicator } from 'react-native';
+import {View, Text, ActivityIndicator, Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { supabase } from './lib/supabase';
@@ -46,7 +46,16 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ 
+        headerBackImage: () => (
+          <Image
+          source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//back-icon.png' }}
+          style={{ width: 24, height: 24 }} 
+        />
+        ),
+        headerBackTitleVisible: false,
+      }}
+      >
         {/* SplashScreen is only shown briefly on launch */}
         <Stack.Screen name="Splash" component={SplashScreen} />
         {/* Conditional navigation based on Supabase session */}

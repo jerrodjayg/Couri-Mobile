@@ -12,7 +12,7 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.top}>
         <Image
-          source={require('../assets/Logo_Dark.png')}
+          source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//Logo_Dark.png'}}
           style={styles.logo}
           resizeMode="contain"
         />
