@@ -178,7 +178,7 @@ export default function CreateAccountScreen({ navigation }) {
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
               <Image 
-              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//back-icon.png'}}
+              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/back-icon.png'}}
               style={styles.backArrowImage}
               resizeMode="contain"
              />
