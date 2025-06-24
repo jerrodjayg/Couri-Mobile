@@ -115,21 +115,21 @@ export default function LogInScreen({ navigation }) {
           {/* Sign Up with Providers */}
           <View style={styles.providerRow}>
             <TouchableOpacity style={styles.providerButton}>
-              <Image source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//appleicon.png' }}
+              <Image source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
                style={styles.providerLogo} 
                resizeMode="contain" 
                />
             </TouchableOpacity>
             <TouchableOpacity style={styles.providerButton}>
               <Image
-               source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//googleicon.png' }} 
+               source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }} 
                style={styles.providerLogo} 
                resizeMode="contain" 
                />
             </TouchableOpacity>
             <TouchableOpacity style={styles.providerButton}>
               <Image
-              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//facebookicon.png' }} 
+              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }} 
               style={styles.providerLogo} 
               resizeMode="contain" 
               />
