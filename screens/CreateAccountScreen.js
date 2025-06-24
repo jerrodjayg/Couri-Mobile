@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
+import { Image } from 'react-native';
 import axios from 'axios';
 import {
   View,
@@ -176,11 +177,15 @@ export default function CreateAccountScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>←</Text>
-            </Pressable>
-            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
-            <View style={{ width: 24 }} />
-          </View>
+              <Image 
+              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//back-icon.png'}}
+              style={styles.backArrowImage}
+              resizeMode="contain"
+             />
+          </Pressable>
+          <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+          <View style={{ width: 24 }} />
+        </View>
 
           {renderError()}
 
@@ -283,9 +288,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
+  backArrowImage: {
+    width: 24,
+    height: 24,
+  },
   suggestionItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-  },
+  }
 });
