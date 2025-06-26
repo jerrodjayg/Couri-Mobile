@@ -12,7 +12,7 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.top}>
         <Image
-          source={require('../assets/Logo Dark.png')}
+          source={require('../assets/Logo_Dark.png')}
           style={styles.logo}
           resizeMode="contain"
         />
