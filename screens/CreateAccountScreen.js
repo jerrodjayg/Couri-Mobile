@@ -11,9 +11,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  FlatList,
+  TouchableWithoutFeedback,
 } from 'react-native';
+import axios from 'axios';
 
 import { addUser, findUserByEmail } from '../UserStore';
+
+const GEOAPIFY_API_KEY = 'd32e033d549b4ad5a9f56bd0519f87e3';
 
 export default function CreateAccountScreen({ navigation }) {
   const [form, setForm] = useState({
@@ -26,25 +31,77 @@ export default function CreateAccountScreen({ navigation }) {
     city: '',
     state: '',
     zip: '',
-    password: '', // Added password field here (you need this for login)
+    password: '',
   });
 
   const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
 
   const handleChange = (name, value) => {
     setForm({ ...form, [name]: value });
-    setError(''); // Clear error on input change
+    setError('');
+
+    // Trigger address suggestions for address1
+    if (name === 'address1') {
+      if (value.length > 3) {
+        fetchSuggestions(value);
+      } else {
+        setSuggestions([]);
+      }
+    }
+  };
+
+  const fetchSuggestions = async (text) => {
+    try {
+      const res = await axios.get(
+        'https://api.geoapify.com/v1/geocode/autocomplete',
+        {
+          params: {
+            text,
+            apiKey: GEOAPIFY_API_KEY,
+            filter: 'countrycode:us',
+            limit: 5,
+          },
+        },
+      );
+
+      if (res.data && res.data.features) {
+        setSuggestions(res.data.features);
+      }
+    } catch (err) {
+      console.error('Autocomplete fetch error:', err);
+    }
+  };
+
+  const selectSuggestion = (item) => {
+    const { housenumber, street, city, state, postcode } = item.properties;
+
+    setForm({
+      ...form,
+      address1: `${housenumber ? housenumber + ' ' : ''}${street}`,
+      city: city || '',
+      state: state || '',
+      zip: postcode || '',
+    });
+    setSuggestions([]);
   };
 
   // Simple email validation: contains @ symbol
-  const isValidEmail = (email) => {
-    return email.includes('@');
-  };
+  const isValidEmail = (email) => email.includes('@');
 
   const allRequiredFieldsFilled = () => {
-    // List all required fields (except address2 which is optional)
-    const requiredFields = ['firstName','lastName','email','phone','address1','city','state','zip','password'];
-    return requiredFields.every(field => form[field].trim() !== '');
+    const requiredFields = [
+      'firstName',
+      'lastName',
+      'email',
+      'phone',
+      'address1',
+      'city',
+      'state',
+      'zip',
+      'password',
+    ];
+    return requiredFields.every((field) => form[field].trim() !== '');
   };
 
   const onContinue = () => {
@@ -65,7 +122,6 @@ export default function CreateAccountScreen({ navigation }) {
       return;
     }
 
-    // Add user to store
     addUser({
       firstName: form.firstName,
       lastName: form.lastName,
@@ -79,7 +135,6 @@ export default function CreateAccountScreen({ navigation }) {
       password: form.password,
     });
 
-    // Navigate to Welcomepage with firstName param
     navigation.navigate('Welcomepage', { name: form.firstName });
   };
 
@@ -178,6 +233,24 @@ export default function CreateAccountScreen({ navigation }) {
             onChangeText={(text) => handleChange('address1', text)}
             style={styles.input}
           />
+
+          {/* Autocomplete Suggestions */}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionBox}>
+              <FlatList
+                data={suggestions}
+                keyExtractor={(item) => item.place_id}
+                renderItem={({ item }) => (
+                  <TouchableWithoutFeedback onPress={() => selectSuggestion(item)}>
+                    <View style={styles.suggestionItem}>
+                      <Text>{item.properties.formatted}</Text>
+                    </View>
+                  </TouchableWithoutFeedback>
+                )}
+              />
+            </View>
+          )}
+
           <TextInput
             placeholder="Address Line 2 (Optional)"
             value={form.address2}
@@ -311,8 +384,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 14,
   },
-  errorText: {
-    color: 'red',
-    fontWeight: '600',
+
+  errorText: { 
+    color: 'red', 
+    fontWeight: '600' 
   },
+
+  // New styles for address suggestions
+  suggestionBox: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  backArrowImage: {
+    width: 24,
+    height: 24,
+  },
+  suggestionItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  }
 });
+
