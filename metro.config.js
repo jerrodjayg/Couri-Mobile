@@ -1,4 +1,9 @@
-// metro.config.js
-const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const { getDefaultConfig } = require('expo/metro-config');
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), {});
+/** @type {import('expo/metro-config').MetroConfig} */
+const config = getDefaultConfig(__dirname);
+
+// <- THE line that stops the Hermes “require” crash
+config.resolver.unstable_enablePackageExports = false;
+
+module.exports = config;
