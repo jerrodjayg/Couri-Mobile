@@ -13,7 +13,7 @@ export default function SplashScreen({ navigation }) {
       }).start(() => {
         navigation.replace('Home');
       });
-    }, 3000); // Hold 3s before fading
+    }, 2000); // Hold 3s before fading
 
     return () => clearTimeout(timer);
   }, [fadeAnim]);

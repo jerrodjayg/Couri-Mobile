@@ -47,25 +47,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 160,
-    paddingBottom: 60,
   },
   top: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 60,
+    width: '100%',
   },
   logo: {
-    width: 140,
-    height: 70,
-    marginBottom: 30,
+    width: 80,
+    height: 40,
+    marginBottom: 20,
   },
   welcomeText: {
-    fontSize: 38,
+    fontSize: 31,
     textAlign: 'center',
     color: '#000',
-    lineHeight: 50,
+    lineHeight: 45,
+    fontWeight: '300', // thinner text
+    width: '90%',
   },
   buttonGroup: {
     width: '100%',
+    paddingBottom: 60,
   },
   primaryButton: {
     backgroundColor: '#000',

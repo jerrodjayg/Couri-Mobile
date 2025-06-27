@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   StatusBar,
 } from 'react-native';
@@ -23,8 +22,8 @@ export default function Welcomepage({ route, navigation }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <ScrollView contentContainerStyle={styles.container}>
 
+      <View style={styles.wrapper}>
         {/* Top Bar */}
         <View style={styles.topBar}>
           <Image
@@ -35,56 +34,41 @@ export default function Welcomepage({ route, navigation }) {
           <View style={styles.profilePlaceholder} />
         </View>
 
-        {/* Welcome Block */}
-        <Text style={styles.wave}>👋</Text>
-        <Text style={styles.welcome}>WELCOME, {name.toUpperCase()}!</Text>
-        <Text style={styles.headline}>Let’s get started.</Text>
-        <Text style={styles.subheadline}>
-          You don’t have any active Couri transactions.
-        </Text>
-
-        <TouchableOpacity style={styles.beginButton}>
-          <Text style={styles.beginButtonText}>+  Begin a Transaction</Text>
-        </TouchableOpacity>
-
-        {/* Middle Info Block */}
-        <View style={styles.infoBlock}>
-          <Text style={styles.infoIcon}>👓</Text>
-          <Text style={styles.infoTitle}>Couri is transforming{"\n"}peer-to-peer transactions.</Text>
-          <Text style={styles.infoSub}>Check out how it works.</Text>
-          <TouchableOpacity style={styles.learnMoreButton}>
-            <Text style={styles.learnMoreText}>Learn more</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Black Promo Section with Image */}
-        <View style={styles.promoSection}>
-          <View style={styles.promoLeft}>
-            <Text style={styles.promoHeadline}>Get hype,{"\n"}something big is coming</Text>
-            <Text style={styles.arrow}>➝</Text>
-          </View>
-          <Image
-            source={require('../assets/sneaker-head.jpg')}
-            style={styles.promoImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Footer Strip with horizontal scroll */}
-        <View style={styles.footer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Text style={styles.footerText}>
-              . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE . COURI EXCLUSIVE .
+        {/* White Block */}
+        <View style={styles.whiteBlock}>
+          <View style={styles.whiteBlockInner}>
+            <Text style={styles.welcomeRow}>
+              <Text style={styles.wave}>👋🏻</Text> WELCOME, {name.toUpperCase()}!
             </Text>
-          </ScrollView>
+            <Text style={styles.headline}>Let’s get started.</Text>
+            <Text style={styles.subheadline}>You don’t have any active Couri transactions.</Text>
+            <View style={styles.placeholderBox} />
+            <TouchableOpacity style={styles.beginButton}>
+              <Text style={styles.beginButtonText}>+  Begin a Transaction</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Sign Out */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {/* Pink Section */}
+        <View style={styles.pinkBackground}>
+          <View style={styles.infoBlock}>
+            <Image
+              source={require('../assets/mark2_dark.png')}
+              style={styles.infoLogoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.infoTitle}>
+              Couri is transforming{"\n"}peer-to-peer transactions.
+            </Text>
+            <Text style={styles.infoSub}>Check out how it works.</Text>
 
-      </ScrollView>
+            {/* White Sign Out Button */}
+            <TouchableOpacity style={styles.signOutWhiteButton} onPress={handleSignOut}>
+              <Text style={styles.signOutWhiteText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -94,10 +78,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  container: {
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    paddingBottom: 80,
+  wrapper: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
   topBar: {
     flexDirection: 'row',
@@ -105,12 +88,11 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: 24,
-    marginBottom: 16,
     marginTop: 10,
   },
   logo: {
-    width: 90,
-    height: 40,
+    width: 70,
+    height: 30,
   },
   profilePlaceholder: {
     width: 40,
@@ -118,55 +100,83 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#ccc',
   },
+  whiteBlock: {
+    width: '100%',
+    paddingTop: 20,
+    paddingBottom: 43,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    minHeight: 400,
+  },
+  whiteBlockInner: {
+    width: '100%',
+    alignItems: 'center',
+  },
   wave: {
     fontSize: 28,
+    marginRight: 8,
   },
-  welcome: {
-    fontSize: 14,
+  welcomeRow: {
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: 8,
+    marginBottom: 10,
   },
   headline: {
-    fontSize: 32,
-    fontWeight: '600',
+    fontSize: 35,
+    fontWeight: '400',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 20,
+    marginBottom: 8,
   },
   subheadline: {
     fontSize: 16,
     color: '#444',
     textAlign: 'center',
-    marginTop: 8,
     marginBottom: 20,
-    paddingHorizontal: 24,
+  },
+  placeholderBox: {
+    width: '95%',
+    height: 140,
+    backgroundColor: '#eee',
+    borderRadius: 8,
+    marginBottom: 20,
   },
   beginButton: {
     backgroundColor: '#000',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: 19,
+    paddingHorizontal: 33,
     borderRadius: 50,
-    marginBottom: 32,
+    marginTop: 20,
   },
   beginButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  pinkBackground: {
+    backgroundColor: '#FDEAFF',
+    alignItems: 'center',
+    paddingBottom: 30,
+    paddingTop: 16,
   },
   infoBlock: {
     width: '100%',
-    backgroundColor: '#FDEAFF',
-    paddingVertical: 24,
+    paddingVertical: 12,
     paddingHorizontal: 24,
     alignItems: 'center',
-    marginBottom: 32,
   },
-  infoIcon: {
-    fontSize: 24,
+  infoLogoImage: {
+    width: 50,
+    height: 50,
     marginBottom: 12,
   },
   infoTitle: {
-    fontSize: 20,
-    fontWeight: '500',
+    fontSize: 28, // increased by 8
+    fontWeight: '300', // lighter and unbolded
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -175,68 +185,18 @@ const styles = StyleSheet.create({
     color: '#444',
     marginBottom: 20,
   },
-  learnMoreButton: {
+  signOutWhiteButton: {
+    backgroundColor: '#fff',
+    borderRadius: 50,
+    paddingVertical: 19,
+    paddingHorizontal: 33,
     borderWidth: 1,
     borderColor: '#000',
-    borderRadius: 50,
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    elevation: 6,
   },
-  learnMoreText: {
+  signOutWhiteText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  promoSection: {
-    width: '100%',
-    backgroundColor: '#000',
-    padding: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  promoLeft: {
-    flex: 1,
-  },
-  promoHeadline: {
-    fontSize: 26,
-    fontWeight: '500',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  arrow: {
-    fontSize: 24,
-    color: '#fff',
-  },
-  promoImage: {
-    width: 150,
-    height: 150,
-    marginLeft: 16,
-  },
-  footer: {
-    backgroundColor: '#FBFFB1',
-    width: '100%',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 0,
-  },
-  footerText: {
-    fontWeight: '600',
+    textAlign: 'center',
     color: '#000',
-    fontSize: 14,
-  },
-  signOutButton: {
-    marginTop: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 50,
-  },
-  signOutText: {
-    color: '#000',
-    fontWeight: '600',
-    fontSize: 16,
   },
 });

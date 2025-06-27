@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  FlatList,
   TouchableWithoutFeedback,
 } from 'react-native';
 import axios from 'axios';
@@ -36,6 +35,17 @@ export default function CreateAccountScreen({ navigation }) {
 
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+
+  //useEffect(() => {
+  //console.log(
+  //  'Suggestion place_ids:',
+  //  suggestions.map((item, idx) => ({
+  //    idx,
+  //    place_id: item.place_id
+  //  }))
+  //);
+//}, [suggestions]);
+
 
   const handleChange = (name, value) => {
     setForm({ ...form, [name]: value });
@@ -166,6 +176,8 @@ export default function CreateAccountScreen({ navigation }) {
     );
   };
 
+  //console.log('Rendering suggestions:', suggestions ? suggestions.map(s => s.place_id) : []);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
@@ -234,20 +246,21 @@ export default function CreateAccountScreen({ navigation }) {
             style={styles.input}
           />
 
+
+
           {/* Autocomplete Suggestions */}
           {suggestions.length > 0 && (
             <View style={styles.suggestionBox}>
-              <FlatList
-                data={suggestions}
-                keyExtractor={(item) => item.place_id}
-                renderItem={({ item }) => (
-                  <TouchableWithoutFeedback onPress={() => selectSuggestion(item)}>
-                    <View style={styles.suggestionItem}>
-                      <Text>{item.properties.formatted}</Text>
-                    </View>
-                  </TouchableWithoutFeedback>
-                )}
-              />
+              {suggestions.map((item) => (
+                <TouchableWithoutFeedback
+                  key={item.properties.place_id}
+                  onPress={() => selectSuggestion(item)}
+                >
+                <View style={styles.suggestionItem}>
+                  <Text>{item.properties.formatted}</Text>
+                </View>
+              </TouchableWithoutFeedback>
+              ))}
             </View>
           )}
 
