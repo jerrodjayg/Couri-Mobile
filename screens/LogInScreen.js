@@ -11,47 +11,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
-
-import { findUserByEmailOrPhone } from '../UserStore';
 
 export default function LogInScreen({ navigation }) {
   const [emailOrPhone, setEmailOrPhone] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const onContinue = () => {
     setError('');
 
-    if (!emailOrPhone.trim() || !password.trim()) {
-      setError('invalidLogin');
+    if (!emailOrPhone.trim()) {
+      setError('Mobile Number');
       return;
     }
 
     // Try to find user by email or phone
-    const user = findUserByEmailOrPhone(emailOrPhone);
-
-    if (!user || user.password !== password) {
-      setError('invalidLogin');
-      return;
-    }
+    //const user = findUserByEmailOrPhone(Phone);
 
     // Login success: navigate to Welcomepage with user's first name
     navigation.navigate('Welcomepage', { name: user.firstName });
   };
 
-  const renderError = () => {
-    if (!error) return null;
-
-    return (
-      <View style={styles.errorContainer}>
-        <View style={styles.errorIcon}>
-          <Text style={styles.errorIconText}>!</Text>
-        </View>
-        <Text style={styles.errorText}>Invalid email or password</Text>
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -68,30 +49,29 @@ export default function LogInScreen({ navigation }) {
             <Pressable onPress={() => navigation.goBack()}>
               <Text style={styles.backArrow}>←</Text>
             </Pressable>
-            <Text style={styles.headerTitle}>LOG IN</Text>
+            <Text style={styles.headerTitle}>SIGN UP</Text>
             <View style={{ width: 24 }} />
           </View>
-
-          {/* Show error */}
-          {renderError()}
 
           {/* Email / Phone Input */}
           <TextInput
             style={styles.input}
-            placeholder="Email or Mobile Number"
+            placeholder="Mobile Number"
+            placeholderTextColor="#000"
             value={emailOrPhone}
             onChangeText={setEmailOrPhone}
             autoCapitalize="none"
+            keyboardType="phone-pad"
+            maxLength={10}
           />
+          <Text style={styles.subText}>Message and data rates may apply.</Text>
 
-          {/* Password Input */}
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          {/* Error Message */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           {/* Continue Button */}
           <TouchableOpacity style={styles.button} onPress={onContinue}>
@@ -99,10 +79,38 @@ export default function LogInScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* Sign Up Prompt */}
+          <View style={styles.socialBox}>
+            <Text style={styles.socialLabel}>or signup with</Text>
+            <View style={styles.providerRow}>
+            <TouchableOpacity style={styles.providerButton}>
+              <Image
+              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//appleicon.png' }}
+              style={styles.providerLogo}
+              resizeMode="contain"
+              />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.providerButton}>
+                <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//googleicon.png' }}
+                style={styles.providerLogo}
+                  resizeMode="contain"
+                />
+                </TouchableOpacity>
+              <TouchableOpacity style={styles.providerButton}>
+                <Image
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//facebookicon.png' }}
+                  style={styles.providerLogo}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Already have an account */}
           <View style={styles.signUpRow}>
-            <Text style={styles.bottomText}>Don’t have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
-              <Text style={[styles.bottomText, styles.link]}>Sign up</Text>
+            <Text style={styles.bottomText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={[styles.bottomText, styles.link]}>Login</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -114,19 +122,19 @@ export default function LogInScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: 'white',
   },
   container: {
     flexGrow: 1,
     padding: 24,
-    backgroundColor: 'transparent',
+    backgroundColor: 'white',
     justifyContent: 'flex-start',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 66,
   },
   backArrow: {
     fontSize: 24,
@@ -137,60 +145,103 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
+  label: {
+    fontSize: 22,
+    fontWeight: '400',
+    color: '#000',
+    marginBottom: 8,
+  },
   input: {
     borderBottomWidth: 1,
     borderBottomColor: '#222',
     paddingVertical: 12,
-    marginBottom: 24,
-    fontSize: 18,
+    marginBottom: 8,
+    fontSize: 41,
   },
-  link: {
-    textDecorationLine: 'underline',
+  subText: {
+    fontSize: 12,
     color: '#000',
+    marginBottom: 24,
   },
   button: {
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#000',
     paddingVertical: 16,
     borderRadius: 50,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 32,
+    marginTop: 10,
+    marginBottom: 22,
     elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#000',
+  },
+  socialBox: {
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  socialLabel: {
+    fontSize: 14,
+    marginBottom: 12,
+    color: '#000',
+  },
+  providerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    width: '100%',
+  },
+  providerButton: {
+    width: 90,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  providerLogo: {
+    width: 24,
+    height: 24,
+  },
+  signUpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 10,
   },
   bottomText: {
     textAlign: 'center',
     fontSize: 14,
     color: '#000',
   },
-  signUpRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  link: {
+    textDecorationLine: 'underline',
+    fontWeight: 'bold',
+    color: '#000',
   },
-
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-  },
-  errorIcon: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'red',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6,
-  },
-  errorIconText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-    lineHeight: 14,
   },
   errorText: {
     color: 'red',
