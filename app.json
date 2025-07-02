@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "jerrod",
+    "name": "Couri",
     "slug": "jerrod",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,15 +13,13 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "useAppleSignIn": true,
+      "bundleIdentifier": "com.anonymous.jerrod"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
-    },
+    "plugins": [
+      "expo-apple-authentication",
+      "expo-web-browser"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
