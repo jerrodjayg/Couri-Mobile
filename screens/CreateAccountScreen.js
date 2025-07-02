@@ -3,10 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
+  SafeAreaView,
   TextInput,
   TouchableOpacity,
   Pressable,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import axios from 'axios';
 
-import { addUser, findUserByEmail } from '../UserStore';
+import { addUser, findUserByEmail, findUserByEmailOrPhone } from '../UserStore';
 
 const GEOAPIFY_API_KEY = 'd32e033d549b4ad5a9f56bd0519f87e3';
 
@@ -116,6 +116,7 @@ export default function CreateAccountScreen({ navigation }) {
 
   const onContinue = () => {
     setError('');
+    console.log('Attempting login with:', findUserByEmailOrPhone)
 
     if (!allRequiredFieldsFilled()) {
       setError('missingFields');
@@ -145,12 +146,15 @@ export default function CreateAccountScreen({ navigation }) {
       password: form.password,
     });
 
-    navigation.navigate('Welcomepage', { name: form.firstName });
+    if (!user || !user.firstName) {
+      setError('invalidLogin');
+      return;
+    }
+    navigation.navigate('Welcomepage', { name: user.firstName });
   };
 
   const renderError = () => {
     if (!error) return null;
-
     let message = '';
     switch (error) {
       case 'missingFields':
@@ -312,7 +316,7 @@ export default function CreateAccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#fff',
   },
   container: {
     padding: 24,
@@ -423,4 +427,3 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   }
 });
-

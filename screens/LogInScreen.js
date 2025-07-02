@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -12,27 +12,42 @@ import {
   Platform,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { PhoneAuthProvider } from 'firebase/auth';
+import { auth } from '../firebase';
+import { useNavigation } from '@react-navigation/native';
+import { useGoogleAuth } from '../auth/googleauth'; 
 
-export default function LogInScreen({ navigation }) {
-  const [emailOrPhone, setEmailOrPhone] = useState('');
+
+export default function LogInScreen({navigation}) {
   const [error, setError] = useState('');
+  const { promptAsync } = useGoogleAuth(navigation);
+  const [phone, setPhone] = useState('');
+  const recaptchaVerifier = useRef(null);
 
-  const onContinue = () => {
+   const handleContinue = async () => {
     setError('');
-
-    if (!emailOrPhone.trim()) {
-      setError('Mobile Number');
+    
+    if (phone.length !== 10) {
+      setError('Please enter a 10-digit phone number');
       return;
     }
 
-    // Try to find user by email or phone
-    //const user = findUserByEmailOrPhone(Phone);
+    try {
+      const fullPhone = `+1${phone}`;
+      const provider = new PhoneAuthProvider(auth);
+      const verificationId = await provider.verifyPhoneNumber(fullPhone, recaptchaVerifier.current);
 
-    // Login success: navigate to Welcomepage with user's first name
-    navigation.navigate('Welcomepage', { name: user.firstName });
+      navigation.navigate('CodeVerify', {
+        verificationId,
+        phone: fullPhone,
+      });
+    } catch (error) {
+      Alert.alert('Failed to send code', error.message);
+    }
   };
-
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -53,13 +68,18 @@ export default function LogInScreen({ navigation }) {
             <View style={{ width: 24 }} />
           </View>
 
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={auth.app.options}
+      />
+
           {/* Email / Phone Input */}
           <TextInput
             style={styles.input}
             placeholder="Mobile Number"
             placeholderTextColor="#000"
-            value={emailOrPhone}
-            onChangeText={setEmailOrPhone}
+            value={phone}
+            onChangeText={setPhone}
             autoCapitalize="none"
             keyboardType="phone-pad"
             maxLength={10}
@@ -74,7 +94,7 @@ export default function LogInScreen({ navigation }) {
           ) : null}
 
           {/* Continue Button */}
-          <TouchableOpacity style={styles.button} onPress={onContinue}>
+          <TouchableOpacity style={styles.button} onPress={handleContinue}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
 
@@ -89,11 +109,11 @@ export default function LogInScreen({ navigation }) {
               resizeMode="contain"
               />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.providerButton}>
+              <TouchableOpacity style={styles.providerButton} onPress={() => promptAsync()}>
                 <Image
                 source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//googleicon.png' }}
                 style={styles.providerLogo}
-                  resizeMode="contain"
+                resizeMode="contain"
                 />
                 </TouchableOpacity>
               <TouchableOpacity style={styles.providerButton}>
