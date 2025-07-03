@@ -28,10 +28,9 @@ export default function LogInScreen({navigation}) {
   const recaptchaVerifier = useRef(null);
 
    const handleContinue = async () => {
-    setError('');
-    
+
     if (phone.length !== 10) {
-      setError('Please enter a 10-digit phone number');
+      setError('Phone number must be at least 10 digits');
       return;
     }
 
@@ -40,7 +39,8 @@ export default function LogInScreen({navigation}) {
       const provider = new PhoneAuthProvider(auth);
       const verificationId = await provider.verifyPhoneNumber(fullPhone, recaptchaVerifier.current);
 
-      navigation.navigate('CodeVerify', {
+      setError('');
+      navigation.navigate('CodeVerify',{
         verificationId,
         phone: fullPhone,
       });
@@ -87,11 +87,7 @@ export default function LogInScreen({navigation}) {
           <Text style={styles.subText}>Message and data rates may apply.</Text>
 
           {/* Error Message */}
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+          
 
           {/* Continue Button */}
           <TouchableOpacity style={styles.button} onPress={handleContinue}>
@@ -133,6 +129,18 @@ export default function LogInScreen({navigation}) {
               <Text style={[styles.bottomText, styles.link]}>Login</Text>
             </TouchableOpacity>
           </View>
+
+          {error ? (
+            <View style={styles.toastWrapper}>
+            <View style={styles.errorToast}>
+    <View style={styles.errorIconCircle}>
+      <Text style={styles.errorIconText}>!</Text>
+    </View>
+    <Text style={styles.errorMessage}>Phone number must be at least 10 digits</Text>
+  </View>
+  </View>
+          ) : null}
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -162,7 +170,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#000',
   },
   label: {
@@ -198,6 +205,38 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
+  errorOverlay: {
+  position: 'absolute',
+  bottom: 100, // adjust this value as needed
+  left: 0,
+  right: 0,
+  alignItems: 'center',
+  zIndex: 999,
+},
+  errorBox: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  padding: 12,
+  borderRadius: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+  elevation: 5,
+  marginBottom: 16,
+},
+errorIconCircle:{
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  backgroundColor: '#fff',
+  borderWidth: 2,
+  borderColor: '#f44336',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: 10,
+},
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -248,6 +287,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
   },
+  toastWrapper: {
+  position: 'absolute',
+  bottom: 24,
+  left: 20,
+  right: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+  errorToast: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  borderRadius: 16,
+  paddingVertical: 12,
+  paddingHorizontal: 20,
+  marginTop: 12,
+  marginBottom: 12,
+  alignSelf: 'center',
+  elevation: 5,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+},
   bottomText: {
     textAlign: 'center',
     fontSize: 14,
@@ -258,13 +321,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
+  errorIcon: {
+  color: '#f44336',
+  fontSize: 20,
+  marginRight: 8,
+},
+errorMessage: {
+  color: '#000',
+  fontSize: 14,
+  fontWeight: '500',
+},
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 32,
   },
   errorText: {
     color: 'red',
-    fontWeight: '600',
+    fontWeight: '500',
+    textAlign: 'center',
   },
+  errorIconText: {
+  color: '#f44336',
+  fontSize: 16,
+  fontWeight: 'bold',
+  lineHeight: 16,
+},
 });
