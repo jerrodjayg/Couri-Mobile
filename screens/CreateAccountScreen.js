@@ -133,7 +133,7 @@ export default function CreateAccountScreen({ navigation }) {
       return;
     }
 
-    addUser({
+   const user = {
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
@@ -144,7 +144,9 @@ export default function CreateAccountScreen({ navigation }) {
       state: form.state,
       zip: form.zip,
       password: form.password,
-    });
+    };
+
+    addUser(user);
 
     if (!user || !user.firstName) {
       setError('invalidLogin');
