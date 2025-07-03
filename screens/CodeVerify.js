@@ -13,16 +13,20 @@ import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth } from '../firebase';
 
 export default function CodeVerify({ route, navigation }) {
+  const [isCodeInvalid, setIsCodeInvalid] = useState(false);
   const [code, setCode] = useState('');
   const { verificationId, phone } = route.params;
+  const [ error, setError] = useState('');
 
   const handleVerify = async () => {
     try {
       const credential = PhoneAuthProvider.credential(verificationId, code);
       await signInWithCredential(auth, credential);
+      setIsCodeInvalid(false);
       navigation.replace('Welcomepage');
     } catch (error) {
-      Alert.alert('Invalid Code', 'Please try again.');
+      setIsCodeInvalid(true);
+      setError('Invalid Code, please try again.');
     }
   };
 
@@ -32,19 +36,28 @@ export default function CodeVerify({ route, navigation }) {
       style={styles.container}
     >
       <View style={styles.innerContainer}>
+        {error ? (
+            <View style={styles.errorOverlay}>
+            <View style={styles.errorBox}>
+            <View style={styles.errorIconCircle}>
+              <Text style={styles.errorIconText}>!</Text>
+                </View>
+                <Text style={styles.errorText}>{error}</Text>
+            </View>
+          </View>
+        ) : null}
         <Text style={styles.instructionText}>
           Enter the code we sent to {phone}
         </Text>
        <View style={styles.codeContainer}>
           {[...Array(6)].map((_, index) => (
             <View key={index} style={styles.codeSlot}>
-              <Text style={styles.codeDigit}>
+              <Text style={[styles.codeDigit, code[index] && styles.codeDigitFilled]}>
                 {code[index] ? code[index] : '0'}
               </Text>
-              <View style={styles.underline} />
+              <View style={[styles.underline, isCodeInvalid && styles.underlineError]} />
             </View>
           ))}
-
         <TextInput
           style={styles.hiddenInput}
           value={code}
@@ -157,5 +170,53 @@ hiddenInput: {
   width: '100%',
   height: '100%',
   opacity: 0,
+},
+errorOverlay: {
+  position: 'absolute',
+  bottom: 10, // pushes it just above the keyboard
+  left: 20,
+  right: 20,
+  zIndex: 999,
+  alignItems: 'center',
+},
+errorBox: {
+  flexDirection: 'row',
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  padding: 12,
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowOffset: { width: 0, height: 2 },
+  shadowRadius: 6,
+  elevation: 5,
+  alignItems: 'center',
+  width: '100%',
+},
+errorIconCircle: {
+  width: 24,
+  height: 24,
+  borderRadius: 12,
+  borderWidth: 2,
+  borderColor: 'red',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 8,
+},
+
+errorIconText: {
+  color: 'red',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
+
+errorText: {
+  color: '#000',
+  fontSize: 14,
+},
+underlineError: {
+  backgroundColor: 'red',
+},
+codeDigitFilled: {
+  color: 'black',
 },
 });
