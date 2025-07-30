@@ -1,197 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
   Pressable,
+  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
-import axios from 'axios';
-
-import { addUser, findUserByEmail, findUserByEmailOrPhone } from '../UserStore';
-
-const GEOAPIFY_API_KEY = 'd32e033d549b4ad5a9f56bd0519f87e3';
 
 export default function CreateAccountScreen({ navigation }) {
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address1: '',
-    address2: '',
-    city: '',
-    state: '',
-    zip: '',
-    password: '',
-  });
+  const [phone, setPhone] = useState('');
 
-  const [error, setError] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-
-  //useEffect(() => {
-  //console.log(
-  //  'Suggestion place_ids:',
-  //  suggestions.map((item, idx) => ({
-  //    idx,
-  //    place_id: item.place_id
-  //  }))
-  //);
-//}, [suggestions]);
-
-
-  const handleChange = (name, value) => {
-    setForm({ ...form, [name]: value });
-    setError('');
-
-    // Trigger address suggestions for address1
-    if (name === 'address1') {
-      if (value.length > 3) {
-        fetchSuggestions(value);
-      } else {
-        setSuggestions([]);
-      }
+  const formatPhoneNumber = (text) => {
+    const cleaned = text.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    if (!match) return text;
+    if (match[2]) {
+      return `(${match[1]}) ${match[2]}${match[3] ? '-' + match[3] : ''}`;
     }
+    return match[1];
   };
 
-  const fetchSuggestions = async (text) => {
-    try {
-      const res = await axios.get(
-        'https://api.geoapify.com/v1/geocode/autocomplete',
-        {
-          params: {
-            text,
-            apiKey: GEOAPIFY_API_KEY,
-            filter: 'countrycode:us',
-            limit: 5,
-          },
-        },
-      );
-
-      if (res.data && res.data.features) {
-        setSuggestions(res.data.features);
-      }
-    } catch (err) {
-      console.error('Autocomplete fetch error:', err);
-    }
+  const handlePhoneChange = (text) => {
+    setPhone(formatPhoneNumber(text));
   };
 
-  const selectSuggestion = (item) => {
-    const { housenumber, street, city, state, postcode } = item.properties;
+  const handleContinue = () => {
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length !== 10) {
+      // Simple validation without authentication
+      console.log('Please enter a valid 10-digit phone number');
+      return;
+    }
 
-    setForm({
-      ...form,
-      address1: `${housenumber ? housenumber + ' ' : ''}${street}`,
-      city: city || '',
-      state: state || '',
-      zip: postcode || '',
+    // Simple navigation without authentication
+    navigation.navigate('CodeVerify', {
+      phone: `+1${digitsOnly}`,
     });
-    setSuggestions([]);
   };
 
-  // Simple email validation: contains @ symbol
-  const isValidEmail = (email) => email.includes('@');
-
-  const allRequiredFieldsFilled = () => {
-    const requiredFields = [
-      'firstName',
-      'lastName',
-      'email',
-      'phone',
-      'address1',
-      'city',
-      'state',
-      'zip',
-      'password',
-    ];
-    return requiredFields.every((field) => form[field].trim() !== '');
+  const handleSocialSignUp = (provider) => {
+    // Simple navigation without authentication
+    console.log(`${provider} sign up pressed`);
+    navigation.navigate('Welcomepage');
   };
-
-  const onContinue = () => {
-    setError('');
-    console.log('Attempting login with:', findUserByEmailOrPhone)
-
-    if (!allRequiredFieldsFilled()) {
-      setError('missingFields');
-      return;
-    }
-
-    if (!isValidEmail(form.email)) {
-      setError('invalidEmail');
-      return;
-    }
-
-    if (findUserByEmail(form.email)) {
-      setError('emailExists');
-      return;
-    }
-
-   const user = {
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      phone: form.phone,
-      address1: form.address1,
-      address2: form.address2,
-      city: form.city,
-      state: form.state,
-      zip: form.zip,
-      password: form.password,
-    };
-
-    addUser(user);
-
-    if (!user || !user.firstName) {
-      setError('invalidLogin');
-      return;
-    }
-    navigation.navigate('Welcomepage', { name: user.firstName });
-  };
-
-  const renderError = () => {
-    if (!error) return null;
-    let message = '';
-    switch (error) {
-      case 'missingFields':
-        message = 'All fields must be completed';
-        break;
-      case 'invalidEmail':
-        message = 'Enter a valid email address';
-        break;
-      case 'emailExists':
-        message = 'Account already exists with that email';
-        break;
-      default:
-        return null;
-    }
-
-    return (
-      <View style={styles.errorContainer}>
-        <View style={styles.errorIcon}>
-          <Text style={styles.errorIconText}>!</Text>
-        </View>
-        <Text style={styles.errorText}>{message}</Text>
-      </View>
-    );
-  };
-
-  //console.log('Rendering suggestions:', suggestions ? suggestions.map(s => s.place_id) : []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="dark-content" translucent />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           {/* Header */}
@@ -199,116 +65,69 @@ export default function CreateAccountScreen({ navigation }) {
             <Pressable onPress={() => navigation.goBack()}>
               <Text style={styles.backArrow}>←</Text>
             </Pressable>
-            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+            <Text style={styles.headerTitle}>SIGN UP</Text>
             <View style={{ width: 24 }} />
           </View>
 
-          {/* Show error */}
-          {renderError()}
-
-          {/* Personal Info */}
-          <Text style={styles.sectionTitle}>Personal Info</Text>
+          {/* Input */}
           <TextInput
-            placeholder="First Name*"
-            value={form.firstName}
-            onChangeText={(text) => handleChange('firstName', text)}
             style={styles.input}
-          />
-          <TextInput
-            placeholder="Last Name*"
-            value={form.lastName}
-            onChangeText={(text) => handleChange('lastName', text)}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Email Address*"
-            value={form.email}
-            onChangeText={(text) => handleChange('email', text)}
-            keyboardType="email-address"
+            placeholder="Mobile Number"
+            placeholderTextColor="#000"
+            value={phone}
+            onChangeText={handlePhoneChange}
             autoCapitalize="none"
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Mobile Number*"
-            value={form.phone}
-            onChangeText={(text) => handleChange('phone', text)}
             keyboardType="phone-pad"
-            style={styles.input}
+            maxLength={14}
           />
-          <TextInput
-            placeholder="Password*"
-            value={form.password}
-            onChangeText={(text) => handleChange('password', text)}
-            secureTextEntry
-            style={styles.input}
-          />
-
-          {/* Address */}
-          <Text style={styles.sectionTitle}>Home Address</Text>
-          <TextInput
-            placeholder="Address Line 1*"
-            value={form.address1}
-            onChangeText={(text) => handleChange('address1', text)}
-            style={styles.input}
-          />
-
-
-
-          {/* Autocomplete Suggestions */}
-          {suggestions.length > 0 && (
-            <View style={styles.suggestionBox}>
-              {suggestions.map((item) => (
-                <TouchableWithoutFeedback
-                  key={item.properties.place_id}
-                  onPress={() => selectSuggestion(item)}
-                >
-                <View style={styles.suggestionItem}>
-                  <Text>{item.properties.formatted}</Text>
-                </View>
-              </TouchableWithoutFeedback>
-              ))}
-            </View>
-          )}
-
-          <TextInput
-            placeholder="Address Line 2 (Optional)"
-            value={form.address2}
-            onChangeText={(text) => handleChange('address2', text)}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="City*"
-            value={form.city}
-            onChangeText={(text) => handleChange('city', text)}
-            style={styles.input}
-          />
-          <View style={styles.row}>
-            <TextInput
-              placeholder="State*"
-              value={form.state}
-              onChangeText={(text) => handleChange('state', text)}
-              style={[styles.input, styles.halfInput]}
-            />
-            <TextInput
-              placeholder="Zip*"
-              value={form.zip}
-              onChangeText={(text) => handleChange('zip', text)}
-              keyboardType="numeric"
-              style={[styles.input, styles.halfInput]}
-            />
-          </View>
-
-          {/* Legal Text */}
-          <Text style={styles.legal}>
-            By creating an account, you agree to Couri’s{' '}
-            <Text style={[styles.legal, styles.link]}>Terms of Use</Text> and{' '}
-            <Text style={[styles.legal, styles.link]}>Privacy Policy</Text>.
-          </Text>
+          <Text style={styles.subText}>Message and data rates may apply.</Text>
 
           {/* Continue Button */}
-          <TouchableOpacity style={styles.button} onPress={onContinue}>
-            <Text style={styles.buttonText}>Continue</Text>
+          <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+            <Text style={styles.continueText}>Continue</Text>
           </TouchableOpacity>
+
+          {/* Social Sign Up */}
+          <View style={styles.socialBox}>
+            <Text style={styles.socialLabel}>or signup with</Text>
+            <View style={styles.providerRow}>
+              <TouchableOpacity 
+                style={styles.providerButton}
+                onPress={() => handleSocialSignUp('Apple')}
+              >
+                <Image
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
+                  style={styles.providerLogo}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.providerButton}
+                onPress={() => handleSocialSignUp('Google')}
+              >
+                <Image
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
+                  style={styles.providerLogo}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.providerButton}
+                onPress={() => handleSocialSignUp('Facebook')}
+              >
+                <Image
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }}
+                  style={styles.providerLogo}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Already Have Account */}
+          <View style={styles.signUpRow}>
+            <Text style={styles.bottomText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={[styles.bottomText, styles.link]}>Login</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -316,116 +135,56 @@ export default function CreateAccountScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { flexGrow: 1, padding: 24, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 66 },
+  backArrow: { fontSize: 24, color: '#000' },
+  headerTitle: { fontSize: 16, color: '#000', fontWeight: '600' },
+  input: { borderBottomWidth: 1, borderBottomColor: '#000', fontSize: 41, paddingVertical: 12, marginBottom: 8 },
+  subText: { fontSize: 12, color: '#000', marginBottom: 45 },
+  continueButton: {
     backgroundColor: '#fff',
-  },
-  container: {
-    padding: 24,
-    backgroundColor: 'transparent',
-    paddingBottom: 80,
-    flexGrow: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  backArrow: {
-    fontSize: 24,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '500',
-    marginBottom: 12,
-    marginTop: 20,
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-    paddingVertical: 12,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  halfInput: {
-    width: '48%',
-  },
-  legal: {
-    fontSize: 12,
-    color: '#444',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  link: {
-    textDecorationLine: 'underline',
-    color: '#000',
-  },
-  button: {
-    backgroundColor: '#000',
+    borderWidth: 1,
+    borderColor: '#000',
     paddingVertical: 16,
     borderRadius: 50,
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 6,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  errorContainer: {
-    flexDirection: 'row',
+  continueText: { fontSize: 16, fontWeight: '600', color: '#000' },
+  socialBox: {
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 24,
   },
-  errorIcon: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'red',
+  socialLabel: { fontSize: 16.8, marginBottom: 24, color: '#000' },
+  providerRow: { flexDirection: 'row', justifyContent: 'space-evenly', width: '100%' },
+  providerButton: {
+    width: 90,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
-  },
-  errorIconText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-    lineHeight: 14,
-  },
-
-  errorText: { 
-    color: 'red', 
-    fontWeight: '600' 
-  },
-
-  // New styles for address suggestions
-  suggestionBox: {
+    marginHorizontal: 10,
     backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
-  backArrowImage: {
-    width: 24,
-    height: 24,
-  },
-  suggestionItem: {
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  }
+  providerLogo: { width: 24, height: 24 },
+  signUpRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
+  bottomText: { fontSize: 14, color: '#000' },
+  link: { textDecorationLine: 'underline', fontWeight: 'bold' },
 });
