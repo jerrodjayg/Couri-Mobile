@@ -1,4 +1,4 @@
-import React, { useRef, useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,109 +12,111 @@ import {
   Platform,
   ScrollView,
   Image,
-  Alert,
 } from 'react-native';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { PhoneAuthProvider } from 'firebase/auth';
-import { auth } from '../firebase';
-import { useNavigation } from '@react-navigation/native';
-import { useGoogleAuth } from '../auth/googleauth'; 
 
-
-export default function LogInScreen({navigation}) {
-  const [error, setError] = useState('');
-  const { promptAsync } = useGoogleAuth(navigation);
+export default function LogInScreen({ navigation }) {
   const [phone, setPhone] = useState('');
-  const recaptchaVerifier = useRef(null);
 
-   const handleContinue = async () => {
+  // Phone formatting (XXX) XXX-XXXX
+  const formatPhoneNumber = (text) => {
+    const cleaned = text.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    if (!match) return text;
+    if (match[2]) return `(${match[1]}) ${match[2]}${match[3] ? '-' + match[3] : ''}`;
+    return match[1];
+  };
 
-    if (phone.length !== 10) {
-      setError('Phone number must be at least 10 digits');
-      return;
-    }
+  const handlePhoneChange = (text) => {
+    setPhone(formatPhoneNumber(text));
+  };
 
-    try {
-      const fullPhone = `+1${phone}`;
-      const provider = new PhoneAuthProvider(auth);
-      const verificationId = await provider.verifyPhoneNumber(fullPhone, recaptchaVerifier.current);
+  const handleContinue = () => {
+    // Simple navigation without authentication
+    navigation.navigate('Welcomepage');
+  };
 
-      setError('');
-      navigation.navigate('CodeVerify',{
-        verificationId,
-        phone: fullPhone,
-      });
-    } catch (error) {
-      Alert.alert('Failed to send code', error.message);
-    }
+  const handlePasswordLogin = () => {
+    // Simple navigation without authentication
+    navigation.navigate('Welcomepage');
+  };
+
+  const handleSocialLogin = (provider) => {
+    // Simple navigation without authentication
+    console.log(`${provider} login pressed`);
+    navigation.navigate('Welcomepage');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
               <Text style={styles.backArrow}>←</Text>
             </Pressable>
-            <Text style={styles.headerTitle}>SIGN UP</Text>
+            <Text style={styles.headerTitle}>LOG IN</Text>
             <View style={{ width: 24 }} />
           </View>
 
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={auth.app.options}
-      />
-
-          {/* Email / Phone Input */}
+          {/* Phone Input */}
           <TextInput
             style={styles.input}
             placeholder="Mobile Number"
             placeholderTextColor="#000"
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={handlePhoneChange}
             autoCapitalize="none"
             keyboardType="phone-pad"
-            maxLength={10}
+            maxLength={14}
           />
           <Text style={styles.subText}>Message and data rates may apply.</Text>
 
-          {/* Error Message */}
-          
-
           {/* Continue Button */}
-          <TouchableOpacity style={styles.button} onPress={handleContinue}>
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleContinue}
+          >
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
 
-          {/* Sign Up Prompt */}
+          {/* Social Logins */}
           <View style={styles.socialBox}>
-            <Text style={styles.socialLabel}>or signup with</Text>
+            <Text style={styles.socialLabel}>or continue with</Text>
+            <TouchableOpacity 
+              style={styles.passwordButton}
+              onPress={handlePasswordLogin}
+            >
+              <Text style={styles.passwordButtonText}>Password Log In</Text>
+            </TouchableOpacity>
             <View style={styles.providerRow}>
-            <TouchableOpacity style={styles.providerButton}>
-              <Image
-              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//appleicon.png' }}
-              style={styles.providerLogo}
-              resizeMode="contain"
-              />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.providerButton} onPress={() => promptAsync()}>
+              <TouchableOpacity 
+                style={styles.providerButton} 
+                onPress={() => handleSocialLogin('Apple')}
+              >
                 <Image
-                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//googleicon.png' }}
-                style={styles.providerLogo}
-                resizeMode="contain"
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
+                  style={styles.providerLogo}
+                  resizeMode="contain"
                 />
-                </TouchableOpacity>
-              <TouchableOpacity style={styles.providerButton}>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.providerButton} 
+                onPress={() => handleSocialLogin('Google')}
+              >
                 <Image
-                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons//facebookicon.png' }}
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
+                  style={styles.providerLogo}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.providerButton} 
+                onPress={() => handleSocialLogin('Facebook')}
+              >
+                <Image
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }}
                   style={styles.providerLogo}
                   resizeMode="contain"
                 />
@@ -122,25 +124,17 @@ export default function LogInScreen({navigation}) {
             </View>
           </View>
 
-          {/* Already have an account */}
+          {/* Footer */}
           <View style={styles.signUpRow}>
-            <Text style={styles.bottomText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={[styles.bottomText, styles.link]}>Login</Text>
+            <Text style={styles.bottomText}>Don't have an account? </Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('CreateAccount')}
+            >
+              <Text style={[styles.bottomText, styles.link]}>
+                Sign Up
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {error ? (
-            <View style={styles.toastWrapper}>
-            <View style={styles.errorToast}>
-    <View style={styles.errorIconCircle}>
-      <Text style={styles.errorIconText}>!</Text>
-    </View>
-    <Text style={styles.errorMessage}>Phone number must be at least 10 digits</Text>
-  </View>
-  </View>
-          ) : null}
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -172,12 +166,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
   },
-  label: {
-    fontSize: 22,
-    fontWeight: '400',
-    color: '#000',
-    marginBottom: 8,
-  },
   input: {
     borderBottomWidth: 1,
     borderBottomColor: '#222',
@@ -205,62 +193,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
-  errorOverlay: {
-  position: 'absolute',
-  bottom: 100, // adjust this value as needed
-  left: 0,
-  right: 0,
-  alignItems: 'center',
-  zIndex: 999,
-},
-  errorBox: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#fff',
-  padding: 12,
-  borderRadius: 16,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 4,
-  elevation: 5,
-  marginBottom: 16,
-},
-errorIconCircle:{
-  width: 24,
-  height: 24,
-  borderRadius: 12,
-  backgroundColor: '#fff',
-  borderWidth: 2,
-  borderColor: '#f44336',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginRight: 10,
-},
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  socialBox: {
-    borderWidth: 1,
-    borderColor: '#000',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginBottom: 24,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
-  socialLabel: {
+  socialLabel: { 
     fontSize: 14,
-    marginBottom: 12,
-    color: '#000',
+    marginBottom: 16,
+    color: '#000' 
   },
-  providerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
+  passwordButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
     width: '100%',
+    borderColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 50,
+    marginBottom: 20,
+    elevation: 3,
+  },
+  passwordButtonText: { 
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '450',
+    color: '#000' 
+  },
+  providerRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-evenly', 
+    width: '100%' 
   },
   providerButton: {
     width: 90,
@@ -278,6 +236,21 @@ errorIconCircle:{
     shadowRadius: 3,
     elevation: 4,
   },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  socialBox: {
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
   providerLogo: {
     width: 24,
     height: 24,
@@ -287,30 +260,6 @@ errorIconCircle:{
     justifyContent: 'center',
     marginTop: 10,
   },
-  toastWrapper: {
-  position: 'absolute',
-  bottom: 24,
-  left: 20,
-  right: 20,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-  errorToast: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#fff',
-  borderRadius: 16,
-  paddingVertical: 12,
-  paddingHorizontal: 20,
-  marginTop: 12,
-  marginBottom: 12,
-  alignSelf: 'center',
-  elevation: 5,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.2,
-  shadowRadius: 4,
-},
   bottomText: {
     textAlign: 'center',
     fontSize: 14,
@@ -321,30 +270,4 @@ errorIconCircle:{
     fontWeight: 'bold',
     color: '#000',
   },
-  errorIcon: {
-  color: '#f44336',
-  fontSize: 20,
-  marginRight: 8,
-},
-errorMessage: {
-  color: '#000',
-  fontSize: 14,
-  fontWeight: '500',
-},
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  errorText: {
-    color: 'red',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  errorIconText: {
-  color: '#f44336',
-  fontSize: 16,
-  fontWeight: 'bold',
-  lineHeight: 16,
-},
 });

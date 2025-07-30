@@ -1,54 +1,70 @@
-// PhoneInputScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { auth } from '../firebase';
-import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function PhoneInputScreen({ navigation }) {
   const [phone, setPhone] = useState('');
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState(null);
 
-  const handleSendCode = async () => {
+  const handleSendCode = () => {
     if (phone.length !== 10) {
-      Alert.alert('Error', 'Please enter a 10-digit phone number');
+      console.log('Please enter a 10-digit phone number');
       return;
     }
 
-    try {
-      const phoneProvider = new PhoneAuthProvider(auth);
-      const verificationId = await phoneProvider.verifyPhoneNumber(
-        `+1${phone}`,
-        recaptchaVerifier
-      );
-
-      navigation.navigate('CodeVerify', {
-        verificationId,
-        phone,
-      });
-    } catch (error) {
-      Alert.alert('Verification Failed', error.message);
-    }
+    // Simple navigation without authentication
+    navigation.navigate('CodeVerify', {
+      phone: `+1${phone}`,
+    });
   };
 
   return (
-    <View style={{ padding: 20 }}>
-      <FirebaseRecaptchaVerifierModal
-        ref={ref => setRecaptchaVerifier(ref)}
-        firebaseConfig={auth.app.options}
-      />
-      <Text>Enter your phone number</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Enter your phone number</Text>
       <TextInput
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
         maxLength={10}
         placeholder="e.g. 8043171234"
-        style={{ borderBottomWidth: 1, marginBottom: 20 }}
+        style={styles.input}
       />
-      <TouchableOpacity onPress={handleSendCode}>
-        <Text>Continue</Text>
+      <TouchableOpacity style={styles.button} onPress={handleSendCode}>
+        <Text style={styles.buttonText}>Continue</Text>
       </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 18,
+    marginBottom: 20,
+    color: '#000',
+  },
+  input: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#000',
+    marginBottom: 20,
+    fontSize: 16,
+    paddingVertical: 10,
+  },
+  button: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '600',
+  },
+});
