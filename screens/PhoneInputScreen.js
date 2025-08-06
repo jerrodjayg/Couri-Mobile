@@ -1,20 +1,29 @@
+import { supabase } from './supabaseClient';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
 export default function PhoneInputScreen({ navigation }) {
   const [phone, setPhone] = useState('');
 
-  const handleSendCode = () => {
-    if (phone.length !== 10) {
-      console.log('Please enter a 10-digit phone number');
-      return;
-    }
+  const handleSendCode = async () => {
+  if (phone.length !== 10) {
+    console.log('Please enter a 10-digit phone number');
+    return;
+  }
 
-    // Simple navigation without authentication
-    navigation.navigate('CodeVerify', {
-      phone: `+1${phone}`,
-    });
-  };
+  const fullPhone = `+1${phone}`;
+
+  const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
+
+  if (error) {
+    console.log('Error sending OTP:', error.message);
+    return;
+  }
+
+  console.log('OTP sent successfully');
+  navigation.navigate('CodeVerify', { phone: fullPhone });
+};
+
 
   return (
     <View style={styles.container}>

@@ -16,3 +16,4 @@ export async function saveUserToDatabase(user) {
     console.log('User saved to Supabase:', data);
   }
 }
+

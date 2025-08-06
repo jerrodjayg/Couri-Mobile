@@ -1,3 +1,4 @@
+import { supabase } from './supabaseClient';
 import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated } from 'react-native';
 
@@ -5,18 +6,27 @@ export default function SplashScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+  const checkSession = async () => {
+    const { data } = await supabase.auth.getSession();
+
+    setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 1000,
         useNativeDriver: true,
       }).start(() => {
-        navigation.replace('Home');
+        if (data?.session) {
+          navigation.replace('Welcomepage'); // user is already signed in
+        } else {
+          navigation.replace('Home'); // go to landing page
+        }
       });
-    }, 2000); // Hold 3s before fading
+    }, 2000);
+  };
 
-    return () => clearTimeout(timer);
-  }, [fadeAnim]);
+  checkSession();
+}, [fadeAnim]);
+
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>

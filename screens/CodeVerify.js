@@ -5,27 +5,67 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { supabase } from '../supabase';
 
 export default function CodeVerify({ route, navigation }) {
   const [code, setCode] = useState('');
-  const { phone } = route.params;
+  const [loading, setLoading] = useState(false);
+  const { phone, type } = route.params;
 
-  const handleVerify = () => {
-    // Simple validation - just check if code is 6 digits
-    if (code.length === 6) {
-      // Simple navigation without authentication
-      navigation.replace('Welcomepage');
-    } else {
-      console.log('Please enter a 6-digit code');
+  const handleVerify = async () => {
+    if (code.length !== 6) {
+      Alert.alert('Error', 'Please enter a 6-digit code');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: phone,
+        token: code,
+        type: 'sms'
+      });
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        // Successfully verified - navigate to account setup for create account flow
+        if (type === 'create') {
+          navigation.replace('AccountSetup', { user: data.user });
+        } else {
+          navigation.replace('Home');
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to verify code');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleResendCode = () => {
-    // Simple action without authentication
-    console.log('Resend code pressed');
+  const handleResendCode = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone: phone
+      });
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Success', 'Verification code resent');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to resend code');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,13 +97,21 @@ export default function CodeVerify({ route, navigation }) {
           />
         </View>
 
-        <TouchableOpacity style={styles.verifyButton} onPress={handleVerify}>
-          <Text style={styles.verifyText}>Verify</Text>
+        <TouchableOpacity 
+          style={[styles.verifyButton, loading && { opacity: 0.7 }]} 
+          onPress={handleVerify}
+          disabled={loading}
+        >
+          <Text style={styles.verifyText}>
+            {loading ? 'Verifying...' : 'Verify'}
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.resendInfo}>Didn't receive a code?</Text>
-        <TouchableOpacity onPress={handleResendCode}>
-          <Text style={styles.resendLink}>Resend Code</Text>
+        <TouchableOpacity onPress={handleResendCode} disabled={loading}>
+          <Text style={[styles.resendLink, loading && { opacity: 0.7 }]}>
+            Resend Code
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
