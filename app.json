@@ -6,8 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "platforms": ["ios", "android", "web"],
     "newArchEnabled": true,
-    "scheme": "com.anonymous.jerrod",
+    "scheme": "com.anonymous.jerroddd",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,8 +16,11 @@
     },
     "ios": {
       "useAppleSignIn": true,
-      "bundleIdentifier": "com.anonymous.jerrod",
+      "bundleIdentifier": "com.anonymous.jerroddd",
       "supportsTablet": true
+    },
+    "android":{
+      "package": "com.anonymous.jerrod"
     },
     "plugins": [
       "expo-apple-authentication",
