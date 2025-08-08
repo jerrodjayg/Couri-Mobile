@@ -13,7 +13,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from './supabaseClient';
 
 export default function PasswordLoginScreen({ navigation }) {
   const [emailOrMobile, setEmailOrMobile] = useState('');
@@ -21,6 +21,8 @@ export default function PasswordLoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+
 
   const handlePasswordLogin = async () => {
     if (!emailOrMobile || !password) {
@@ -32,50 +34,40 @@ export default function PasswordLoginScreen({ navigation }) {
     setError('');
 
     try {
-      const isEmail = emailOrMobile.includes('@');
-      
-      if (!isEmail) {
-        setError('Please enter a valid email address');
-        setLoading(false);
-        return;
-      }
-
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
+      // Search by email only
+      console.log('Searching for email:', emailOrMobile);
+      const { data, error } = await supabase
+        .from('users')
         .select('*')
         .eq('email', emailOrMobile)
         .single();
+      
+      console.log('Email search result:', { data, error });
 
-      if (profileError && profileError.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking user account:', error);
         setError('Error checking user account');
         setLoading(false);
         return;
       }
 
-      if (!existingProfile) {
-        setError('This email is not registered. Please use Google sign-in first.');
+      if (!data) {
+        setError('This email is not registered. Please sign up first.');
         setLoading(false);
         return;
       }
 
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email: emailOrMobile,
-        password: password,
-      });
-
-      if (loginError) {
-        if (loginError.message.includes('Invalid login credentials')) {
-          setError('Email and password don\'t match');
-        } else {
-          setError(loginError.message);
-        }
+      // Check if password matches
+      if (data.password_hash !== password) {
+        setError('Email and password don\'t match');
         setLoading(false);
         return;
       }
 
-      if (loginData.user) {
-        navigation.replace('Welcomepage');
-      }
+      // Login successful
+      console.log('Login successful for user:', data.email);
+      console.log('User found in database:', data);
+      navigation.replace('Welcomepage', { user: data });
     } catch (error) {
       console.error('Login error:', error);
       setError('An unexpected error occurred. Please try again.');
@@ -90,25 +82,28 @@ export default function PasswordLoginScreen({ navigation }) {
       return;
     }
 
-    if (!emailOrMobile.includes('@')) {
-      setError('Please enter a valid email address for password reset');
+    const isEmail = emailOrMobile.includes('@');
+    
+    if (!isEmail) {
+      setError('Password reset is only available via email address');
       return;
     }
 
     try {
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
+      const { data: existingUser, error: userError } = await supabase
+        .from('users')
         .select('*')
         .eq('email', emailOrMobile)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
+      if (userError && userError.code !== 'PGRST116') {
+        console.error('Error checking user account:', userError);
         setError('Error checking user account');
         return;
       }
 
-      if (!existingProfile) {
-        setError('This email is not registered. Please use Google sign-in first.');
+      if (!existingUser) {
+        setError('This email is not registered. Please sign up first.');
         return;
       }
 
@@ -151,47 +146,47 @@ export default function PasswordLoginScreen({ navigation }) {
               <View style={{ width: 24 }} />
             </View>
 
-            {/* Email Input */}
-            <TextInput
-              style={[
-                styles.input,
-                { borderBottomColor: error ? '#FF3B30' : '#222' }
-              ]}
-              placeholder="Email or Mobile Number"
-              placeholderTextColor="#000"
-              value={emailOrMobile}
-              onChangeText={(text) => {
-                setEmailOrMobile(text);
-                if (error) setError('');
-              }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+                         {/* Email Input */}
+             <TextInput
+               style={[
+                 styles.input,
+                 { borderBottomColor: error ? '#FF3B30' : '#222' }
+               ]}
+               placeholder="Email"
+               placeholderTextColor="#000"
+               value={emailOrMobile}
+               onChangeText={(text) => {
+                 setEmailOrMobile(text);
+                 if (error) setError('');
+               }}
+               autoCapitalize="none"
+               keyboardType="email-address"
+             />
 
-            {/* Password Input */}
-            <View style={[
-              styles.passwordContainer,
-              { borderBottomColor: error ? '#FF3B30' : '#222' }
-            ]}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Password"
-                placeholderTextColor="#000"
-                value={showPassword ? password : '*'.repeat(password.length)}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (error) setError('');
-                }}
-                secureTextEntry={false}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Text style={styles.eyeIconText}>👁️‍🗨️</Text>
-              </TouchableOpacity>
-            </View>
+                         {/* Password Input */}
+             <View style={[
+               styles.passwordContainer,
+               { borderBottomColor: error ? '#FF3B30' : '#222' }
+             ]}>
+               <TextInput
+                 style={styles.passwordInput}
+                 placeholder="Password"
+                 placeholderTextColor="#000"
+                 value={password}
+                 onChangeText={(text) => {
+                   setPassword(text);
+                   if (error) setError('');
+                 }}
+                 secureTextEntry={!showPassword}
+                 autoCapitalize="none"
+               />
+               <TouchableOpacity
+                 style={styles.eyeIcon}
+                 onPress={() => setShowPassword(!showPassword)}
+               >
+                 <Text style={styles.eyeIconText}>👁️‍🗨️</Text>
+               </TouchableOpacity>
+             </View>
 
             {/* Forgot Password */}
             <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
