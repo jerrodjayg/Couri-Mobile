@@ -1,64 +1,108 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-
-// Import the logo image
 import Logo from '../assets/Logo_Dark.png';
 
 export default function FaceIDScreen({ navigation }) {
-  const handleFaceIDAuth = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  const [authLabel, setAuthLabel] = useState('Biometric');
 
-    if (!hasHardware || !isEnrolled) {
-      Alert.alert('Error', 'Biometric authentication is not available on this device.');
-      return;
-    }
+  useEffect(() => {
+    const detectBiometricType = async () => {
+      try {
+        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Authenticate with Face ID or Touch ID',
-      fallbackLabel: 'Enter passcode',
-    });
+        if (Platform.OS === 'ios') {
+          if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+            setAuthLabel('Face ID');
+          } else {
+            setAuthLabel('Touch ID');
+          }
+        } else {
+          if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+            setAuthLabel('Fingerprint');
+          } else {
+            setAuthLabel('Biometric');
+          }
+        }
+      } catch (error) {
+        console.error('Biometric detection error:', error);
+        setAuthLabel('Biometric');
+      }
+    };
 
-    if (result.success) {
-      Alert.alert('Success', 'Authentication successful!');
-      // You can now navigate to the main app screen or perform a secure action
-      navigation.navigate('Home'); // replace 'Home' with your intended screen
-    } else {
-      Alert.alert('Failed', 'Authentication failed. Please try again.');
+    detectBiometricType();
+  }, []);
+
+  const handleBiometricAuth = async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware) {
+        Alert.alert('Error', 'Biometric hardware not available on this device.');
+        return;
+      }
+
+      if (!isEnrolled) {
+        Alert.alert('Error', `No ${authLabel} data found. Please enroll first.`);
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: `Authenticate using ${authLabel}`,
+        fallbackLabel: 'Use device passcode',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Welcomepage' }],
+        });
+      } else {
+        Alert.alert('Authentication Failed', 'Please try again.');
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      Alert.alert('Error', 'Something went wrong during authentication.');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <Image source={Logo} style={styles.logoImage} resizeMode="contain" />
-      <Image
-        source={require('../assets/face-id.png')}
-        style={styles.faceIcon}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>Login with Face ID</Text>
-      <Text style={styles.subtitle}>
-        Enabling Face ID allows you quick and secure access to your account.
-      </Text>
 
-      <TouchableOpacity style={styles.button} onPress={handleFaceIDAuth}>
-        <Text style={styles.buttonText}>Allow Face ID access</Text>
-      </TouchableOpacity>
+      <View style={styles.contentWrapper}>
+        <Image
+          source={require('../assets/face-id.png')}
+          style={styles.faceIcon}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Login with {authLabel}</Text>
+        <Text style={styles.subtitle}>
+          Enabling {authLabel} allows you quick and secure access to your account.
+        </Text>
 
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.linkText}>Maybe later</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
+        <TouchableOpacity style={styles.button} onPress={handleBiometricAuth}>
+          <Text style={styles.buttonText}>Allow {authLabel} access</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.linkText}>Maybe later</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -67,43 +111,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 32,
+    paddingTop: 60, // Leave space for status bar + top padding
   },
   logoImage: {
-    width: 120,
-    height: 40,
-    marginBottom: 60,
+    width: 105,
+    height: 25,
+    marginBottom: 20,
+  },
+  contentWrapper: {
+    marginTop: 150,
+    alignItems: 'center',
+    width: '100%',
   },
   faceIcon: {
-    width: 60,
-    height: 60,
+    width: 100,
+    height: 90,
     marginBottom: 24,
+    marginTop: -37,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '500',
-    marginBottom: 12,
+    fontSize: 27,
+    fontWeight: '250',
+    marginBottom: 16,
+    marginTop: -3,
     color: '#000',
+    
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
     color: '#555',
-    marginBottom: 40,
+    marginBottom: 60,
+    marginTop: -1,
   },
   button: {
     backgroundColor: '#000',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 30,
-    marginBottom: 16,
+    marginBottom: 28,
     width: '100%',
     alignItems: 'center',
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '250',
     fontSize: 16,
   },
   linkText: {

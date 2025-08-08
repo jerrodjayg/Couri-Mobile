@@ -5,7 +5,7 @@ import {
  Platform, ScrollView, Image, Alert
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { supabase } from '../supabase';
+import { supabase } from './supabaseClient';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useFacebookAuth } from '../hooks/useFacebookAuth';
 import { useAppleAuth } from '../hooks/useAppleAuth';
@@ -20,11 +20,12 @@ const upsertProfile = async (session) => {
  const avatar_url = user_metadata?.avatar_url || '';
 
  const { error } = await supabase
- .from('profiles')
+ .from('users')
  .upsert({
  id,
  email,
- name,
+ first_name: name.split(' ')[0] || '',
+ last_name: name.split(' ').slice(1).join(' ') || '',
  avatar_url,
  });
 

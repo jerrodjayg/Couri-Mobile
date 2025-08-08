@@ -1,0 +1,445 @@
+// PersonalInfoScreen.js
+import { supabase } from './supabaseClient';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Pressable,
+  Image,
+  Alert,
+  FlatList,
+} from 'react-native';
+import base64 from 'react-native-base64';
+
+
+export default function PersonalInfoScreen({ navigation, route }) {
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const { userInfo, phone } = route.params || {};
+
+  // Test Supabase connection on component mount
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        console.log('Testing Supabase connection...');
+        console.log('Supabase URL:', supabase.supabaseUrl);
+        
+        // First test basic connection
+        const { data: testData, error: testError } = await supabase
+          .from('users')
+          .select('*')
+          .limit(1);
+        
+        if (testError) {
+          console.error('Supabase connection test failed:', testError);
+          console.error('Error code:', testError.code);
+          console.error('Error message:', testError.message);
+        } else {
+          console.log('Supabase connection test successful');
+          console.log('Test data:', testData);
+        }
+      } catch (err) {
+        console.error('Supabase connection test error:', err);
+      }
+    };
+    
+    testConnection();
+  }, []);
+
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: phone || '',
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    zip: '',
+  });
+
+  const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+
+const handleChange = (name, value) => {
+  setForm((prev) => ({ ...prev, [name]: value }));
+  setError('');
+
+  // Only fetch Smarty suggestions if editing address1
+  if (name === 'address1') {
+    // Clear any existing timeout
+    if (window.suggestionTimeout) {
+      clearTimeout(window.suggestionTimeout);
+    }
+    
+    // Add a small delay to prevent too many API calls
+    window.suggestionTimeout = setTimeout(() => {
+      fetchSuggestions(value);
+    }, 300);
+  }
+};
+
+const fetchSuggestions = async (input) => {
+  if (!input || input.trim().length < 3) {
+    setSuggestions([]);
+    setIsLoadingSuggestions(false);
+    return;
+  }
+
+  setIsLoadingSuggestions(true);
+
+  try {
+    const SMARTY_AUTH_ID = 'af0d27eb-c903-f64d-47eb-c8c06d7819e7';
+    const SMARTY_AUTH_TOKEN = '9NOFpSJMo87AMyFoHs3R';
+
+    const encodedInput = encodeURIComponent(input.trim());
+    const url = `https://us-autocomplete.api.smarty.com/lookup?search=${encodedInput}&auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&max_suggestions=10`;
+
+    console.log('Calling:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Smarty API error:', response.status, response.statusText, errText);
+      setSuggestions([]);
+      return;
+    }
+
+    const data = await response.json();
+    console.log('Smarty API response:', data);
+
+    if (data && data.suggestions) {
+      setSuggestions(data.suggestions);
+    } else {
+      setSuggestions([]);
+    }
+  } catch (error) {
+    console.error('Smarty API error:', error);
+    setSuggestions([]);
+  } finally {
+    setIsLoadingSuggestions(false);
+  }
+};
+
+
+const handleSuggestionPress = (suggestion) => {
+  setSuggestions([]);
+
+  setForm((prev) => ({
+    ...prev,
+    address1: suggestion.street_line || '',
+    city: suggestion.city || '',
+    state: suggestion.state || '',
+    zip: suggestion.zipcode || '',
+  }));
+};
+
+
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const allRequiredFieldsFilled = () => {
+    const required = ['firstName', 'lastName', 'email', 'phone', 'address1', 'city', 'state', 'zip'];
+    return required.every((field) => form[field] && form[field].trim() !== '');
+  };
+
+  const saveUserToDatabase = async (userData) => {
+    try {
+      console.log('Attempting to save user data:', userData);
+      
+      // Test Supabase connection first
+      const { data: testData, error: testError } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (testError) {
+        console.error('Supabase connection test failed:', testError);
+        throw new Error(`Database connection failed: ${testError.message}`);
+      }
+      
+             console.log('Supabase connection successful');
+       console.log('Saving phone number as:', userData.phone);
+
+       const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            email: userData.email,
+            phone: userData.phone,
+            address_line_1: userData.address1,
+            address_line_2: userData.address2 || null,
+            city: userData.city,
+            state: userData.state,
+            zip_code: userData.zip,
+            created_at: new Date().toISOString(),
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw new Error(`Database insert failed: ${error.message}`);
+      }
+
+      console.log('User saved successfully:', data);
+      return data[0]; // Return the saved user data
+    } catch (error) {
+      console.error('Failed to save user:', error);
+      console.error('Error stack:', error.stack);
+      throw error;
+    }
+  };
+
+  const onContinue = async () => {
+    setError('');
+
+    if (!allRequiredFieldsFilled()) {
+      setError('missingFields');
+      return;
+    }
+
+    if (!isValidEmail(form.email)) {
+      setError('invalidEmail');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Save user data to Supabase
+      const savedUser = await saveUserToDatabase(form);
+      
+      // Navigate to next screen with both form data and saved user data
+      navigation.navigate('CreatePassword', { 
+        userInfo: form,
+        savedUser: savedUser 
+      });
+    } catch (error) {
+      // Handle database errors - but allow user to continue
+      console.error('Failed to save user data:', error);
+      
+      // Show warning but allow continuation
+      Alert.alert(
+        'Database Warning',
+        'Unable to save to database, but you can continue. Your data will be saved when you complete registration.',
+        [
+          {
+            text: 'Continue Anyway',
+            onPress: () => {
+              navigation.navigate('CreatePassword', { 
+                userInfo: form,
+                savedUser: null 
+              });
+            }
+          },
+          {
+            text: 'Try Again',
+            onPress: () => {
+              setIsSaving(false);
+            }
+          }
+        ]
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const renderError = () => {
+    if (!error) return null;
+
+    let message = '';
+    switch (error) {
+      case 'missingFields':
+        message = 'All fields must be completed';
+        break;
+      case 'invalidEmail':
+        message = 'Enter a valid email address';
+        break;
+      case 'databaseError':
+        message = 'Failed to save your information. Please try again.';
+        break;
+      default:
+        return null;
+    }
+
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIcon}>
+          <Text style={styles.errorIconText}>!</Text>
+        </View>
+        <Text style={styles.errorText}>{message}</Text>
+      </View>
+    );
+  };
+
+         return (
+     <SafeAreaView style={styles.safeArea}>
+       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+       <View style={styles.container}>
+         <View style={styles.header}>
+           <Pressable onPress={() => navigation.goBack()}>
+             <Image
+               source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
+               style={styles.backArrowImage}
+               resizeMode="contain"
+             />
+           </Pressable>
+           <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+           <View style={{ width: 24 }} />
+         </View>
+
+         {renderError()}
+
+         <ScrollView 
+           style={styles.scrollContainer}
+           contentContainerStyle={styles.formContainer}
+           keyboardShouldPersistTaps="handled"
+           showsVerticalScrollIndicator={false}
+         >
+            <Text style={styles.sectionTitle}>Personal Info</Text>
+            <TextInput placeholder="First Name*" value={form.firstName} onChangeText={(text) => handleChange('firstName', text)} style={styles.input} />
+            <TextInput placeholder="Last Name*" value={form.lastName} onChangeText={(text) => handleChange('lastName', text)} style={styles.input} />
+            <TextInput placeholder="Email Address*" value={form.email} onChangeText={(text) => handleChange('email', text)} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+            <TextInput placeholder="Mobile Number*" value={form.phone} onChangeText={(text) => handleChange('phone', text)} keyboardType="phone-pad" style={styles.input} />
+
+            <Text style={styles.sectionTitle}>Home Address</Text>
+
+            <TextInput placeholder="Address Line 1*" 
+              value={form.address1} 
+              onChangeText={(text) => handleChange('address1', text)} 
+              style={styles.input} />
+            
+            {isLoadingSuggestions && (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading suggestions...</Text>
+              </View>
+            )}
+            
+            {suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {suggestions.map((item, index) => (
+                  <TouchableOpacity 
+                    key={`${item.street_line}-${item.city}-${item.state}-${index}`}
+                    onPress={() => handleSuggestionPress(item)} 
+                    style={styles.suggestionItem}
+                  >
+                    <Text style={styles.suggestionText}>
+                      {item.street_line}
+                      {item.city && item.state && `, ${item.city}, ${item.state}`}
+                      {item.zipcode && ` ${item.zipcode}`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <TextInput placeholder="Address Line 2 (Optional)" value={form.address2} onChangeText={(text) => handleChange('address2', text)} style={styles.input} />
+            <TextInput placeholder="City*" value={form.city} onChangeText={(text) => handleChange('city', text)} style={styles.input} />
+            <View style={styles.row}>
+              <TextInput placeholder="State*" value={form.state} onChangeText={(text) => handleChange('state', text)} style={[styles.input, styles.halfInput]} />
+              <TextInput placeholder="Zip*" value={form.zip} onChangeText={(text) => handleChange('zip', text)} keyboardType="numeric" style={[styles.input, styles.halfInput]} />
+            </View>
+
+            <Text style={styles.legal}>
+              By creating an account, you agree to Couri's <Text style={[styles.legal, styles.link]}>Terms of Use</Text> and{' '}
+              <Text style={[styles.legal, styles.link]}>Privacy Policy</Text>.
+            </Text>
+
+                         <TouchableOpacity 
+               style={[styles.button, isSaving && styles.buttonDisabled]} 
+               onPress={onContinue}
+               disabled={isSaving}
+             >
+               <Text style={styles.buttonText}>
+                 {isSaving ? 'Saving...' : 'Continue'}
+               </Text>
+             </TouchableOpacity>
+           </ScrollView>
+         </View>
+       </SafeAreaView>
+     );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  scrollContainer: { flex: 1 },
+  formContainer: { padding: 24, paddingBottom: 80 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  backArrowImage: { width: 24, height: 24 },
+  headerTitle: { fontSize: 16, fontWeight: '600', color: '#000' },
+  sectionTitle: { fontSize: 20, fontWeight: '500', marginBottom: 12, marginTop: 20 },
+  input: { borderBottomWidth: 1, borderBottomColor: '#222', paddingVertical: 12, marginBottom: 16, fontSize: 16, fontWeight: 'normal' },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  halfInput: { width: '48%' },
+  legal: { fontSize: 12, color: '#444', marginTop: 20, marginBottom: 20 },
+  link: { textDecorationLine: 'underline', color: '#000' },
+  button: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 50, alignItems: 'center', marginBottom: 50 },
+  buttonDisabled: { backgroundColor: '#666', opacity: 0.7 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  errorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  errorIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
+  errorIconText: { color: 'white', fontWeight: 'bold', fontSize: 14, lineHeight: 14 },
+  errorText: { color: 'red', fontWeight: '600' },
+  suggestionItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    backgroundColor: '#f9f9f9',
+  },
+  suggestionText: {
+    fontSize: 15,
+    color: '#333',
+  },
+  suggestionsList: {
+    maxHeight: 200,
+    marginBottom: 16,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 5,
+  },
+  suggestionsContainer: {
+    maxHeight: 200,
+    marginBottom: 16,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+});

@@ -16,6 +16,8 @@ import Welcomepage from './screens/Welcomepage';
 import CodeVerify from './screens/CodeVerify';
 import FaceIDScreen from './screens/FaceIDScreen';
 import AccountSetupScreen from './screens/AccountSetupScreen';
+import PersonalInfoScreen from './screens/PersonalInfoScreen';
+import ConfirmInfoScreen from './screens/ConfirmInfoScreen';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -39,6 +41,8 @@ export default function App() {
  <Stack.Screen name="AccountSetup" component={AccountSetupScreen} />
  <Stack.Screen name="FaceID" component={FaceIDScreen} />
  <Stack.Screen name="Welcomepage" component={Welcomepage} />
+ <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
+ <Stack.Screen name="ConfirmInfo" component={ConfirmInfoScreen}/>
  </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>
