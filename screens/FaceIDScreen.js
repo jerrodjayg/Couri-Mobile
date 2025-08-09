@@ -65,10 +65,7 @@ export default function FaceIDScreen({ navigation }) {
       });
 
       if (result.success) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Welcomepage' }],
-        });
+        navigation.navigate('PushNoti');
       } else {
         Alert.alert('Authentication Failed', 'Please try again.');
       }

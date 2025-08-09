@@ -18,6 +18,7 @@ import FaceIDScreen from './screens/FaceIDScreen';
 import AccountSetupScreen from './screens/AccountSetupScreen';
 import PersonalInfoScreen from './screens/PersonalInfoScreen';
 import ConfirmInfoScreen from './screens/ConfirmInfoScreen';
+import PushNotiScreen from './screens/PushNotiScreen';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -43,6 +44,7 @@ export default function App() {
  <Stack.Screen name="Welcomepage" component={Welcomepage} />
  <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
  <Stack.Screen name="ConfirmInfo" component={ConfirmInfoScreen}/>
+ <Stack.Screen name="PushNoti" component={PushNotiScreen} />
  </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>
