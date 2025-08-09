@@ -301,17 +301,19 @@ const handleSuggestionPress = (suggestion) => {
      <SafeAreaView style={styles.safeArea}>
        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
        <View style={styles.container}>
-         <View style={styles.header}>
-           <Pressable onPress={() => navigation.goBack()}>
-             <Image
-               source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
-               style={styles.backArrowImage}
-               resizeMode="contain"
-             />
-           </Pressable>
-           <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
-           <View style={{ width: 24 }} />
-         </View>
+                   <View style={styles.header}>
+            <View style={styles.backButtonContainer}>
+              <Pressable onPress={() => navigation.goBack()}>
+                <Image
+                  source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
+                  style={styles.backArrowImage}
+                  resizeMode="contain"
+                />
+              </Pressable>
+            </View>
+            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+            <View style={styles.backButtonContainer} />
+          </View>
 
          {renderError()}
 
@@ -390,9 +392,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scrollContainer: { flex: 1 },
   formContainer: { padding: 24, paddingBottom: 80 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  backArrowImage: { width: 24, height: 24 },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: '#000' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 8, paddingTop: 8 },
+  backButtonContainer: { width: 44, alignItems: 'flex-start' },
+  backArrowImage: { width: 24, height: 24, marginLeft: 20, marginTop: 4 },
+  headerTitle: { fontSize: 16, fontWeight: '600', color: '#000', flex: 1, textAlign: 'center' },
   sectionTitle: { fontSize: 20, fontWeight: '500', marginBottom: 12, marginTop: 20 },
   input: { borderBottomWidth: 1, borderBottomColor: '#222', paddingVertical: 12, marginBottom: 16, fontSize: 16, fontWeight: 'normal' },
   row: { flexDirection: 'row', justifyContent: 'space-between' },

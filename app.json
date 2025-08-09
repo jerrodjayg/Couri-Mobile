@@ -6,7 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "newArchEnabled": true,
     "scheme": "com.anonymous.jerroddd",
     "splash": {
@@ -15,19 +19,25 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "useAppleSignIn": true,
-      "bundleIdentifier": "com.anonymous.jerroddd",
+      "bundleIdentifier": "com.anonymous.jerrod",
       "supportsTablet": true
     },
-    "android":{
+    "android": {
       "package": "com.anonymous.jerrod"
     },
     "plugins": [
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0b05ed17-f690-4d7a-9154-abce8e775910"
+      }
+    },
+    "owner": "sammymush"
   }
 }
