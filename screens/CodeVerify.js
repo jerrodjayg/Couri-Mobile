@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from './supabaseClient';
 
 export default function CodeVerify({ route, navigation }) {
   const [code, setCode] = useState('');
@@ -36,7 +36,7 @@ export default function CodeVerify({ route, navigation }) {
       } else {
         // Successfully verified - navigate to account setup for create account flow
         if (type === 'create') {
-          navigation.replace('AccountSetup', { user: data.user });
+          navigation.replace('PersonalInfoScreen', { user: data.user });
         } else {
           navigation.replace('Home');
         }

@@ -65,10 +65,41 @@ export default function PersonalInfoScreen({ navigation, route }) {
     zip: '',
   });
 
+  // Populate form with userInfo from route params if it exists
+  useEffect(() => {
+    if (userInfo) {
+      setForm({
+        firstName: userInfo.firstName || '',
+        lastName: userInfo.lastName || '',
+        email: userInfo.email || '',
+        phone: userInfo.phone || phone || '',
+        address1: userInfo.address1 || '',
+        address2: userInfo.address2 || '',
+        city: userInfo.city || '',
+        state: userInfo.state || '',
+        zip: userInfo.zip || '',
+      });
+    }
+    
+    // If this is a Google auth user, pre-fill some fields and make email read-only
+    if (route.params?.isGoogleAuth && userInfo?.email) {
+      console.log('✅ Google auth user detected, pre-filling form');
+      // Pre-fill with Google user data if available
+      if (route.params?.googleUserData) {
+        const googleData = route.params.googleUserData;
+        setForm(prev => ({
+          ...prev,
+          firstName: googleData.user_metadata?.given_name || googleData.user_metadata?.name?.split(' ')[0] || userInfo.firstName || '',
+          lastName: googleData.user_metadata?.family_name || googleData.user_metadata?.name?.split(' ').slice(1).join(' ') || userInfo.lastName || '',
+          email: googleData.email || userInfo.email || '',
+        }));
+      }
+    }
+  }, [userInfo, phone, route.params?.isGoogleAuth, route.params?.googleUserData]);
+
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
 
 const handleChange = (name, value) => {
@@ -158,61 +189,7 @@ const handleSuggestionPress = (suggestion) => {
     return required.every((field) => form[field] && form[field].trim() !== '');
   };
 
-  const saveUserToDatabase = async (userData) => {
-    try {
-      console.log('Attempting to save user data:', userData);
-      
-      // Test Supabase connection first
-      const { data: testData, error: testError } = await supabase
-        .from('users')
-        .select('count')
-        .limit(1);
-      
-      if (testError) {
-        console.error('Supabase connection test failed:', testError);
-        throw new Error(`Database connection failed: ${testError.message}`);
-      }
-      
-             console.log('Supabase connection successful');
-       console.log('Saving phone number as:', userData.phone);
 
-       const { data, error } = await supabase
-        .from('users')
-        .insert([
-          {
-            first_name: userData.firstName,
-            last_name: userData.lastName,
-            email: userData.email,
-            phone: userData.phone,
-            address_line_1: userData.address1,
-            address_line_2: userData.address2 || null,
-            city: userData.city,
-            state: userData.state,
-            zip_code: userData.zip,
-            created_at: new Date().toISOString(),
-          }
-        ])
-        .select();
-
-      if (error) {
-        console.error('Supabase insert error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw new Error(`Database insert failed: ${error.message}`);
-      }
-
-      console.log('User saved successfully:', data);
-      return data[0]; // Return the saved user data
-    } catch (error) {
-      console.error('Failed to save user:', error);
-      console.error('Error stack:', error.stack);
-      throw error;
-    }
-  };
 
   const onContinue = async () => {
     setError('');
@@ -227,46 +204,14 @@ const handleSuggestionPress = (suggestion) => {
       return;
     }
 
-    setIsSaving(true);
-
-    try {
-      // Save user data to Supabase
-      const savedUser = await saveUserToDatabase(form);
-      
-      // Navigate to next screen with both form data and saved user data
-      navigation.navigate('CreatePassword', { 
-        userInfo: form,
-        savedUser: savedUser 
-      });
-    } catch (error) {
-      // Handle database errors - but allow user to continue
-      console.error('Failed to save user data:', error);
-      
-      // Show warning but allow continuation
-      Alert.alert(
-        'Database Warning',
-        'Unable to save to database, but you can continue. Your data will be saved when you complete registration.',
-        [
-          {
-            text: 'Continue Anyway',
-            onPress: () => {
-              navigation.navigate('CreatePassword', { 
-                userInfo: form,
-                savedUser: null 
-              });
-            }
-          },
-          {
-            text: 'Try Again',
-            onPress: () => {
-              setIsSaving(false);
-            }
-          }
-        ]
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    // Don't save to database here - just navigate with form data
+    // The user will be created in the onboarding flow when they reach PushNotiScreen
+    navigation.navigate('CreatePassword', { 
+      userInfo: form,
+      savedUser: null, // No saved user yet
+      isGoogleAuth: route.params?.isGoogleAuth || false,
+      googleUserData: route.params?.googleUserData || null
+    });
   };
 
   const renderError = () => {
@@ -326,7 +271,15 @@ const handleSuggestionPress = (suggestion) => {
             <Text style={styles.sectionTitle}>Personal Info</Text>
             <TextInput placeholder="First Name*" value={form.firstName} onChangeText={(text) => handleChange('firstName', text)} style={styles.input} />
             <TextInput placeholder="Last Name*" value={form.lastName} onChangeText={(text) => handleChange('lastName', text)} style={styles.input} />
-            <TextInput placeholder="Email Address*" value={form.email} onChangeText={(text) => handleChange('email', text)} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+            <TextInput 
+              placeholder="Email Address*" 
+              value={form.email} 
+              onChangeText={(text) => handleChange('email', text)} 
+              keyboardType="email-address" 
+              autoCapitalize="none" 
+              style={[styles.input, route.params?.isGoogleAuth && styles.readOnlyInput]} 
+              editable={!route.params?.isGoogleAuth}
+            />
             <TextInput placeholder="Mobile Number*" value={form.phone} onChangeText={(text) => handleChange('phone', text)} keyboardType="phone-pad" style={styles.input} />
 
             <Text style={styles.sectionTitle}>Home Address</Text>
@@ -373,12 +326,11 @@ const handleSuggestionPress = (suggestion) => {
             </Text>
 
                          <TouchableOpacity 
-               style={[styles.button, isSaving && styles.buttonDisabled]} 
+               style={styles.button}
                onPress={onContinue}
-               disabled={isSaving}
              >
                <Text style={styles.buttonText}>
-                 {isSaving ? 'Saving...' : 'Continue'}
+                 Continue
                </Text>
              </TouchableOpacity>
            </ScrollView>
@@ -403,7 +355,6 @@ const styles = StyleSheet.create({
   legal: { fontSize: 12, color: '#444', marginTop: 20, marginBottom: 20 },
   link: { textDecorationLine: 'underline', color: '#000' },
   button: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 50, alignItems: 'center', marginBottom: 50 },
-  buttonDisabled: { backgroundColor: '#666', opacity: 0.7 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   errorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   errorIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
@@ -444,5 +395,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontStyle: 'italic',
+  },
+  readOnlyInput: {
+    backgroundColor: '#f5f5f5',
+    color: '#666',
   },
 });

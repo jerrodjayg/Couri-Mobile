@@ -14,8 +14,11 @@ import {
   Alert,
 } from 'react-native';
 import { supabase } from './supabaseClient';
+import { useUser } from '../contexts/UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PasswordLoginScreen({ navigation }) {
+  const { setCustomUser } = useUser();
   const [emailOrMobile, setEmailOrMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,12 +37,12 @@ export default function PasswordLoginScreen({ navigation }) {
     setError('');
 
     try {
-      // Search by email only
+      // Search by email only (case insensitive)
       console.log('Searching for email:', emailOrMobile);
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('email', emailOrMobile)
+        .ilike('email', emailOrMobile.toLowerCase())
         .single();
       
       console.log('Email search result:', { data, error });
@@ -59,6 +62,11 @@ export default function PasswordLoginScreen({ navigation }) {
 
       // Check if password matches
       if (data.password_hash !== password) {
+        console.log('Password mismatch details:');
+        console.log('  Input password:', `"${password}"`);
+        console.log('  Stored password:', `"${data.password_hash}"`);
+        console.log('  Input password length:', password.length);
+        console.log('  Stored password length:', data.password_hash?.length);
         setError('Email and password don\'t match');
         setLoading(false);
         return;
@@ -67,6 +75,13 @@ export default function PasswordLoginScreen({ navigation }) {
       // Login successful
       console.log('Login successful for user:', data.email);
       console.log('User found in database:', data);
+      setCustomUser(data); // Set user in context
+      console.log('User set in context, navigating to Welcomepage');
+      
+             // Store user email in AsyncStorage for push notifications
+       await AsyncStorage.setItem('currentUserEmail', data.email);
+       console.log('User email stored in AsyncStorage:', data.email);
+      
       navigation.replace('Welcomepage', { user: data });
     } catch (error) {
       console.error('Login error:', error);
@@ -90,10 +105,11 @@ export default function PasswordLoginScreen({ navigation }) {
     }
 
     try {
+      // Check if the email exists in the database
       const { data: existingUser, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('email', emailOrMobile)
+        .ilike('email', emailOrMobile.toLowerCase())
         .single();
 
       if (userError && userError.code !== 'PGRST116') {
@@ -103,31 +119,20 @@ export default function PasswordLoginScreen({ navigation }) {
       }
 
       if (!existingUser) {
-        setError('This email is not registered. Please sign up first.');
+        setError('Account doesn\'t exist. Please check your email or sign up first.');
         return;
       }
 
-      const { error } = await supabase.auth.resetPasswordForEmail(emailOrMobile, {
-        redirectTo: 'com.anonymous.jerrod://',
-      });
-
-      if (error) {
-        setError(error.message);
-      } else {
-        Alert.alert(
-          'Password Reset',
-          'If an account with this email exists, you will receive a password reset link.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('Welcomepage'),
-            },
-          ]
-        );
-      }
+      // Use the exact email case that exists in the database
+      const exactEmail = existingUser.email;
+      console.log('Found user with email:', exactEmail);
+      console.log('Original input email:', emailOrMobile);
+      
+      // If email exists, navigate to ChangePasswordScreen with the exact email from database
+      navigation.navigate('ChangePassword', { userEmail: exactEmail });
     } catch (error) {
       console.error('Password reset error:', error);
-      setError('Failed to send password reset email');
+      setError('Failed to process password reset request');
     }
   };
 
