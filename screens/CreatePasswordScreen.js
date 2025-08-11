@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabaseClient';
 
 export default function CreatePasswordScreen({ navigation, route }) {
-  const { userInfo, savedUser } = route.params;
+  const { userInfo, savedUser, isGoogleAuth, googleUserData } = route.params;
   
   // Test database connection and permissions on component mount
   useEffect(() => {
@@ -111,10 +111,23 @@ export default function CreatePasswordScreen({ navigation, route }) {
     setError('');
 
     try {
-      console.log('=== PASSWORD UPDATE PROCESS START ===');
+      console.log('=== USER CREATION PROCESS START ===');
       console.log('Saved user from params:', savedUser);
       console.log('User info:', userInfo);
       console.log('Password to save:', password);
+      console.log('Is Google auth:', isGoogleAuth);
+      
+      // For Google auth users, don't save to database yet - just pass data through
+      if (isGoogleAuth) {
+        console.log('✅ Google auth user - skipping database save, passing data through');
+        navigation.navigate('FaceID', { 
+          userInfo, 
+          savedUser: null,
+          isGoogleAuth: true,
+          googleUserData: googleUserData
+        });
+        return;
+      }
       
       if (savedUser && savedUser.id) {
         console.log('Updating existing user with ID:', savedUser.id);
@@ -157,9 +170,8 @@ export default function CreatePasswordScreen({ navigation, route }) {
         navigation.navigate('FaceID', { userInfo, savedUser: updateData[0] });
       } else {
         console.log('No saved user found, creating new user record...');
-        console.log('This should not happen if PersonalInfoScreen worked correctly');
         
-        // Fallback: Create a new user record with password
+        // Create a new user record with all information including password
         const { data, error: insertError } = await supabase
           .from('users')
           .insert([

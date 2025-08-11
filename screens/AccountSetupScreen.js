@@ -13,7 +13,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from './supabaseClient';
 
 export default function AccountSetupScreen({ navigation, route }) {
   const [formData, setFormData] = useState({
@@ -79,12 +79,12 @@ export default function AccountSetupScreen({ navigation, route }) {
           email: formData.email,
           first_name: formData.firstName,
           last_name: formData.lastName,
-          mobile_number: formData.mobileNumber,
-          address_line1: formData.addressLine1,
-          address_line2: formData.addressLine2,
+          phone: formData.mobileNumber,
+          address_line_1: formData.addressLine1,
+          address_line_2: formData.addressLine2,
           city: formData.city,
           state: formData.state,
-          zip: formData.zip,
+          zip_code: formData.zip,
           updated_at: new Date(),
         });
 
@@ -94,8 +94,22 @@ export default function AccountSetupScreen({ navigation, route }) {
         return;
       }
 
-      // Navigate to next screen
-      navigation.replace('Welcomepage');
+      // Navigate to PersonalInfoScreen to continue the flow
+      navigation.navigate('PersonalInfo', { 
+        userInfo: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.mobileNumber,
+          address1: formData.addressLine1,
+          address2: formData.addressLine2,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip
+        },
+        isGoogleAuth: false,
+        savedUser: user
+      });
     } catch (error) {
       console.error('Account setup error:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');

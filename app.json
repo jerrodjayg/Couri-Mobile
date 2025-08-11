@@ -6,12 +6,13 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+
     "platforms": [
       "ios",
       "android",
       "web"
     ],
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "scheme": "com.anonymous.jerroddd",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -19,16 +20,35 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "useAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.jerrod",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app needs access to camera to take profile photos.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos."
+      }
     },
     "android": {
-      "package": "com.anonymous.jerrod"
+      "package": "com.anonymous.jerrod",
+      "permissions": [
+         "CAMERA",
+         "READ_EXTERNAL_STORAGE",
+         "WRITE_EXTERNAL_STORAGE"
+      ]
     },
+ 
     "plugins": [
       "expo-apple-authentication",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+           "photosPermission": "The app accesses your photos to let you share them with your friends.",
+           "cameraPermission": "The app accesses your camera to let you take photos."
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"

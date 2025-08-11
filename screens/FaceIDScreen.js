@@ -12,8 +12,9 @@ import {
 import * as LocalAuthentication from 'expo-local-authentication';
 import Logo from '../assets/Logo_Dark.png';
 
-export default function FaceIDScreen({ navigation }) {
+export default function FaceIDScreen({ navigation, route }) {
   const [authLabel, setAuthLabel] = useState('Biometric');
+  const { userInfo, savedUser, isGoogleAuth, googleUserData } = route.params || {};
 
   useEffect(() => {
     const detectBiometricType = async () => {
@@ -65,7 +66,12 @@ export default function FaceIDScreen({ navigation }) {
       });
 
       if (result.success) {
-        navigation.navigate('PushNoti');
+        // ✅ After Face ID step, go straight to PushNoti with user data
+        navigation.navigate('PushNoti', { 
+          user: route.params?.savedUser || route.params?.userInfo,
+          isGoogleAuth: isGoogleAuth,
+          googleUserData: googleUserData
+        });
       } else {
         Alert.alert('Authentication Failed', 'Please try again.');
       }
@@ -73,6 +79,15 @@ export default function FaceIDScreen({ navigation }) {
       console.error('Authentication error:', error);
       Alert.alert('Error', 'Something went wrong during authentication.');
     }
+  };
+
+  const handleMaybeLater = () => {
+    // ✅ Even if they skip, proceed to PushNoti with user data
+    navigation.navigate('PushNoti', { 
+      user: route.params?.savedUser || route.params?.userInfo,
+      isGoogleAuth: isGoogleAuth,
+      googleUserData: googleUserData
+    });
   };
 
   return (
@@ -95,7 +110,7 @@ export default function FaceIDScreen({ navigation }) {
           <Text style={styles.buttonText}>Allow {authLabel} access</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={handleMaybeLater}>
           <Text style={styles.linkText}>Maybe later</Text>
         </TouchableOpacity>
       </View>
@@ -110,7 +125,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingHorizontal: 32,
-    paddingTop: 60, // Leave space for status bar + top padding
+    paddingTop: 60,
   },
   logoImage: {
     width: 105,
@@ -134,7 +149,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: -3,
     color: '#000',
-    
   },
   subtitle: {
     fontSize: 14,

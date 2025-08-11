@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { supabase } from '../supabase';
+import { supabase } from '../screens/supabaseClient';
 
 // Required for Expo AuthSession to complete sessions properly
 WebBrowser.maybeCompleteAuthSession();

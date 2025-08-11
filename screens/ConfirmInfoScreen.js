@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { supabase } from '../supabase';
+import { supabase } from './supabaseClient';
 
 export default function ConfirmInfoScreen({ route, navigation }) {
   const { form } = route.params;
@@ -24,11 +24,11 @@ export default function ConfirmInfoScreen({ route, navigation }) {
           first_name: form.firstName,
           last_name: form.lastName,
           phone: form.phone,
-          address1: form.address1,
-          address2: form.address2,
+          address_line_1: form.address1,
+          address_line_2: form.address2,
           city: form.city,
           state: form.state,
-          zip: form.zip,
+          zip_code: form.zip,
         },
       ]);
 
