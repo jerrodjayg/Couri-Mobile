@@ -7,6 +7,8 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOi
 
 console.log('🔄 Supabase URL:', supabaseUrl ? 'Set' : 'NOT SET');
 console.log('🔄 Supabase Anon Key:', supabaseAnonKey ? 'Set' : 'NOT SET');
+console.log('🔄 Supabase URL value:', supabaseUrl);
+console.log('🔄 Supabase Key length:', supabaseAnonKey?.length);
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  auth: {
@@ -14,5 +16,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
    autoRefreshToken: true,
    persistSession: true,
    detectSessionInUrl: false,
+   flowType: 'pkce', // Use PKCE flow for better security and compatibility
+   debug: __DEV__, // Enable debug mode in development
  },
+});
+
+console.log('🔄 Supabase client created successfully');
+console.log('🔄 Supabase client URL:', supabase.supabaseUrl);
+console.log('🔄 Supabase client key length:', supabase.supabaseKey?.length);
+
+// Test AsyncStorage access
+AsyncStorage.getItem('supabase.auth.token').then(token => {
+  console.log('🔄 Existing auth token in AsyncStorage:', token ? 'Found' : 'None');
+}).catch(error => {
+  console.log('⚠️ Error checking AsyncStorage:', error);
 });

@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  ScrollView,
-  Pressable,
   Image,
   Alert,
   Platform,
@@ -18,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function UploadPhotoScreen({ navigation, route }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const { userInfo, savedUser } = route.params || {};
 
   useEffect(() => {
@@ -88,16 +87,27 @@ export default function UploadPhotoScreen({ navigation, route }) {
     }
 
     try {
-      // Store the image URI temporarily (we'll handle actual upload later)
+      // Store the image URI in multiple places for consistent access
       const userData = {
         ...userInfo,
         profileImageUri: selectedImage,
+        avatar_url: selectedImage, // Add this for consistency
         isGoogleAuth: route.params?.isGoogleAuth || false,
       };
 
       // Store in AsyncStorage for the welcome screen to access
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
-      console.log('✅ User data with photo stored in AsyncStorage');
+      
+      // Also store in userProfileData for other screens
+      await AsyncStorage.setItem('userProfileData', JSON.stringify({
+        id: userInfo?.id || 'temp_user',
+        name: userInfo?.firstName || userInfo?.name || '',
+        full_name: `${userInfo?.firstName || ''} ${userInfo?.lastName || ''}`.trim(),
+        avatar_url: selectedImage,
+        email: userInfo?.email || ''
+      }));
+      
+      console.log('✅ User data with photo stored in AsyncStorage (tempUserData and userProfileData)');
 
       // Navigate to Welcomepage with the user data
       navigation.replace('Welcomepage', { 
@@ -112,14 +122,46 @@ export default function UploadPhotoScreen({ navigation, route }) {
 
   const handleSkip = async () => {
     try {
-      // Store user data without photo
+      // Generate user initials for profile picture
+      let userInitials = '?';
+      if (userInfo?.firstName && userInfo?.lastName) {
+        userInitials = (userInfo.firstName.charAt(0) + userInfo.lastName.charAt(0)).toUpperCase();
+      } else if (userInfo?.name) {
+        const names = userInfo.name.split(' ');
+        if (names.length >= 2) {
+          userInitials = (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+        } else if (names.length === 1) {
+          userInitials = names[0].charAt(0).toUpperCase();
+        }
+      }
+
+      // Store user data without photo but with initials - EXPLICITLY NO PROFILE PICTURE
       const userData = {
         ...userInfo,
         isGoogleAuth: route.params?.isGoogleAuth || false,
+        userInitials: userInitials,
+        hasSkippedPhoto: true,
+        avatar_url: '', // Explicitly set to empty
+        profileImageUri: '', // Explicitly set to empty
       };
 
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
-      console.log('✅ User data without photo stored in AsyncStorage');
+      
+      // Also store in userProfileData for other screens - EXPLICITLY NO PROFILE PICTURE
+      await AsyncStorage.setItem('userProfileData', JSON.stringify({
+        id: userInfo?.id || 'temp_user',
+        name: userInfo?.firstName || userInfo?.name || '',
+        full_name: `${userInfo?.firstName || ''} ${userInfo?.lastName || ''}`.trim(),
+        avatar_url: '', // Explicitly set to empty
+        email: userInfo?.email || ''
+      }));
+      
+      // CLEAR any existing profile pictures from previous sessions
+      await AsyncStorage.removeItem('previousProfilePicture');
+      await AsyncStorage.removeItem('storedProfilePicture');
+      
+      console.log('✅ User data with initials stored in AsyncStorage (photo skipped) - NO PROFILE PICTURE');
+      console.log('🗑️ Cleared any previous profile picture data');
 
       // Navigate to Welcomepage
       navigation.replace('Welcomepage', { 
@@ -134,183 +176,225 @@ export default function UploadPhotoScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.backButtonContainer}>
-            <Pressable onPress={() => navigation.goBack()}>
-              <Image
-                source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
-                style={styles.backArrowImage}
-                resizeMode="contain"
-              />
-            </Pressable>
-          </View>
-          <Text style={styles.headerTitle}>UPLOAD PHOTO</Text>
-          <View style={styles.backButtonContainer} />
+        {/* App Logo */}
+        <View style={styles.appTitleContainer}>
+          <Image
+            source={require('../assets/Logo_Dark.png')}
+            style={styles.appLogo}
+            resizeMode="contain"
+          />
         </View>
 
-        <ScrollView 
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.title}>Add a Profile Photo</Text>
-          <Text style={styles.subtitle}>
-            Help your friends recognize you by adding a profile photo
-          </Text>
-
+        {/* Photo Section */}
+        <View style={styles.photoSection}>
           <View style={styles.photoContainer}>
             {selectedImage ? (
               <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
             ) : (
               <View style={styles.placeholderContainer}>
                 <Image 
-                  source={require('../assets/face-id.png')} 
+                  source={require('../assets/mountain.png')} 
                   style={styles.placeholderIcon}
                   resizeMode="contain"
                 />
-                <Text style={styles.placeholderText}>No photo selected</Text>
               </View>
             )}
-          </View>
-
-          <View style={styles.buttonContainer}>
+            
+            {/* Small black circular button with plus sign */}
             <TouchableOpacity 
-              style={[styles.photoButton, styles.primaryButton]} 
-              onPress={pickImage}
+              style={styles.plusButton}
+              onPress={() => setShowModal(true)}
               disabled={isLoading}
             >
-              <Text style={styles.primaryButtonText}>
-                {isLoading ? 'Loading...' : 'Choose from Library'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.photoButton, styles.secondaryButton]} 
-              onPress={takePhoto}
-              disabled={isLoading}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {isLoading ? 'Loading...' : 'Take Photo'}
-              </Text>
+              <Text style={styles.plusSign}>+</Text>
             </TouchableOpacity>
           </View>
+        </View>
 
-          <View style={styles.actionContainer}>
-            <TouchableOpacity 
-              style={styles.continueButton}
-              onPress={handleContinue}
-              disabled={!selectedImage || isLoading}
-            >
-              <Text style={styles.continueButtonText}>Continue</Text>
-            </TouchableOpacity>
+        {/* Content */}
+        <View style={styles.content}>
+          <Text style={styles.title}>Upload a Photo</Text>
+          <Text style={styles.subtitle}>
+            Your photo will be used on Couri so that people you interact with can put a face to your name.
+          </Text>
 
+          {/* Action Buttons */}
+          <TouchableOpacity
+            style={styles.savePhotoButton}
+            onPress={handleContinue}
+            disabled={!selectedImage || isLoading}
+          >
+            <Text style={styles.savePhotoButtonText}>Save Photo</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.skipButton}
+            onPress={handleSkip}
+            disabled={isLoading}
+          >
+            <Text style={styles.skipButtonText}>Skip for now</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Photo Selection Modal */}
+        {showModal && (
+          <View style={styles.modalOverlay}>
+            {/* Close Button - Outside and on top of modal */}
             <TouchableOpacity 
-              style={styles.skipButton}
-              onPress={handleSkip}
-              disabled={isLoading}
+              style={styles.closeButton} 
+              onPress={() => setShowModal(false)}
             >
-              <Text style={styles.skipButtonText}>Skip for now</Text>
+              <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>
+            
+            <View style={styles.modalContainer}>
+
+              {/* Modal Title */}
+              <Text style={styles.modalTitle}>Upload media</Text>
+              
+              {/* Horizontal line under title */}
+              <View style={styles.titleUnderline} />
+
+              {/* Modal Options */}
+              <View style={styles.modalOptions}>
+                {/* Upload Photo Option */}
+                <TouchableOpacity 
+                  style={styles.modalOption} 
+                  onPress={() => {
+                    setShowModal(false);
+                    pickImage();
+                  }}
+                >
+                  <View style={styles.modalIconContainer}>
+                    <Image
+                      source={require('../assets/gallery.png')} 
+                      style={styles.modalIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.modalOptionText}>Upload Photo</Text>
+                </TouchableOpacity>
+                
+                {/* Vertical divider line */}
+                <View style={styles.verticalDivider} />
+                
+                {/* Take Photo Option */}
+                <TouchableOpacity 
+                  style={styles.modalOption} 
+                  onPress={() => {
+                    setShowModal(false);
+                    takePhoto();
+                  }}
+                >
+                  <View style={styles.modalIconContainer}>
+                    <Image
+                      source={require('../assets/camera.png')} 
+                      style={styles.modalIcon}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.modalOptionText}>Take Photo</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </ScrollView>
+        )}
+
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'transparent' },
-  container: { flex: 1, backgroundColor: 'transparent' },
-  scrollContainer: { flex: 1 },
-  contentContainer: { padding: 24, paddingBottom: 80 },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 24, 
-    paddingHorizontal: 8, 
-    paddingTop: 8 
-  },
-  backButtonContainer: { width: 44, alignItems: 'flex-start' },
-  backArrowImage: { width: 24, height: 24, marginLeft: 20, marginTop: 4 },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: '#000', flex: 1, textAlign: 'center' },
-  title: { fontSize: 24, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 32, textAlign: 'center' },
-  photoContainer: {
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, position: 'relative' },
+  appTitleContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  appLogo: {
+    width: 80,
+    height: 40,
+  },
+  photoSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  photoContainer: {
+    position: 'relative',
+    alignItems: 'center',
   },
   selectedImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#000',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
   placeholderContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#ccc',
-    borderStyle: 'dashed',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
   },
   placeholderIcon: {
+    width: 80,
+    height: 80,
+    opacity: 0.6,
+  },
+  plusButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
     width: 40,
     height: 40,
-    opacity: 0.5,
-  },
-  placeholderText: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 8,
-  },
-  buttonContainer: {
-    marginBottom: 32,
-  },
-  photoButton: {
-    paddingVertical: 16,
-    borderRadius: 50,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-  },
-  primaryButton: {
+    borderRadius: 20,
     backgroundColor: '#000',
-    borderColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
   },
-  secondaryButton: {
-    backgroundColor: '#fff',
-    borderColor: '#000',
-  },
-  primaryButtonText: {
+  plusSign: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '300',
   },
-  secondaryButtonText: {
+  content: {
+    flex: 1,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '400',
+    marginBottom: 16,
+    textAlign: 'center',
     color: '#000',
+  },
+  subtitle: {
     fontSize: 16,
-    fontWeight: '600',
+    color: '#000',
+    marginBottom: 50,
+    textAlign: 'center',
+    lineHeight: 22,
   },
-  actionContainer: {
-    alignItems: 'center',
-  },
-  continueButton: {
-    backgroundColor: '#000',
+  savePhotoButton: {
+    backgroundColor: '#fff',
     paddingVertical: 16,
+    paddingHorizontal: 40,
     borderRadius: 50,
-    alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
     width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000',
   },
-  continueButtonText: {
-    color: '#fff',
+  savePhotoButtonText: {
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -318,8 +402,107 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   skipButtonText: {
-    color: '#666',
-    fontSize: 14,
+    color: '#000',
+    fontSize: 16,
     textDecorationLine: 'underline',
+  },
+  // Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(128, 128, 128, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    width: '91%',
+    alignItems: 'center',
+    zIndex: 1001,
+    elevation: 5,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: '50%',
+    right: 15,
+    width: 30,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [
+      { translateY: -100 }
+    ],
+    zIndex: 1002,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 15,
+    marginTop: 5,
+  },
+  modalOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalIconContainer: {
+    position: 'relative',
+    marginBottom: 10,
+  },
+  modalIcon: {
+    width: 30,
+    height: 30,
+    opacity: 0.8,
+  },
+  modalPlusSign: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalPlusText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '300',
+  },
+  modalOptionText: {
+    fontSize: 14,
+    color: '#000',
+    textAlign: 'center',
+  },
+  titleUnderline: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginBottom: 20,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 80,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 20,
+    marginTop: -20,
   },
 });

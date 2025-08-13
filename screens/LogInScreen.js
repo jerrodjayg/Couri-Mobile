@@ -6,6 +6,7 @@ import { supabase } from './supabaseClient';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useFacebookAuth } from '../hooks/useFacebookAuth';
 import { useAppleAuth } from '../hooks/useAppleAuth';
+import { UserService } from '../utils/userService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -71,7 +72,7 @@ const upsertProfile = async (session) => {
   const { data: existingUser, error: checkError } = await supabase
     .from('users')
     .select('id, first_name, last_name')
-    .eq('email', email)
+    .ilike('email', email)
     .single();
 
   if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -93,7 +94,7 @@ const upsertProfile = async (session) => {
         last_name: lastName,
         // Update other fields if needed
       })
-      .eq('email', email);
+      .ilike('email', email);
 
     if (userError) {
       console.error('❌ User update error:', userError);
@@ -151,8 +152,11 @@ export default function LogInScreen({ navigation }) {
       Alert.alert('Error', 'Please enter your mobile number');
       return;
     }
-    if (phone.length < 10) {
-      Alert.alert('Error', 'Please enter a valid mobile number');
+    
+    // Clean the phone number and check if it has at least 10 digits
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      Alert.alert('Error', 'Please enter a valid mobile number with at least 10 digits');
       return;
     }
     navigation.navigate('Welcomepage');
@@ -189,264 +193,58 @@ export default function LogInScreen({ navigation }) {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    console.log('🔄 handleGoogleSignIn function called');
-    try {
-      console.log('🔄 Starting Google sign-in...');
-      const result = await signInGoogle();
-      console.log('📱 Google sign-in result:', result);
+const handleGoogleSignIn = async () => {
+  console.log('🔄 handleGoogleSignIn called');
+  try {
+    const result = await signInGoogle();
+    console.log('📱 Google sign-in result:', result);
 
-      if (result.type === 'success') {
-        console.log('✅ Google sign-in successful');
-        
-        // Extract user info from the URL fragment
-        const url = result.url;
-        console.log('✅ OAuth result URL:', url);
-        console.log('✅ URL includes access_token:', url && url.includes('access_token'));
-        
-        if (url && url.includes('access_token')) {
-          // Parse the URL to get user info
-          const fragment = url.split('#')[1];
-          console.log('✅ URL fragment:', fragment);
-          const params = new URLSearchParams(fragment);
-          console.log('✅ URL params:', Object.fromEntries(params.entries()));
-          
-          // Wait for the session to be established and get user info
-          console.log('🔄 Waiting for Google OAuth session to be established...');
-          
-          // Wait for the session to be properly established
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Try to get the session multiple times
-          let currentSession = null;
-          let retryCount = 0;
-          const maxRetries = 5;
-          
-          while (!currentSession && retryCount < maxRetries) {
-            console.log(`🔄 Attempt ${retryCount + 1} to get session...`);
-            
-            try {
-              const { data: { session: sessionData }, error: sessionError } = await supabase.auth.getSession();
-              console.log('🔄 Session data:', sessionData);
-              console.log('🔄 Session error:', sessionError);
-              
-              currentSession = sessionData;
-              
-              if (!currentSession) {
-                retryCount++;
-                await new Promise(resolve => setTimeout(resolve, 500));
-              }
-            } catch (error) {
-              console.error('❌ Error getting session:', error);
-              retryCount++;
-              await new Promise(resolve => setTimeout(resolve, 500));
-            }
-          }
-          
-          if (currentSession?.user) {
-            console.log('✅ Session established successfully');
-            console.log('✅ User metadata:', currentSession.user.user_metadata);
-            console.log('✅ Full user object:', currentSession.user);
-            
-            // Check if user already exists in the database
-            console.log('🔄 Checking if user already exists in database...');
-            const { data: existingUser, error: userCheckError } = await supabase
-              .from('users')
-              .select('*')
-              .eq('email', currentSession.user.email)
-              .single();
-            
-            if (userCheckError && userCheckError.code !== 'PGRST116') {
-              console.error('❌ Error checking existing user:', userCheckError);
-            }
-            
-            if (existingUser) {
-              console.log('✅ User already exists in database, signing in...');
-              
-              // User exists, save profile and navigate to welcome screen
-              try {
-                await upsertProfile(currentSession);
-                console.log('✅ Profile updated successfully');
-              } catch (profileError) {
-                console.log('⚠️ Profile update failed, but continuing:', profileError);
-              }
-              
-              // Navigate to welcome screen for existing users
-              const fullName = existingUser.first_name && existingUser.last_name 
-                ? `${existingUser.first_name} ${existingUser.last_name}`
-                : currentSession.user.user_metadata?.full_name || 
-                  currentSession.user.user_metadata?.name || 
-                  'there';
-              
-              navigation.replace('Welcomepage', { name: fullName });
-              return;
-            } else {
-              console.log('🔄 User does not exist, proceeding to onboarding...');
-              
-              // User doesn't exist, navigate to PersonalInfoScreen for onboarding
-              navigation.replace('PersonalInfo', { 
-                userInfo: {
-                  firstName: currentSession.user.user_metadata?.given_name || 
-                    currentSession.user.user_metadata?.name?.split(' ')[0] || '',
-                  lastName: currentSession.user.user_metadata?.family_name || 
-                    currentSession.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
-                  email: currentSession.user.email || '',
-                  phone: '',
-                  address1: '',
-                  address2: '',
-                  city: '',
-                  state: '',
-                  zip: '',
-                },
-                isGoogleAuth: true,
-                googleUserData: {
-                  id: currentSession.user.id,
-                  email: currentSession.user.email,
-                  user_metadata: currentSession.user.user_metadata,
-                  app_metadata: currentSession.user.app_metadata
-                }
-              });
-              return;
-            }
-          } else {
-            console.log('❌ Failed to establish session after multiple retries');
-            
-            // Try to get user info from the OAuth result URL as fallback
-            try {
-              console.log('🔄 Trying to extract user info from OAuth URL...');
-              
-              const fragment = url.split('#')[1];
-              const params = new URLSearchParams(fragment);
-              const providerToken = params.get('provider_token');
-              
-              if (providerToken) {
-                console.log('🔄 Found provider token, trying to get user info...');
-                
-                // Try to get user info using the provider token (Google OAuth token)
-                const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                  headers: {
-                    'Authorization': `Bearer ${providerToken}`,
-                    'Accept': 'application/json'
-                  }
-                });
-                
-                if (userInfoResponse.ok) {
-                  const userInfoData = await userInfoResponse.json();
-                  console.log('✅ Got user info from Google API:', userInfoData);
-                  
-                  // Check if user exists in database
-                  const { data: existingUser, error: userCheckError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('email', userInfoData.email)
-                    .single();
-                  
-                  if (userCheckError && userCheckError.code !== 'PGRST116') {
-                    console.error('❌ Error checking existing user:', userCheckError);
-                  }
-                  
-                  if (existingUser) {
-                    console.log('✅ User already exists in database, navigating to welcome...');
-                    const fullName = existingUser.first_name && existingUser.last_name 
-                      ? `${existingUser.first_name} ${existingUser.last_name}`
-                      : userInfoData.name || 'there';
-                    
-                    navigation.replace('Welcomepage', { name: fullName });
-                    return;
-                  } else {
-                    console.log('🔄 User does not exist, proceeding to onboarding...');
-                    navigation.replace('PersonalInfo', { 
-                      userInfo: {
-                        firstName: userInfoData.given_name || userInfoData.name?.split(' ')[0] || '',
-                        lastName: userInfoData.family_name || userInfoData.name?.split(' ').slice(1).join(' ') || '',
-                        email: userInfoData.email || '',
-                        phone: '',
-                        address1: '',
-                        address2: '',
-                        city: '',
-                        state: '',
-                        zip: '',
-                      },
-                      isGoogleAuth: true,
-                      googleUserData: {
-                        email: userInfoData.email,
-                        user_metadata: {
-                          full_name: userInfoData.name,
-                          given_name: userInfoData.given_name,
-                          family_name: userInfoData.family_name,
-                          avatar_url: userInfoData.picture
-                        }
-                      }
-                    });
-                    return;
-                  }
-                } else {
-                  console.log('❌ Failed to get user info from Google API');
-                  // Fallback to PersonalInfoScreen
-                  navigation.replace('PersonalInfo', { 
-                    userInfo: {
-                      firstName: '',
-                      lastName: '',
-                      email: '',
-                      phone: '',
-                      address1: '',
-                      address2: '',
-                      city: '',
-                      state: '',
-                      zip: '',
-                    },
-                    isGoogleAuth: true
-                  });
-                }
-              } else {
-                console.log('❌ No provider token found, fallback to PersonalInfoScreen');
-                navigation.replace('PersonalInfo', { 
-                  userInfo: {
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    address1: '',
-                    address2: '',
-                    city: '',
-                    state: '',
-                    zip: '',
-                  },
-                  isGoogleAuth: true
-                });
-              }
-            } catch (error) {
-              console.error('❌ Error extracting user info:', error);
-              // Fallback to PersonalInfoScreen
-              navigation.replace('PersonalInfo', { 
-                userInfo: {
-                  firstName: '',
-                  lastName: '',
-                  email: '',
-                  phone: '',
-                  address1: '',
-                  address2: '',
-                  city: '',
-                  state: '',
-                  zip: '',
-                },
-                isGoogleAuth: true
-              });
-            }
-          }
-        } else {
-          console.log('❌ No access token in URL');
-          Alert.alert('Error', 'Authentication failed. Please try again.');
-        }
-      } else {
-        console.log('❌ Google sign-in failed:', result.type);
-        Alert.alert('Error', 'Google sign-in failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('❌ Google sign-in error:', error);
-      Alert.alert('Error', 'An error occurred during sign-in.');
+    if (result.type !== 'success' || !result.user?.email) {
+      Alert.alert('Error', 'Google sign-in failed. Please try again.');
+      return;
     }
-  };
+
+    const email = result.user.email.toLowerCase();
+
+    // 1) Check if this email already exists in our DB (users table)
+    const { exists, user: existingUser } = await UserService.checkUserExists(email);
+
+    if (!exists) {
+      // Not registered — sign out the auth session so we don't keep a ghost login
+      await supabase.auth.signOut();
+      Alert.alert(
+        'Email not registered',
+        'This Google email is not registered. Please create an account first.'
+      );
+      return;
+    }
+
+    // 2) Email exists — optional: refresh profile fields silently
+    try {
+      await UserService.saveGoogleAuthUser(result.user, {
+        email,
+        firstName: existingUser?.first_name ?? result.user.user_metadata?.given_name ?? '',
+        lastName: existingUser?.last_name ?? result.user.user_metadata?.family_name ?? '',
+      });
+    } catch (e) {
+      console.log('Silent profile refresh failed (continuing):', e?.message || e);
+    }
+
+    const fullName =
+      (existingUser?.first_name && existingUser?.last_name)
+        ? `${existingUser.first_name} ${existingUser.last_name}`
+        : result.user.user_metadata?.full_name ||
+          result.user.user_metadata?.name ||
+          'there';
+
+    navigation.replace('Welcomepage', { name: fullName });
+  } catch (error) {
+    console.error('❌ Google sign-in error:', error);
+    Alert.alert('Error', 'An error occurred during sign-in.');
+  }
+};
+
+
 
   const handleFacebookSignIn = async () => {
     try {
@@ -609,7 +407,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#222',
     paddingVertical: 12,
     marginBottom: 8,
-    fontSize: 41
+    fontSize: 27
   },
   subText: {
     fontSize: 12,

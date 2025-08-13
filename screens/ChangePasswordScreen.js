@@ -14,9 +14,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabaseClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ChangePasswordScreen({ navigation, route }) {
-  const { userEmail } = route.params;
+  const { userEmail } = route.params || {};
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,6 +25,8 @@ export default function ChangePasswordScreen({ navigation, route }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isValid, setIsValid] = useState({});
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [resolvedUserEmail, setResolvedUserEmail] = useState(userEmail);
 
   useEffect(() => {
     if (password.length > 0) {
@@ -32,6 +35,28 @@ export default function ChangePasswordScreen({ navigation, route }) {
       setIsValid({});
     }
   }, [password]);
+
+  // Try to resolve user email if not provided in route params
+  useEffect(() => {
+    const resolveUserEmail = async () => {
+      if (!userEmail) {
+        try {
+          const userProfileData = await AsyncStorage.getItem('userProfileData');
+          if (userProfileData) {
+            const parsedData = JSON.parse(userProfileData);
+            if (parsedData.email) {
+              console.log('Resolved user email from AsyncStorage:', parsedData.email);
+              setResolvedUserEmail(parsedData.email);
+            }
+          }
+        } catch (error) {
+          console.log('Error reading AsyncStorage for user email:', error);
+        }
+      }
+    };
+
+    resolveUserEmail();
+  }, [userEmail]);
 
   const validatePassword = (pwd) => {
     const rules = {
@@ -70,11 +95,21 @@ export default function ChangePasswordScreen({ navigation, route }) {
     if (!allValid) return;
     setError('');
 
+    // Check if we have a valid email
+    if (!resolvedUserEmail) {
+      setError('User email not available. Please go back and try again.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
     try {
       console.log('=== PASSWORD CHANGE PROCESS START ===');
       console.log('User email from route params:', userEmail);
-      console.log('User email type:', typeof userEmail);
-      console.log('User email length:', userEmail?.length);
+      console.log('Resolved user email:', resolvedUserEmail);
+      console.log('User email type:', typeof resolvedUserEmail);
+      console.log('User email length:', resolvedUserEmail?.length);
       console.log('New password to save:', password);
       console.log('Password length:', password.length);
       console.log('Password characters:', password.split('').map(c => c.charCodeAt(0)));
@@ -86,7 +121,7 @@ export default function ChangePasswordScreen({ navigation, route }) {
           password_hash: password, // Note: In production, this should be hashed
           updated_at: new Date().toISOString()
         })
-        .eq('email', userEmail);
+        .ilike('email', resolvedUserEmail);
 
       if (updateError) {
         console.error('Password update error:', updateError);
@@ -101,7 +136,7 @@ export default function ChangePasswordScreen({ navigation, route }) {
       const { data: verifyData, error: verifyError } = await supabase
         .from('users')
         .select('password_hash')
-        .eq('email', userEmail)
+        .ilike('email', resolvedUserEmail)
         .single();
         
       if (verifyError) {
@@ -132,6 +167,8 @@ export default function ChangePasswordScreen({ navigation, route }) {
     } catch (error) {
       console.error('Continue error:', error);
       setError('generalError');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,6 +187,21 @@ export default function ChangePasswordScreen({ navigation, route }) {
             <Text style={styles.headerTitle}>CHANGE PASSWORD</Text>
             <View style={{ width: 24 }} />
           </View>
+
+          {resolvedUserEmail && (
+            <View style={styles.emailInfo}>
+              <Text style={styles.emailLabel}>Changing password for:</Text>
+              <Text style={styles.emailText}>{resolvedUserEmail}</Text>
+            </View>
+          )}
+          
+          {!resolvedUserEmail && (
+            <View style={styles.emailInfo}>
+              <Text style={styles.emailWarning}>
+                ⚠️ User email not available. Please go back and try again.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.inputWrapper}>
             <TextInput
@@ -206,23 +258,24 @@ export default function ChangePasswordScreen({ navigation, route }) {
             style={[
               styles.continueButton,
               {
-                backgroundColor: allValid ? '#000' : '#fff',
+                backgroundColor: allValid && !isLoading ? '#000' : '#fff',
                 borderWidth: 1,
                 borderColor: '#000',
+                opacity: isLoading ? 0.6 : 1,
               },
             ]}
-            disabled={!allValid}
+            disabled={!allValid || isLoading}
             onPress={handleContinue}
           >
             <Text
               style={[
                 styles.continueText,
                 {
-                  color: allValid ? '#fff' : '#000',
+                  color: allValid && !isLoading ? '#fff' : '#000',
                 },
               ]}
             >
-              Update Password
+              {isLoading ? 'Updating Password...' : 'Update Password'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -255,6 +308,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     fontWeight: '600',
+  },
+  emailInfo: {
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  emailLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  emailText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+  },
+  emailWarning: {
+    fontSize: 14,
+    color: '#ff6b6b',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   inputWrapper: {
     flexDirection: 'row',

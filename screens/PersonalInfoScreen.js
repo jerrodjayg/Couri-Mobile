@@ -65,6 +65,15 @@ export default function PersonalInfoScreen({ navigation, route }) {
     zip: '',
   });
 
+  // Phone number formatting function (same as LogInScreen and CreateAccountScreen)
+  const formatPhoneNumber = (text) => {
+    const cleaned = text.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    if (!match) return text;
+    if (match[2]) return `(${match[1]}) ${match[2]}${match[3] ? '-' + match[3] : ''}`;
+    return match[1];
+  };
+
   // Populate form with userInfo from route params if it exists
   useEffect(() => {
     if (userInfo) {
@@ -102,84 +111,84 @@ export default function PersonalInfoScreen({ navigation, route }) {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
 
-const handleChange = (name, value) => {
-  setForm((prev) => ({ ...prev, [name]: value }));
-  setError('');
+  const handleChange = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setError('');
 
-  // Only fetch Smarty suggestions if editing address1
-  if (name === 'address1') {
-    // Clear any existing timeout
-    if (window.suggestionTimeout) {
-      clearTimeout(window.suggestionTimeout);
+    // Only fetch Smarty suggestions if editing address1
+    if (name === 'address1') {
+      // Clear any existing timeout
+      if (window.suggestionTimeout) {
+        clearTimeout(window.suggestionTimeout);
+      }
+      
+      // Add a small delay to prevent too many API calls
+      window.suggestionTimeout = setTimeout(() => {
+        fetchSuggestions(value);
+      }, 300);
     }
-    
-    // Add a small delay to prevent too many API calls
-    window.suggestionTimeout = setTimeout(() => {
-      fetchSuggestions(value);
-    }, 300);
-  }
-};
+  };
 
-const fetchSuggestions = async (input) => {
-  if (!input || input.trim().length < 3) {
-    setSuggestions([]);
-    setIsLoadingSuggestions(false);
-    return;
-  }
-
-  setIsLoadingSuggestions(true);
-
-  try {
-    const SMARTY_AUTH_ID = 'af0d27eb-c903-f64d-47eb-c8c06d7819e7';
-    const SMARTY_AUTH_TOKEN = '9NOFpSJMo87AMyFoHs3R';
-
-    const encodedInput = encodeURIComponent(input.trim());
-    const url = `https://us-autocomplete.api.smarty.com/lookup?search=${encodedInput}&auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&max_suggestions=10`;
-
-    console.log('Calling:', url);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Smarty API error:', response.status, response.statusText, errText);
+  const fetchSuggestions = async (input) => {
+    if (!input || input.trim().length < 3) {
       setSuggestions([]);
+      setIsLoadingSuggestions(false);
       return;
     }
 
-    const data = await response.json();
-    console.log('Smarty API response:', data);
+    setIsLoadingSuggestions(true);
 
-    if (data && data.suggestions) {
-      setSuggestions(data.suggestions);
-    } else {
+    try {
+      const SMARTY_AUTH_ID = 'af0d27eb-c903-f64d-47eb-c8c06d7819e7';
+      const SMARTY_AUTH_TOKEN = '9NOFpSJMo87AMyFoHs3R';
+
+      const encodedInput = encodeURIComponent(input.trim());
+      const url = `https://us-autocomplete.api.smarty.com/lookup?search=${encodedInput}&auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&max_suggestions=10`;
+
+      console.log('Calling:', url);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('Smarty API error:', response.status, response.statusText, errText);
+        setSuggestions([]);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Smarty API response:', data);
+
+      if (data && data.suggestions) {
+        setSuggestions(data.suggestions);
+      } else {
+        setSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Smarty API error:', error);
       setSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
     }
-  } catch (error) {
-    console.error('Smarty API error:', error);
+  };
+
+
+  const handleSuggestionPress = (suggestion) => {
     setSuggestions([]);
-  } finally {
-    setIsLoadingSuggestions(false);
-  }
-};
 
-
-const handleSuggestionPress = (suggestion) => {
-  setSuggestions([]);
-
-  setForm((prev) => ({
-    ...prev,
-    address1: suggestion.street_line || '',
-    city: suggestion.city || '',
-    state: suggestion.state || '',
-    zip: suggestion.zipcode || '',
-  }));
-};
+    setForm((prev) => ({
+      ...prev,
+      address1: suggestion.street_line || '',
+      city: suggestion.city || '',
+      state: suggestion.state || '',
+      zip: suggestion.zipcode || '',
+    }));
+  };
 
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -242,66 +251,79 @@ const handleSuggestionPress = (suggestion) => {
     );
   };
 
-         return (
-     <SafeAreaView style={styles.safeArea}>
-       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-       <View style={styles.container}>
-                   <View style={styles.header}>
-            <View style={styles.backButtonContainer}>
-              <Pressable onPress={() => navigation.goBack()}>
-                <Image
-                  source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
-                  style={styles.backArrowImage}
-                  resizeMode="contain"
-                />
-              </Pressable>
-            </View>
-            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
-            <View style={styles.backButtonContainer} />
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.backButtonContainer}>
+            <Pressable onPress={() => navigation.goBack()}>
+              <Image
+                source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
+                style={styles.backArrowImage}
+                resizeMode="contain"
+              />
+            </Pressable>
           </View>
+          <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+          <View style={styles.backButtonContainer} />
+        </View>
 
-         {renderError()}
+        {renderError()}
 
-         <ScrollView 
-           style={styles.scrollContainer}
-           contentContainerStyle={styles.formContainer}
-           keyboardShouldPersistTaps="handled"
-           showsVerticalScrollIndicator={false}
-         >
-            <Text style={styles.sectionTitle}>Personal Info</Text>
-            <TextInput placeholder="First Name*" value={form.firstName} onChangeText={(text) => handleChange('firstName', text)} style={styles.input} />
-            <TextInput placeholder="Last Name*" value={form.lastName} onChangeText={(text) => handleChange('lastName', text)} style={styles.input} />
-            <TextInput 
-              placeholder="Email Address*" 
-              value={form.email} 
-              onChangeText={(text) => handleChange('email', text)} 
-              keyboardType="email-address" 
-              autoCapitalize="none" 
-              style={[styles.input, route.params?.isGoogleAuth && styles.readOnlyInput]} 
-              editable={!route.params?.isGoogleAuth}
-            />
-            <TextInput placeholder="Mobile Number*" value={form.phone} onChangeText={(text) => handleChange('phone', text)} keyboardType="phone-pad" style={styles.input} />
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.formContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.sectionTitle}>Personal Info</Text>
+          <TextInput placeholder="First Name*" value={form.firstName} onChangeText={(text) => handleChange('firstName', text)} style={styles.input} />
+          <TextInput placeholder="Last Name*" value={form.lastName} onChangeText={(text) => handleChange('lastName', text)} style={styles.input} />
+          <TextInput 
+            placeholder="Email Address*" 
+            value={form.email} 
+            onChangeText={(text) => handleChange('email', text)} 
+            keyboardType="email-address" 
+            autoCapitalize="none" 
+            style={[styles.input, route.params?.isGoogleAuth && styles.readOnlyInput]} 
+            editable={!route.params?.isGoogleAuth}
+          />
+          <TextInput 
+            placeholder="Mobile Number*" 
+            value={form.phone} 
+            onChangeText={(text) => {
+              const formatted = formatPhoneNumber(text);
+              handleChange('phone', formatted);
+            }} 
+            keyboardType="phone-pad" 
+            style={styles.input} 
+          />
 
-            <Text style={styles.sectionTitle}>Home Address</Text>
+          <Text style={styles.sectionTitle}>Home Address</Text>
 
-            <TextInput placeholder="Address Line 1*" 
-              value={form.address1} 
-              onChangeText={(text) => handleChange('address1', text)} 
-              style={styles.input} />
-            
-            {isLoadingSuggestions && (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading suggestions...</Text>
-              </View>
-            )}
-            
-            {suggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
+          <TextInput placeholder="Address Line 1*" 
+            value={form.address1} 
+            onChangeText={(text) => handleChange('address1', text)} 
+            style={styles.input} />
+          
+          {isLoadingSuggestions && (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading suggestions...</Text>
+            </View>
+          )}
+          
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <View style={styles.suggestionsList}>
                 {suggestions.map((item, index) => (
                   <TouchableOpacity 
                     key={`${item.street_line}-${item.city}-${item.state}-${index}`}
                     onPress={() => handleSuggestionPress(item)} 
-                    style={styles.suggestionItem}
+                    style={[
+                      styles.suggestionItem,
+                      index === suggestions.length - 1 && styles.suggestionItemLast
+                    ]}
                   >
                     <Text style={styles.suggestionText}>
                       {item.street_line}
@@ -311,32 +333,33 @@ const handleSuggestionPress = (suggestion) => {
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
-
-            <TextInput placeholder="Address Line 2 (Optional)" value={form.address2} onChangeText={(text) => handleChange('address2', text)} style={styles.input} />
-            <TextInput placeholder="City*" value={form.city} onChangeText={(text) => handleChange('city', text)} style={styles.input} />
-            <View style={styles.row}>
-              <TextInput placeholder="State*" value={form.state} onChangeText={(text) => handleChange('state', text)} style={[styles.input, styles.halfInput]} />
-              <TextInput placeholder="Zip*" value={form.zip} onChangeText={(text) => handleChange('zip', text)} keyboardType="numeric" style={[styles.input, styles.halfInput]} />
             </View>
+          )}
 
-            <Text style={styles.legal}>
-              By creating an account, you agree to Couri's <Text style={[styles.legal, styles.link]}>Terms of Use</Text> and{' '}
-              <Text style={[styles.legal, styles.link]}>Privacy Policy</Text>.
+          <TextInput placeholder="Address Line 2 (Optional)" value={form.address2} onChangeText={(text) => handleChange('address2', text)} style={styles.input} />
+          <TextInput placeholder="City*" value={form.city} onChangeText={(text) => handleChange('city', text)} style={styles.input} />
+          <View style={styles.row}>
+            <TextInput placeholder="State*" value={form.state} onChangeText={(text) => handleChange('state', text)} style={[styles.input, styles.halfInput]} />
+            <TextInput placeholder="Zip*" value={form.zip} onChangeText={(text) => handleChange('zip', text)} keyboardType="numeric" style={[styles.input, styles.halfInput]} />
+          </View>
+
+          <Text style={styles.legal}>
+            By creating an account, you agree to Couri's <Text style={[styles.legal, styles.link]}>Terms of Use</Text> and{' '}
+            <Text style={[styles.legal, styles.link]}>Privacy Policy</Text>.
+          </Text>
+
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={onContinue}
+          >
+            <Text style={styles.buttonText}>
+              Continue
             </Text>
-
-                         <TouchableOpacity 
-               style={styles.button}
-               onPress={onContinue}
-             >
-               <Text style={styles.buttonText}>
-                 Continue
-               </Text>
-             </TouchableOpacity>
-           </ScrollView>
-         </View>
-       </SafeAreaView>
-     );
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -361,30 +384,32 @@ const styles = StyleSheet.create({
   errorIconText: { color: 'white', fontWeight: 'bold', fontSize: 14, lineHeight: 14 },
   errorText: { color: 'red', fontWeight: '600' },
   suggestionItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    backgroundColor: '#f9f9f9',
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
   },
   suggestionText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#333',
+    lineHeight: 18,
+  },
+  suggestionItemLast: {
+    borderBottomWidth: 0,
   },
   suggestionsList: {
-    maxHeight: 200,
-    marginBottom: 16,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 5,
-  },
-  suggestionsContainer: {
-    maxHeight: 200,
-    marginBottom: 16,
+    maxHeight: 150,
     borderColor: '#ddd',
     borderWidth: 1,
     borderRadius: 5,
     backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  suggestionsContainer: {
+    marginBottom: 16,
+    position: 'relative',
+    zIndex: 1000,
   },
   loadingContainer: {
     paddingVertical: 10,

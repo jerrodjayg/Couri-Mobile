@@ -13,8 +13,20 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import Logo from '../assets/Logo_Dark.png';
 
 export default function FaceIDScreen({ navigation, route }) {
-  const [authLabel, setAuthLabel] = useState('Biometric');
   const { userInfo, savedUser, isGoogleAuth, googleUserData } = route.params || {};
+  const [authLabel, setAuthLabel] = useState('Biometric');
+
+  // Log the received parameters for debugging
+  useEffect(() => {
+    console.log('🔄 FaceIDScreen received params:', {
+      isGoogleAuth,
+      hasGoogleUserData: !!googleUserData,
+      googleUserData: googleUserData,
+      hasUserInfo: !!userInfo,
+      hasSavedUser: !!savedUser,
+      routeParams: route?.params
+    });
+  }, [isGoogleAuth, googleUserData, userInfo, savedUser, route?.params]);
 
   useEffect(() => {
     const detectBiometricType = async () => {
@@ -67,8 +79,10 @@ export default function FaceIDScreen({ navigation, route }) {
 
       if (result.success) {
         // ✅ After Face ID step, go straight to PushNoti with user data
+        // Prioritize savedUser (from database) over userInfo (from form)
+        const userData = route.params?.savedUser || route.params?.userInfo;
         navigation.navigate('PushNoti', { 
-          user: route.params?.savedUser || route.params?.userInfo,
+          user: userData,
           isGoogleAuth: isGoogleAuth,
           googleUserData: googleUserData
         });
@@ -83,8 +97,10 @@ export default function FaceIDScreen({ navigation, route }) {
 
   const handleMaybeLater = () => {
     // ✅ Even if they skip, proceed to PushNoti with user data
+    // Prioritize savedUser (from database) over userInfo (from form)
+    const userData = route.params?.savedUser || route.params?.userInfo;
     navigation.navigate('PushNoti', { 
-      user: route.params?.savedUser || route.params?.userInfo,
+      user: userData,
       isGoogleAuth: isGoogleAuth,
       googleUserData: googleUserData
     });

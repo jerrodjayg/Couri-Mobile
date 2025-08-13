@@ -18,7 +18,22 @@ import { useUser } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PasswordLoginScreen({ navigation }) {
-  const { setCustomUser } = useUser();
+  const userContext = useUser();
+  const { setCustomUser } = userContext;
+  
+  console.log('🔍 PasswordLoginScreen - userContext:', {
+    user: userContext.user?.id,
+    customUser: userContext.customUser?.id,
+    setCustomUser: typeof userContext.setCustomUser,
+    loading: userContext.loading
+  });
+  
+  // Safety check for setCustomUser
+  if (!setCustomUser) {
+    console.error('❌ setCustomUser is not available in context!');
+    console.error('❌ Full context:', userContext);
+  }
+  
   const [emailOrMobile, setEmailOrMobile] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,54 +52,114 @@ export default function PasswordLoginScreen({ navigation }) {
     setError('');
 
     try {
-      // Search by email only (case insensitive)
-      console.log('Searching for email:', emailOrMobile);
-      const { data, error } = await supabase
+      // Normalize email to lowercase for consistent comparison
+      const normalizedEmail = emailOrMobile.toLowerCase().trim();
+      console.log('🔍 Attempting login with normalized email:', normalizedEmail);
+
+      // Check if user exists and get password hash in a single query
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .ilike('email', emailOrMobile.toLowerCase())
+        .ilike('email', normalizedEmail)
         .single();
-      
-      console.log('Email search result:', { data, error });
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking user account:', error);
-        setError('Error checking user account');
+      console.log('User lookup result:', { userData, userError });
+
+      if (userError) {
+        if (userError.code === 'PGRST116') {
+          // No user found
+          setError('This email is not registered. Please sign up first.');
+        } else {
+          console.error('Database error:', userError);
+          setError('Error checking user account. Please try again.');
+        }
         setLoading(false);
         return;
       }
 
-      if (!data) {
+      if (!userData) {
         setError('This email is not registered. Please sign up first.');
         setLoading(false);
         return;
       }
 
-      // Check if password matches
-      if (data.password_hash !== password) {
-        console.log('Password mismatch details:');
-        console.log('  Input password:', `"${password}"`);
-        console.log('  Stored password:', `"${data.password_hash}"`);
-        console.log('  Input password length:', password.length);
-        console.log('  Stored password length:', data.password_hash?.length);
+      // Verify password
+      console.log('🔐 Verifying password for user:', userData.email);
+      console.log('Input password length:', password.length);
+      console.log('Stored password hash length:', userData.password_hash?.length);
+
+      if (!userData.password_hash) {
+        console.error('No password hash found for user');
+        setError('Account setup incomplete. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      if (userData.password_hash !== password) {
+        console.log('❌ Password mismatch:');
+        console.log(' Input password:', `"${password}"`);
+        console.log(' Stored password:', `"${userData.password_hash}"`);
         setError('Email and password don\'t match');
         setLoading(false);
         return;
       }
 
-      // Login successful
-      console.log('Login successful for user:', data.email);
-      console.log('User found in database:', data);
-      setCustomUser(data); // Set user in context
-      console.log('User set in context, navigating to Welcomepage');
+      // ✅ Login successful - prepare complete user data
+      console.log('✅ Login successful for user:', userData.email);
       
-             // Store user email in AsyncStorage for push notifications
-       await AsyncStorage.setItem('currentUserEmail', data.email);
-       console.log('User email stored in AsyncStorage:', data.email);
+      // Create complete user data object
+      const completeUserData = {
+        id: userData.id,
+        email: userData.email,
+        firstName: userData.first_name || '',
+        lastName: userData.last_name || '',
+        full_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+        phone: userData.phone || '',
+        address1: userData.address_line_1 || '',
+        address2: userData.address_line_2 || '',
+        city: userData.city || '',
+        state: userData.state || '',
+        zip: userData.zip_code || '',
+        avatar_url: userData.avatar_url || '',
+        isGoogleAuth: userData.is_google_auth || false,
+        created_at: userData.created_at,
+        updated_at: userData.updated_at
+      };
       
-      navigation.replace('Welcomepage', { user: data });
+      console.log('📋 Complete user data prepared:', completeUserData);
+      
+      // Store complete user data in AsyncStorage for other screens
+      await AsyncStorage.setItem('tempUserData', JSON.stringify(completeUserData));
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserData));
+      
+      // Store user email for push notifications
+      await AsyncStorage.setItem('currentUserEmail', completeUserData.email);
+      
+      // Clear any previous profile picture data from other sessions
+      await AsyncStorage.removeItem('previousProfilePicture');
+      await AsyncStorage.removeItem('storedProfilePicture');
+      
+      console.log('💾 User data stored in AsyncStorage');
+      
+      // Set user in context (with safety check)
+      if (setCustomUser && typeof setCustomUser === 'function') {
+        setCustomUser(completeUserData);
+        console.log('👤 User set in context');
+      } else {
+        console.error('❌ setCustomUser is not available or not a function');
+        console.error('❌ setCustomUser type:', typeof setCustomUser);
+        console.error('❌ setCustomUser value:', setCustomUser);
+        // Continue without setting context - user data is already in AsyncStorage
+      }
+      
+      // Navigate to Welcomepage with complete user data
+      navigation.replace('Welcomepage', { 
+        name: completeUserData.firstName || completeUserData.full_name?.split(' ')[0] || 'there',
+        userData: completeUserData
+      });
+      
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -105,16 +180,24 @@ export default function PasswordLoginScreen({ navigation }) {
     }
 
     try {
+      // Normalize email to lowercase for consistent comparison
+      const normalizedEmail = emailOrMobile.toLowerCase().trim();
+      console.log('🔍 Checking password reset for normalized email:', normalizedEmail);
+
       // Check if the email exists in the database
       const { data: existingUser, error: userError } = await supabase
         .from('users')
         .select('*')
-        .ilike('email', emailOrMobile.toLowerCase())
+        .ilike('email', normalizedEmail)
         .single();
 
-      if (userError && userError.code !== 'PGRST116') {
-        console.error('Error checking user account:', userError);
-        setError('Error checking user account');
+      if (userError) {
+        if (userError.code === 'PGRST116') {
+          setError('Account doesn\'t exist. Please check your email or sign up first.');
+        } else {
+          console.error('Error checking user account:', userError);
+          setError('Error checking user account. Please try again.');
+        }
         return;
       }
 

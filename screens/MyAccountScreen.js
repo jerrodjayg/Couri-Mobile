@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,15 +11,46 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
+import { useFocusEffect } from '@react-navigation/native';
 
-export default function MyAccountScreen({ navigation }) {
+export default function MyAccountScreen({ navigation, route }) {
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState(null);
+  const [userInitials, setUserInitials] = useState(null);
 
   // Fetch user profile from AsyncStorage or context
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
+        // First check route params for user data with initials
+        if (route?.params?.userData?.userInitials) {
+          setUserInitials(route.params.userData.userInitials);
+        }
+        
+        // Check AsyncStorage for user data with initials
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        if (tempUserData) {
+          const parsedData = JSON.parse(tempUserData);
+          if (parsedData.userInitials && !userInitials) {
+            setUserInitials(parsedData.userInitials);
+          }
+          
+          // Update userProfile with profile picture if available
+          // BUT only if user didn't skip photo upload
+          if (!parsedData.hasSkippedPhoto && (parsedData.avatar_url || parsedData.profileImageUri)) {
+            setUserProfile(prev => ({
+              ...prev,
+              avatar_url: parsedData.avatar_url || parsedData.profileImageUri
+            }));
+          } else if (parsedData.hasSkippedPhoto) {
+            // User explicitly skipped photo - show initials
+            setUserProfile(prev => ({
+              ...prev,
+              avatar_url: '' // Force empty to show initials
+            }));
+          }
+        }
+        
         // First try to get user data from persistent AsyncStorage (from OAuth flow)
         const userProfileData = await AsyncStorage.getItem('userProfileData');
         if (userProfileData) {
@@ -51,7 +82,32 @@ export default function MyAccountScreen({ navigation }) {
     };
 
     fetchUserProfile();
-  }, [user]);
+  }, [user, route?.params?.userData, userInitials]);
+
+  // Refresh profile picture when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const refreshProfilePicture = async () => {
+        try {
+          // Check for updated profile picture in tempUserData
+          const tempUserData = await AsyncStorage.getItem('tempUserData');
+          if (tempUserData) {
+            const parsedData = JSON.parse(tempUserData);
+            if (parsedData.avatar_url || parsedData.profileImageUri) {
+              setUserProfile(prev => ({
+                ...prev,
+                avatar_url: parsedData.avatar_url || parsedData.profileImageUri
+              }));
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Error refreshing profile picture:', error);
+        }
+      };
+
+      refreshProfilePicture();
+    }, [])
+  );
 
   const handleLogOut = async () => {
     // Navigate back to home/login screen
@@ -62,16 +118,57 @@ export default function MyAccountScreen({ navigation }) {
   };
 
   const handleViewProfile = () => {
-    navigation.navigate('Profile');
+    // Pass user data including initials to Profile screen
+    const userDataToPass = {
+      ...route?.params?.userData,
+      userInitials: getUserInitials(),
+    };
+    navigation.navigate('Profile', { userData: userDataToPass });
+  };
+
+  const getUserInitials = () => {
+    // First check if we have stored initials from skipping photo upload
+    if (userInitials) {
+      return userInitials;
+    }
+    
+    // Get initials from userProfile data
+    if (userProfile?.full_name) {
+      const names = userProfile.full_name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    // Fallback to name if full_name not available
+    if (userProfile?.name) {
+      const names = userProfile.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    // Final fallback
+    return 'U';
   };
 
   const handleMenuPress = (menuItem) => {
+    console.log(`Menu item pressed: ${menuItem}`);
+    
     // Handle specific menu items
     if (menuItem === 'Login & Security') {
+      console.log('Navigating to LoginSecurity screen');
       navigation.navigate('LoginSecurity');
+    } else if (menuItem === 'Support') {
+      console.log('Navigating to Support screen');
+      navigation.navigate('Support');
     } else {
       // Placeholder for other menu items
-      console.log(`Pressed: ${menuItem}`);
+      console.log(`Pressed: ${menuItem} - no navigation implemented yet`);
     }
   };
 
@@ -94,7 +191,7 @@ export default function MyAccountScreen({ navigation }) {
           <TouchableOpacity style={styles.profileSection} onPress={handleViewProfile}>
             <View style={styles.profileInfo}>
               <View style={styles.profileImageContainer}>
-                {userProfile?.avatar_url ? (
+                {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
                   <Image 
                     source={{ uri: userProfile.avatar_url }} 
                     style={styles.profileImage}
@@ -102,7 +199,7 @@ export default function MyAccountScreen({ navigation }) {
                 ) : (
                   <View style={styles.profileImagePlaceholder}>
                     <Text style={styles.profileImageText}>
-                      {userProfile?.full_name?.charAt(0) || userProfile?.name?.charAt(0) || 'U'}
+                      {getUserInitials()}
                     </Text>
                   </View>
                 )}
@@ -124,7 +221,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Login & Security')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>🔐</Text>
+                <Image 
+                  source={require('../assets/lock.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Login & Security</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -135,7 +236,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Banks & Cards')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>🏦</Text>
+                <Image 
+                  source={require('../assets/bank.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Banks & Cards</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -146,7 +251,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Transactions')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>💳</Text>
+                <Image 
+                  source={require('../assets/transaction.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Transactions</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -157,7 +266,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Chat History')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>💬</Text>
+                <Image 
+                  source={require('../assets/chat.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Chat History</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -168,7 +281,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Notification Settings')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>🔔</Text>
+                <Image 
+                  source={require('../assets/notification.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Notification Settings</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -179,7 +296,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Support')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>🆘</Text>
+                <Image 
+                  source={require('../assets/support.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Support</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -190,7 +311,11 @@ export default function MyAccountScreen({ navigation }) {
               onPress={() => handleMenuPress('Legal')}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.iconText}>⚖️</Text>
+                <Image 
+                  source={require('../assets/legal.png')} 
+                  style={styles.iconImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.menuText}>Legal</Text>
               <Text style={styles.menuArrow}>→</Text>
@@ -264,14 +389,14 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileImageText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#666',
+    color: '#444444',
   },
   profileText: {
     flex: 1,
@@ -308,8 +433,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  iconText: {
-    fontSize: 18,
+  iconImage: {
+    width: 24,
+    height: 24,
   },
   menuText: {
     flex: 1,
