@@ -18,6 +18,17 @@ import { supabase } from './supabaseClient';
 export default function CreatePasswordScreen({ navigation, route }) {
   const { userInfo, savedUser, isGoogleAuth, googleUserData } = route.params;
   
+  // Log the received parameters for debugging
+  useEffect(() => {
+    console.log('🔄 CreatePasswordScreen received params:', {
+      hasUserInfo: !!userInfo,
+      hasSavedUser: !!savedUser,
+      isGoogleAuth,
+      hasGoogleUserData: !!googleUserData,
+      googleUserData: googleUserData
+    });
+  }, [userInfo, savedUser, isGoogleAuth, googleUserData]);
+  
   // Test database connection and permissions on component mount
   useEffect(() => {
     const testDatabaseAccess = async () => {
@@ -167,9 +178,62 @@ export default function CreatePasswordScreen({ navigation, route }) {
           console.log('Password hash in database:', verifyData.password_hash);
         }
         
-        navigation.navigate('FaceID', { userInfo, savedUser: updateData[0] });
+        // Create a properly formatted user object that matches what the UI expects
+        const formattedUser = {
+          id: updateData[0].id,
+          firstName: updateData[0].first_name,
+          lastName: updateData[0].last_name,
+          email: updateData[0].email,
+          phone: updateData[0].phone,
+          address1: updateData[0].address_line_1,
+          address2: updateData[0].address_line_2,
+          city: updateData[0].city,
+          state: updateData[0].state,
+          zip: updateData[0].zip_code,
+          created_at: updateData[0].created_at,
+          updated_at: updateData[0].updated_at
+        };
+        
+        navigation.navigate('FaceID', { userInfo, savedUser: formattedUser });
       } else {
-        console.log('No saved user found, creating new user record...');
+        console.log('No saved user found, checking if email already exists...');
+        
+        // Check if email already exists in the database (case insensitive)
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('id, email, first_name, last_name')
+          .ilike('email', userInfo.email)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking existing email:', checkError);
+          setError('emailCheckFailed');
+          return;
+        }
+
+        if (existingUser) {
+          console.log('Email already exists:', existingUser.email);
+          
+          // For Google Auth users, redirect them to the welcome page since they already have an account
+          if (isGoogleAuth) {
+            const fullName = existingUser.first_name && existingUser.last_name
+              ? `${existingUser.first_name} ${existingUser.last_name}`
+              : 'there';
+            
+            navigation.replace('Welcomepage', { 
+              name: fullName,
+              user: existingUser,
+              email: existingUser.email
+            });
+            return;
+          }
+          
+          // For regular users, show error
+          setError('emailAlreadyExists');
+          return;
+        }
+        
+        console.log('Email is unique, creating new user record...');
         
         // Create a new user record with all information including password
         const { data, error: insertError } = await supabase
@@ -186,6 +250,8 @@ export default function CreatePasswordScreen({ navigation, route }) {
               state: userInfo.state,
               zip_code: userInfo.zip,
               password_hash: password, // Note: In production, this should be hashed
+              avatar_path: null, // Initialize avatar fields
+              avatar_url: null,
               created_at: new Date().toISOString(),
             }
           ])
@@ -198,7 +264,23 @@ export default function CreatePasswordScreen({ navigation, route }) {
         }
 
         console.log('User created successfully:', data);
-        navigation.navigate('FaceID', { userInfo, savedUser: data[0] });
+        
+        // Create a properly formatted user object that matches what the UI expects
+        const formattedUser = {
+          id: data[0].id,
+          firstName: data[0].first_name,
+          lastName: data[0].last_name,
+          email: data[0].email,
+          phone: data[0].phone,
+          address1: data[0].address_line_1,
+          address2: data[0].address_line_2,
+          city: data[0].city,
+          state: data[0].state,
+          zip: data[0].zip_code,
+          created_at: data[0].created_at
+        };
+        
+        navigation.navigate('FaceID', { userInfo, savedUser: formattedUser });
       }
     } catch (error) {
       console.error('Continue error:', error);
@@ -266,12 +348,16 @@ export default function CreatePasswordScreen({ navigation, route }) {
           </View>
 
           {error !== '' && (
-            <Text style={{ color: 'red', marginBottom: 10 }}>
-              {error === 'passwordUpdateFailed' && 'Failed to update password. Please try again.'}
-              {error === 'userInsertFailed' && 'Failed to create user account. Please try again.'}
-              {error === 'generalError' && 'An error occurred. Please try again.'}
-              {error !== 'passwordUpdateFailed' && error !== 'userInsertFailed' && error !== 'generalError' && error}
-            </Text>
+            <View style={{ marginBottom: 10, alignItems: 'center' }}>
+              <Text style={{ color: 'red', textAlign: 'center' }}>
+                {error === 'passwordUpdateFailed' && 'Failed to update password. Please try again.'}
+                {error === 'userInsertFailed' && 'Failed to create user account. Please try again.'}
+                {error === 'emailAlreadyExists' && 'An account with that email already exists.'}
+                {error === 'emailCheckFailed' && 'Failed to check email availability. Please try again.'}
+                {error === 'generalError' && 'An error occurred. Please try again.'}
+                {error !== 'passwordUpdateFailed' && error !== 'userInsertFailed' && error !== 'emailAlreadyExists' && error !== 'emailCheckFailed' && error !== 'generalError' && error}
+              </Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -369,4 +455,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 18,
   },
+
 });

@@ -26,6 +26,7 @@ import FaceIDScreen from './screens/FaceIDScreen';
 import PhoneInputScreen from './screens/PhoneInputScreen';
 import PasswordChangedConfirmation from './screens/PasswordChangedConfirmation';
 import ConfirmInfoScreen from './screens/ConfirmInfoScreen';
+import SupportScreen from './screens/SupportScreen';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -33,12 +34,22 @@ const linking = { prefixes: ["com.anonymous.jerroddd://" ],
 };
 
 export default function App() {
- return (
- <UserProvider>
- <GestureHandlerRootView style={{ flex: 1 }}>
- {/* Only one NavigationContainer */}
- <NavigationContainer linking={linking}>
- <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+  console.log('🚀 App component rendering');
+  
+  return (
+   <UserProvider>
+   <GestureHandlerRootView style={{ flex: 1 }}>
+   {/* Only one NavigationContainer */}
+   <NavigationContainer 
+     linking={linking}
+     onStateChange={(state) => {
+       console.log('🔄 App navigation state changed:', state?.routes?.map(r => r.name));
+     }}
+     onReady={() => {
+       console.log('✅ App navigation ready');
+     }}
+   >
+   <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
  <Stack.Screen name="Splash" component={SplashScreen} />
  <Stack.Screen name="Home" component={HomeScreen} />
  <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
@@ -59,6 +70,7 @@ export default function App() {
  <Stack.Screen name="PhoneInput" component={PhoneInputScreen} />
  <Stack.Screen name="PasswordChangedConfirmation" component={PasswordChangedConfirmation} />
  <Stack.Screen name="ConfirmInfo" component={ConfirmInfoScreen} />
+ <Stack.Screen name="Support" component={SupportScreen} />
  </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>
