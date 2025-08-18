@@ -6,6 +6,7 @@ import { supabase } from './supabaseClient';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useFacebookAuth } from '../hooks/useFacebookAuth';
 import { useAppleAuth } from '../hooks/useAppleAuth';
+import { UserService } from '../utils/userService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -132,23 +133,43 @@ WebBrowser.maybeCompleteAuthSession();
 };
 
 export default function CreateAccountScreen({ navigation }) {
- const [phone, setPhone] = useState('');
- const [loading, setLoading] = useState(false);
- const { signIn: signInGoogle, loading: googleLoading } = useGoogleAuth();
- const { signIn: signInFacebook, loading: facebookLoading } = useFacebookAuth();
- const { signIn: signInApple, loading: appleLoading } = useAppleAuth();
+  console.log('🔍 CreateAccountScreen DEBUG - Component mounting');
+  console.log('🔍 CreateAccountScreen DEBUG - Navigation prop:', navigation);
+  console.log('🔍 CreateAccountScreen DEBUG - Available routes:', navigation?.getState()?.routes?.map(r => r.name));
+  
+  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isHandlingGoogleSignIn, setIsHandlingGoogleSignIn] = useState(false);
+  const { signIn: signInGoogle, loading: googleLoading } = useGoogleAuth();
+  const { signIn: signInFacebook, loading: facebookLoading } = useFacebookAuth();
+  const { signIn: signInApple, loading: appleLoading } = useAppleAuth();
 
- const formatPhoneNumber = (text) => {
- const cleaned = text.replace(/\D/g, '');
- const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
- if (!match) return text;
- if (match[2]) return `(${match[1]}) ${match[2]}${match[3] ? '-' + match[3] : ''}`;
- return match[1];
- };
+   // Add debugging useEffect
+  useEffect(() => {
+    console.log('🔍 CreateAccountScreen DEBUG - Component mounted successfully');
+    console.log('🔍 CreateAccountScreen DEBUG - Navigation state:', navigation.getState()?.routes?.map(r => r.name));
+    
+    // Check if we can navigate back
+    const canGoBack = navigation.canGoBack();
+    console.log('🔍 CreateAccountScreen DEBUG - Can go back:', canGoBack);
+    
+    return () => {
+      console.log('🔍 CreateAccountScreen DEBUG - Component unmounting');
+      setIsHandlingGoogleSignIn(false);
+    };
+  }, [navigation]);
+
+  const formatPhoneNumber = (text) => {
+    const cleaned = text.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    if (!match) return text;
+    if (match[2]) return `(${match[1]}) ${match[2]}${match[3] ? '-' + match[3] : ''}`;
+    return match[1];
+  };
 
  const handlePhoneChange = (text) => setPhone(formatPhoneNumber(text));
 
- const handleContinue = async () => {
+  const handleContinue = async () => {
  if (!phone || phone.trim().length === 0) {
  Alert.alert('Error', 'Please enter your mobile number');
  return;
@@ -176,211 +197,152 @@ export default function CreateAccountScreen({ navigation }) {
  };
 
 const handleGoogleSignIn = async () => {
- console.log('🔄 handleGoogleSignIn function called');
- setLoading(true);
- try {
- console.log('🔄 Starting Google sign-in...');
- const result = await signInGoogle();
- console.log('📱 Google sign-in result:', result);
+  console.log('🔄 handleGoogleSignIn function called');
+  console.log('🔍 CreateAccountScreen DEBUG - Starting Google sign-in flow');
+  setLoading(true);
+  setIsHandlingGoogleSignIn(true);
+  
+  // Add timeout to prevent hanging
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Google sign-in timeout after 30 seconds')), 30000);
+  });
+  
+  try {
+    console.log('🔄 Starting Google sign-in...');
+    
+    // Race between the actual sign-in and the timeout
+    const result = await Promise.race([
+      signInGoogle(),
+      timeoutPromise
+    ]);
+    
+    console.log('📱 Google sign-in result:', result);
+    console.log('🔍 CreateAccountScreen DEBUG - Google sign-in result type:', result.type);
+    console.log('🔍 CreateAccountScreen DEBUG - Google sign-in result URL:', result.url);
 
- if (result.type === 'success') {
- console.log('✅ Google sign-in successful');
- console.log('🔄 Waiting for auth state change to trigger navigation...');
- 
- // Give the OAuth flow a moment to complete
- await new Promise(resolve => setTimeout(resolve, 1000));
- 
- console.log('🔄 Checking for session after OAuth completion...');
- 
- // Try to manually handle the OAuth callback if needed
- if (result.url && result.url.includes('access_token')) {
- console.log('🔄 Processing OAuth callback URL manually...');
- try {
- // Extract the access token from the URL
- const fragment = result.url.split('#')[1];
- const params = new URLSearchParams(fragment);
- const accessToken = params.get('access_token');
- 
- if (accessToken) {
- console.log('🔄 Access token found, attempting to set session...');
- // Try to manually set the session
- const { data, error } = await supabase.auth.setSession({
- access_token: accessToken,
- refresh_token: params.get('refresh_token') || ''
- });
- 
- if (error) {
- console.log('⚠️ Manual session set error:', error);
- } else {
- console.log('✅ Manual session set successful:', data.session?.user?.email);
- }
- }
- } catch (manualError) {
- console.log('⚠️ Manual OAuth callback handling error:', manualError);
- }
- }
- 
- // Also try to manually trigger the OAuth callback
- if (result.url) {
- console.log('🔄 Attempting to manually trigger OAuth callback...');
- try {
- // Try to manually process the OAuth callback
- const { data, error } = await supabase.auth.getUser();
- if (error) {
- console.log('⚠️ Manual user get error:', error);
- } else {
- console.log('✅ Manual user get successful:', data.user?.email);
- }
- } catch (manualUserError) {
- console.log('⚠️ Manual user get error:', manualUserError);
- }
- 
- // Try to manually refresh the session
- try {
- console.log('🔄 Attempting to manually refresh session...');
- const { data, error } = await supabase.auth.refreshSession();
- if (error) {
- console.log('⚠️ Manual session refresh error:', error);
- } else {
- console.log('✅ Manual session refresh successful:', data.session?.user?.email);
- }
- } catch (refreshError) {
- console.log('⚠️ Manual session refresh error:', refreshError);
- }
- }
- 
- // Check if session was established
- try {
- const { data: { session } } = await supabase.auth.getSession();
- console.log('🔄 Session check result:', { 
- hasSession: !!session, 
- userId: session?.user?.id, 
- email: session?.user?.email 
- });
- 
- if (session?.user) {
- console.log('✅ Session found immediately after OAuth:', session.user.email);
- // OPTIMIZATION: Navigate immediately without additional delays
- const fullName = session.user.user_metadata?.full_name || 
- session.user.user_metadata?.name || 
- 'there';
- 
- console.log('✅ Manually navigating to PersonalInfoScreen...');
- navigation.replace('PersonalInfo', { 
- userInfo: {
- firstName: fullName?.split(' ')[0] || '',
- lastName: fullName?.split(' ').slice(1).join(' ') || '',
- email: session.user.email || '',
- phone: '',
- address1: '',
- address2: '',
- city: '',
- state: '',
- zip: ''
- },
- isGoogleAuth: true,
- googleUserData: session.user
- });
- } else {
- console.log('🔄 No session yet, trying to extract user info from OAuth result...');
- 
- // Try to extract user info from the OAuth result URL
- if (result.url && result.url.includes('access_token')) {
- try {
- const fragment = result.url.split('#')[1];
- const params = new URLSearchParams(fragment);
- const accessToken = params.get('access_token');
- 
- if (accessToken) {
- const tokenParts = accessToken.split('.');
- if (tokenParts.length === 3) {
- const payload = JSON.parse(atob(tokenParts[1]));
- console.log('✅ JWT payload extracted:', payload);
- 
- if (payload.user_metadata) {
- const userInfo = {
- name: payload.user_metadata.full_name || payload.user_metadata.name || 'there',
- email: payload.email || '',
- avatar_url: payload.user_metadata.avatar_url || payload.user_metadata.picture || ''
- };
- 
- console.log('✅ Using user info from JWT, navigating to PersonalInfoScreen...');
- navigation.replace('PersonalInfo', { 
- userInfo: {
- firstName: userInfo.name?.split(' ')[0] || '',
- lastName: userInfo.name?.split(' ').slice(1).join(' ') || '',
- email: userInfo.email || '',
- phone: '',
- address1: '',
- address2: '',
- city: '',
- state: '',
- zip: ''
- },
- isGoogleAuth: true,
- googleUserData: userInfo
- });
- return;
- }
- }
- }
- } catch (jwtError) {
- console.log('⚠️ Could not extract user info from JWT:', jwtError);
- }
- }
- 
- console.log('🔄 Waiting for auth state change...');
- 
- // Set a timeout to manually navigate if no session is established
- setTimeout(async () => {
- try {
- const { data: { session: delayedSession } } = await supabase.auth.getSession();
- if (delayedSession?.user) {
- console.log('✅ Session found after delay:', delayedSession.user.email);
- const fullName = delayedSession.user.user_metadata?.full_name || 
- delayedSession.user.user_metadata?.name || 
- 'there';
- 
- console.log('✅ Navigating to PersonalInfoScreen after delay...');
- navigation.replace('PersonalInfo', { 
- userInfo: {
- firstName: fullName?.split(' ')[0] || '',
- lastName: fullName?.split(' ').slice(1).join(' ') || '',
- email: delayedSession.user.email || '',
- phone: '',
- address1: '',
- address2: '',
- city: '',
- state: '',
- zip: ''
- },
- isGoogleAuth: true,
- googleUserData: delayedSession.user
- });
- } else {
- console.log('⚠️ Still no session after delay, user may need to retry');
- }
- } catch (timeoutError) {
- console.log('⚠️ Timeout session check error:', timeoutError);
- }
- }, 3000); // Wait 3 seconds before checking again
- }
- } catch (sessionError) {
- console.log('🔄 Session check error:', sessionError);
- }
- 
- // The useEffect hook will handle navigation after auth state change
- // No need to manually navigate here
- } else {
- console.log('❌ Google sign-in failed:', result.type);
- Alert.alert('Error', 'Google sign-in failed. Please try again.');
- }
- } catch (error) {
- console.error('❌ Google sign-in error:', error);
- Alert.alert('Error', 'An error occurred during sign-in.');
- } finally {
- setLoading(false);
- }
+    if (result.type === 'success') {
+      console.log('✅ Google sign-in successful');
+      
+      // Try to get user data from the result
+      let userData = null;
+      
+      if (result.session?.user) {
+        userData = result.session.user;
+      } else if (result.data?.session?.user) {
+        userData = result.data.session.user;
+      } else if (result.user) {
+        userData = result.user;
+      }
+      
+      if (userData) {
+        console.log('✅ User data found:', userData.email);
+        
+        // Try to save user data to database (non-blocking)
+        try {
+          await UserService.saveGoogleAuthUser(userData, {
+            email: userData.email,
+            firstName: userData.user_metadata?.first_name || userData.user_metadata?.name?.split(' ')[0] || '',
+            lastName: userData.user_metadata?.last_name || userData.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+          });
+          console.log('✅ User data saved to database successfully');
+        } catch (dbError) {
+          console.error('❌ Failed to save user to database:', dbError);
+          console.log('⚠️ Continuing with navigation despite database error...');
+        }
+        
+        // Navigate to PersonalInfoScreen
+        navigation.replace('PersonalInfo', {
+          phone: '',
+          userInfo: {
+            firstName: userData.user_metadata?.full_name?.split(' ')[0] || userData.user_metadata?.name?.split(' ')[0] || '',
+            lastName: userData.user_metadata?.full_name?.split(' ').slice(1).join(' ') || userData.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+            email: userData.email || '',
+            phone: '',
+            address1: '',
+            address2: '',
+            city: '',
+            state: '',
+            zip: ''
+          },
+          isGoogleAuth: true,
+          googleUserData: userData,
+          isGoogleSignUp: true
+        });
+        return;
+      }
+      
+      // If no user data in result, try to get from Supabase session
+      console.log('🔄 No user data in result, checking Supabase session...');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log('✅ Session found in Supabase:', session.user.email);
+          
+          // Try to save user data to database (non-blocking)
+          try {
+            await UserService.saveGoogleAuthUser(session.user, {
+              email: session.user.email,
+              firstName: session.user.user_metadata?.first_name || session.user.user_metadata?.name?.split(' ')[0] || '',
+              lastName: session.user.user_metadata?.last_name || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+            });
+            console.log('✅ User data saved to database successfully');
+          } catch (dbError) {
+            console.error('❌ Failed to save user to database:', dbError);
+            console.log('⚠️ Continuing with navigation despite database error...');
+          }
+          
+          // Navigate to PersonalInfoScreen
+          navigation.replace('PersonalInfo', {
+            phone: '',
+            userInfo: {
+              firstName: session.user.user_metadata?.full_name?.split(' ')[0] || session.user.user_metadata?.name?.split(' ')[0] || '',
+              lastName: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+              email: session.user.email || '',
+              phone: '',
+              address1: '',
+              address2: '',
+              city: '',
+              state: '',
+              zip: ''
+            },
+            isGoogleAuth: true,
+            googleUserData: session.user,
+            isGoogleSignUp: true
+          });
+          return;
+        }
+      } catch (sessionError) {
+        console.error('❌ Error checking Supabase session:', sessionError);
+      }
+      
+      // If we get here, we couldn't find any user data
+      console.log('❌ No user data found in any location');
+      Alert.alert('Error', 'Google sign-in completed but no user data was found. Please try again.');
+      
+    } else if (result.type === 'error') {
+      console.log('❌ Google sign-in failed with error type');
+      Alert.alert('Error', 'Google sign-in failed. Please try again.');
+    } else {
+      console.log('❌ Google sign-in failed with unknown type:', result.type);
+      Alert.alert('Error', 'Google sign-in failed. Please try again.');
+    }
+    
+  } catch (error) {
+    console.error('❌ Google sign-in error:', error);
+    
+    if (error.message === 'Google sign-in timeout after 30 seconds') {
+      Alert.alert(
+        'Sign-in Timeout',
+        'Google sign-in is taking too long. Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Error', 'Google sign-in failed. Please try again.');
+    }
+  } finally {
+    setLoading(false);
+    setIsHandlingGoogleSignIn(false);
+  }
 };
 
  const handleFacebookSignUp = async () => {
@@ -396,7 +358,7 @@ const handleGoogleSignIn = async () => {
  name: session.user.user_metadata.full_name,
  avatar_url: session.user.user_metadata.avatar_url,
  });
- // ✅ Navigate to PersonalInfoScreen for Facebook auth users too
+ // ✅ Navigate to PersonalInfoScreen (first screen in the sequence) for Facebook auth users too
  navigation.replace('PersonalInfo', { 
  userInfo: {
  firstName: fullName?.split(' ')[0] || '',
@@ -410,7 +372,9 @@ const handleGoogleSignIn = async () => {
  zip: ''
  },
  isGoogleAuth: false,
- googleUserData: session.user
+ googleUserData: session.user,
+ // Add flag to indicate this is a social sign-up flow
+ isGoogleSignUp: true
  });
  }
  }
@@ -450,62 +414,73 @@ const handleGoogleSignIn = async () => {
 };
 
  useEffect(() => {
- const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
- console.log('🔄 Auth state changed:', event, session?.user?.email);
- 
- if (event === 'SIGNED_IN' && session?.user) {
- console.log('✅ User signed in successfully:', session.user.email);
- 
- // Extract user info from the session
- const fullName = session.user.user_metadata?.full_name || 
- session.user.user_metadata?.name || 
- 'there';
- 
- console.log('✅ Extracted user info:', { 
- fullName, 
- email: session.user.email,
- provider: session.user.app_metadata?.provider 
- });
- 
- // Navigate to PersonalInfoScreen with user data
- console.log('✅ Navigating to PersonalInfoScreen...');
- navigation.replace('PersonalInfo', { 
- userInfo: {
- firstName: fullName?.split(' ')[0] || '',
- lastName: fullName?.split(' ').slice(1).join(' ') || '',
- email: session.user.email || '',
- phone: '', // Will be filled in PersonalInfoScreen
- address1: '',
- address2: '',
- city: '',
- state: '',
- zip: ''
- },
- isGoogleAuth: session.user.app_metadata?.provider === 'google',
- googleUserData: session.user
- });
- } else if (event === 'SIGNED_OUT') {
- console.log('🔄 User signed out');
- } else if (event === 'TOKEN_REFRESHED') {
- console.log('🔄 Token refreshed');
- }
- });
- 
- return () => listener.subscription.unsubscribe();
- }, [navigation]);
+   const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+     console.log('🔄 Auth state changed:', event, session?.user?.email);
+     
+     // Don't handle navigation if we're already handling Google sign-in manually
+     if (isHandlingGoogleSignIn) {
+       console.log('🔍 CreateAccountScreen DEBUG - Skipping auth state navigation (handling manually)');
+       return;
+     }
+     
+     if (event === 'SIGNED_IN' && session?.user) {
+       console.log('✅ User signed in successfully:', session.user.email);
+       
+       // Extract user info from the session
+       const fullName = session.user.user_metadata?.full_name || 
+       session.user.user_metadata?.name || 
+       'there';
+       
+       console.log('✅ Extracted user info:', { 
+         fullName, 
+         email: session.user.email,
+         provider: session.user.app_metadata?.provider 
+       });
+       
+       // Navigate to PersonalInfoScreen (first screen in the sequence)
+       console.log('✅ Navigating to PersonalInfoScreen...');
+       navigation.replace('PersonalInfo', { 
+         userInfo: {
+           firstName: fullName?.split(' ')[0] || '',
+           lastName: fullName?.split(' ').slice(1).join(' ') || '',
+           email: session.user.email || '',
+           phone: '', // Will be filled in PersonalInfoScreen
+           address1: '',
+           address2: '',
+           city: '',
+           state: '',
+           zip: ''
+         },
+         isGoogleAuth: session.user.app_metadata?.provider === 'google',
+         googleUserData: session.user,
+         // Add flag to indicate this is a Google sign-up flow
+         isGoogleSignUp: true
+       });
+     } else if (event === 'SIGNED_OUT') {
+       console.log('🔄 User signed out');
+     } else if (event === 'TOKEN_REFRESHED') {
+       console.log('🔄 Token refreshed');
+     }
+   });
+   
+   return () => listener.subscription.unsubscribe();
+ }, [navigation, isHandlingGoogleSignIn]);
 
- return (
- <SafeAreaView style={styles.safeArea}>
- <StatusBar barStyle="dark-content" translucent />
- <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
- <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
- <View style={styles.header}>
- <Pressable onPress={() => navigation.goBack()}>
- <Text style={styles.backArrow}>←</Text>
- </Pressable>
- <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
- <View style={{ width: 24 }} />
- </View>
+   return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" translucent />
+      
+
+      
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()}>
+              <Text style={styles.backArrow}>←</Text>
+            </Pressable>
+            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+            <View style={{ width: 24 }} />
+          </View>
 
  <TextInput
  style={styles.input}

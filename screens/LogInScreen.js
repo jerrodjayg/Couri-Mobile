@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Pressable, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image, Alert} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
+import * as Notifications from 'expo-notifications';
 import { supabase } from './supabaseClient';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useFacebookAuth } from '../hooks/useFacebookAuth';
@@ -133,7 +134,10 @@ const upsertProfile = async (session) => {
 };
 
 export default function LogInScreen({ navigation }) {
-  const [phone, setPhone] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { signIn: signInGoogle, loading: googleLoading } = useGoogleAuth();
   const { signIn: signInFacebook, loading: facebookLoading } = useFacebookAuth();
   const { signIn: signInApple, loading: appleLoading } = useAppleAuth();
@@ -146,20 +150,32 @@ export default function LogInScreen({ navigation }) {
     return match[1];
   };
 
-  const handlePhoneChange = (text) => setPhone(formatPhoneNumber(text));
+  // Clear error messages when component unmounts or navigation changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Error handling removed - only phone notifications now
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const handlePhoneChange = (text) => {
+    setPhoneNumber(formatPhoneNumber(text));
+    // Error clearing removed - only phone notifications now
+  };
   const handleContinue = () => {
-    if (!phone || phone.trim().length === 0) {
+    if (!phoneNumber || phoneNumber.trim().length === 0) {
       Alert.alert('Error', 'Please enter your mobile number');
       return;
     }
     
     // Clean the phone number and check if it has at least 10 digits
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
       Alert.alert('Error', 'Please enter a valid mobile number with at least 10 digits');
       return;
     }
-    navigation.navigate('Welcomepage');
+            navigation.navigate('Home');
   };
   const handlePasswordLogin = () => navigation.navigate('PasswordLogin');
 
@@ -193,56 +209,235 @@ export default function LogInScreen({ navigation }) {
     }
   };
 
-const handleGoogleSignIn = async () => {
-  console.log('🔄 handleGoogleSignIn called');
-  try {
-    const result = await signInGoogle();
-    console.log('📱 Google sign-in result:', result);
-
-    if (result.type !== 'success' || !result.user?.email) {
-      Alert.alert('Error', 'Google sign-in failed. Please try again.');
-      return;
-    }
-
-    const email = result.user.email.toLowerCase();
-
-    // 1) Check if this email already exists in our DB (users table)
-    const { exists, user: existingUser } = await UserService.checkUserExists(email);
-
-    if (!exists) {
-      // Not registered — sign out the auth session so we don't keep a ghost login
-      await supabase.auth.signOut();
-      Alert.alert(
-        'Email not registered',
-        'This Google email is not registered. Please create an account first.'
-      );
-      return;
-    }
-
-    // 2) Email exists — optional: refresh profile fields silently
+  const handleGoogleSignIn = async () => {
+    console.log('🔄 handleGoogleSignIn called');
+    console.log('🔍 LogInScreen DEBUG - Starting Google sign-in for returning user');
+    
     try {
-      await UserService.saveGoogleAuthUser(result.user, {
-        email,
-        firstName: existingUser?.first_name ?? result.user.user_metadata?.given_name ?? '',
-        lastName: existingUser?.last_name ?? result.user.user_metadata?.family_name ?? '',
-      });
-    } catch (e) {
-      console.log('Silent profile refresh failed (continuing):', e?.message || e);
+      const result = await signInGoogle();
+      console.log('📱 Google sign-in result:', result);
+      console.log('🔍 LogInScreen DEBUG - Google sign-in result type:', result.type);
+      console.log('🔍 LogInScreen DEBUG - Full OAuth result:', result);
+
+      if (result.type !== 'success') {
+        console.log('🔍 LogInScreen DEBUG - Google sign-in failed or incomplete');
+        
+        // Handle specific error messages from the hook
+        if (result.message) {
+          console.log('🔍 LogInScreen DEBUG - Error message from hook:', result.message);
+        } else {
+          console.log('🔍 LogInScreen DEBUG - Generic error message');
+        }
+        
+        Alert.alert('Error', result.message || 'Google sign-in failed. Please try again.');
+        return;
+      }
+
+      // Wait for session to be established (Google OAuth can take a moment)
+      console.log('🔍 LogInScreen DEBUG - Waiting for session to be established...');
+      let userEmail = null;
+      let userData = null;
+      let attempts = 0;
+      const maxAttempts = 10; // Wait up to 10 seconds
+
+      // First check if the result already has session data
+      if (result.session?.user) {
+        userData = result.session.user;
+        userEmail = userData.email;
+        console.log('🔍 LogInScreen DEBUG - User data from OAuth result session:', userData);
+      } else {
+        // Fallback: wait for session to be established
+        while (attempts < maxAttempts) {
+          attempts++;
+          console.log(`🔍 LogInScreen DEBUG - Session check attempt ${attempts}/${maxAttempts}`);
+          
+          // Check if we have session data from the OAuth result
+          if (result.session?.user) {
+            userData = result.session.user;
+            userEmail = userData.email;
+            console.log('🔍 LogInScreen DEBUG - User data from OAuth session:', userData);
+            break;
+          } else {
+            // Fallback: try to get user from current session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              userData = session.user;
+              userEmail = session.user.email;
+              console.log('🔍 LogInScreen DEBUG - User data from current session:', userData);
+              break;
+            } else {
+              console.log(`🔍 LogInScreen DEBUG - No session yet, attempt ${attempts}/${maxAttempts}`);
+              // Wait 1 second before next attempt
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        }
+      }
+
+      if (!userEmail) {
+        console.log('🔍 LogInScreen DEBUG - No email available after waiting for session');
+        Alert.alert('Error', 'Unable to retrieve user information. Please try again.');
+        return;
+      }
+
+      const email = userEmail.toLowerCase();
+      console.log('🔍 LogInScreen DEBUG - Processing email:', email);
+
+      // Check if this email already exists in our DB (users table)
+      console.log('🔍 LogInScreen DEBUG - Checking if user exists in database...');
+      const { exists, user: existingUser } = await UserService.checkUserExists(email);
+      console.log('🔍 LogInScreen DEBUG - User existence check result:', { exists, existingUser });
+
+      if (!exists) {
+        console.log('🔍 LogInScreen DEBUG - User not found in database, staying on LogInScreen');
+        // Not registered — sign out the auth session so we don't keep a ghost login
+        await supabase.auth.signOut();
+        
+        // Show phone notification error message (no on-screen error)
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Account Not Found',
+              body: 'This Google email is not registered. Please go to Create Account first.',
+              data: { type: 'google_signin_error' },
+            },
+            trigger: null, // Show immediately
+          });
+          console.log('✅ Phone notification sent for unregistered Google user');
+        } catch (notificationError) {
+          console.error('❌ Failed to send phone notification:', notificationError);
+        }
+        
+        Alert.alert(
+          'Account Not Created',
+          'This Google email is not registered. Please go to Create Account first.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Create Account',
+              onPress: () => {
+                console.log('🔍 LogInScreen DEBUG - User chose to create account, navigating to CreateAccount');
+                console.log('🔍 LogInScreen DEBUG - Current navigation state:', navigation.getState());
+                console.log('🔍 LogInScreen DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
+                
+                try {
+                  // Simple navigation to CreateAccount
+                  console.log('🔍 LogInScreen DEBUG - Attempting navigation to CreateAccount...');
+                  
+                  // Navigate to CreateAccount
+                  navigation.navigate('CreateAccount');
+                  console.log('✅ LogInScreen DEBUG - Navigation to CreateAccount initiated');
+                  
+                } catch (error) {
+                  console.error('❌ LogInScreen DEBUG - Navigation error:', error);
+                  Alert.alert('Navigation Error', 'Failed to navigate to Create Account screen. Please try again.');
+                }
+              }
+            }
+          ]
+        );
+        
+        // CRITICAL: Stay on LogInScreen - don't navigate anywhere
+        console.log('🔍 LogInScreen DEBUG - User stays on LogInScreen after account not found error');
+        return;
+      }
+
+      console.log('🔍 LogInScreen DEBUG - User found in database, proceeding with sign-in');
+      console.log('🔍 LogInScreen DEBUG - Existing user data:', existingUser);
+
+      // User exists in database - proceed with sign-in
+      // Use the new function to handle existing Google users gracefully
+      try {
+        console.log('🔍 LogInScreen DEBUG - Handling existing Google user...');
+        const result = await UserService.handleExistingGoogleUser(userData, existingUser);
+        console.log('✅ LogInScreen DEBUG - Existing user handled successfully:', result);
+        
+        // Use the updated user data if available
+        const userToUse = result.user;
+        
+        // Store complete user data in AsyncStorage for the app to use
+        console.log('🔍 LogInScreen DEBUG - Storing complete user data in AsyncStorage...');
+        try {
+          const completeUserData = {
+            id: userToUse.id || 'temp_user',
+            email: email,
+            firstName: userToUse.first_name || '',
+            lastName: userToUse.last_name || '',
+            name: userToUse.first_name || userToUse.last_name ? `${userToUse.first_name || ''} ${userToUse.last_name || ''}`.trim() : '',
+            full_name: userToUse.first_name && userToUse.last_name ? `${userToUse.first_name} ${userToUse.last_name}` : '',
+            phone: userToUse.phone || '',
+            address1: userToUse.address_line_1 || '',
+            address2: userToUse.address_line_2 || '',
+            city: userToUse.city || '',
+            state: userToUse.state || '',
+            zip: userToUse.zip_code || '',
+            avatar_url: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
+            profileImageUri: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
+            isGoogleAuth: true,
+            // Include any additional fields from the database
+            ...userToUse
+          };
+
+          console.log('🔍 LogInScreen DEBUG - Complete user data prepared:', completeUserData);
+
+          // Store in both tempUserData and userProfileData for consistency
+          await AsyncStorage.setItem('tempUserData', JSON.stringify(completeUserData));
+          await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserData));
+          
+          console.log('✅ LogInScreen DEBUG - Complete user data stored in AsyncStorage');
+          console.log('✅ LogInScreen DEBUG - Data stored in both tempUserData and userProfileData');
+          
+          // Verify the data was stored correctly
+          const storedTempData = await AsyncStorage.getItem('tempUserData');
+          const storedProfileData = await AsyncStorage.getItem('userProfileData');
+          console.log('🔍 LogInScreen DEBUG - Verification - tempUserData stored:', storedTempData ? 'YES' : 'NO');
+          console.log('🔍 LogInScreen DEBUG - Verification - userProfileData stored:', storedProfileData ? 'YES' : 'NO');
+          
+        } catch (storageError) {
+          console.log('⚠️ LogInScreen DEBUG - AsyncStorage error (non-blocking):', storageError);
+        }
+
+        // Navigate to Welcomepage for returning users with complete data
+        console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage for returning user');
+        const fullName = userToUse.first_name && userToUse.last_name 
+          ? `${userToUse.first_name} ${userToUse.last_name}`
+          : userData.user_metadata?.full_name || userData.user_metadata?.name || 'there';
+        
+        // Pass the complete user data to Welcomepage
+        navigation.replace('Welcomepage', { 
+          name: fullName,
+          userData: {
+            id: userToUse.id || 'temp_user',
+            email: email,
+            firstName: userToUse.first_name || '',
+            lastName: userToUse.last_name || '',
+            name: userToUse.first_name || userToUse.last_name ? `${userToUse.first_name || ''} ${userToUse.last_name || ''}`.trim() : '',
+            full_name: userToUse.first_name && userToUse.last_name ? `${userToUse.first_name} ${userToUse.last_name}` : '',
+            phone: userToUse.phone || '',
+            address1: userToUse.address_line_1 || '',
+            address2: userToUse.address_line_2 || '',
+            city: userToUse.city || '',
+            state: userToUse.state || '',
+            zip: userToUse.zip_code || '',
+            avatar_url: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
+            profileImageUri: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
+            isGoogleAuth: true
+          }
+        });
+        console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage completed with complete user data');
+
+      } catch (error) {
+        console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
+        Alert.alert('Error', 'Google sign-in failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
+      Alert.alert('Error', 'Google sign-in failed. Please try again.');
     }
-
-    const fullName =
-      (existingUser?.first_name && existingUser?.last_name)
-        ? `${existingUser.first_name} ${existingUser.last_name}`
-        : result.user.user_metadata?.full_name ||
-          result.user.user_metadata?.name ||
-          'there';
-
-    navigation.replace('Welcomepage', { name: fullName });
-  } catch (error) {
-    console.error('❌ Google sign-in error:', error);
-    Alert.alert('Error', 'An error occurred during sign-in.');
-  }
-};
+  };
 
 
 
@@ -278,13 +473,66 @@ const handleGoogleSignIn = async () => {
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
+      
+      // CRITICAL FIX: Don't auto-navigate if user doesn't exist in database
       if (event === 'SIGNED_IN' && session?.user) {
-        const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'there';
-        navigation.replace('Welcomepage', { name: fullName });
-      }
-    });
-    return () => listener.subscription.unsubscribe();
-  }, [navigation]);
+        console.log('🔍 LogInScreen DEBUG - Auth state change: SIGNED_IN detected');
+        
+        // Check if this user actually exists in our database before navigating
+                 try {
+           const email = session.user.email?.toLowerCase();
+           console.log('🔍 LogInScreen DEBUG - Email from session:', email);
+           
+           if (email) {
+             console.log('🔍 LogInScreen DEBUG - Checking database existence for auth state change...');
+             console.log('🔍 LogInScreen DEBUG - About to call UserService.checkUserExists...');
+             
+             const { exists, user: existingUser } = await UserService.checkUserExists(email);
+             console.log('🔍 LogInScreen DEBUG - Database check result:', { exists, existingUser });
+             
+             if (exists) {
+               console.log('🔍 LogInScreen DEBUG - User exists in database, allowing navigation');
+               const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'there';
+               console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage with name:', fullName);
+               console.log('🔍 LogInScreen DEBUG - About to call navigation.replace...');
+               try {
+                 navigation.replace('Welcomepage', { name: fullName });
+                 console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful');
+               } catch (navError) {
+                 console.error('❌ LogInScreen DEBUG - Navigation error:', navError);
+               }
+             } else {
+               console.log('🔍 LogInScreen DEBUG - User NOT found in database, preventing auto-navigation');
+               console.log('🔍 LogInScreen DEBUG - Signing out from Supabase...');
+               // Sign out the session since user doesn't exist in database
+               await supabase.auth.signOut();
+               console.log('🔍 LogInScreen DEBUG - Sign out completed, staying on LogInScreen');
+               // Don't navigate - keep user on LogInScreen
+             }
+           } else {
+             console.log('🔍 LogInScreen DEBUG - No email in session, preventing navigation');
+             console.log('🔍 LogInScreen DEBUG - Signing out from Supabase...');
+             await supabase.auth.signOut();
+             console.log('🔍 LogInScreen DEBUG - Sign out completed, staying on LogInScreen');
+           }
+                  } catch (error) {
+           console.error('🔍 LogInScreen DEBUG - Error checking database in auth state change:', error);
+           console.log('🔍 LogInScreen DEBUG - Error details:', {
+             message: error.message,
+             stack: error.stack,
+             type: error.type
+           });
+           // On error, sign out and stay on LogInScreen
+           console.log('🔍 LogInScreen DEBUG - Signing out due to error...');
+           await supabase.auth.signOut();
+           console.log('🔍 LogInScreen DEBUG - Sign out completed after error, staying on LogInScreen');
+         }
+       }
+       
+       console.log('🔍 LogInScreen DEBUG - Auth state change handler completed for event:', event);
+     });
+     return () => listener.subscription.unsubscribe();
+   }, [navigation]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -303,7 +551,7 @@ const handleGoogleSignIn = async () => {
             style={styles.input}
             placeholder="Mobile Number"
             placeholderTextColor="#000"
-            value={phone}
+            value={phoneNumber}
             onChangeText={handlePhoneChange}
             autoCapitalize="none"
             keyboardType="phone-pad"

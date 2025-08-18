@@ -16,6 +16,8 @@ import {
 import { supabase } from './supabaseClient';
 import { useUser } from '../contexts/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserService } from '../utils/userService';
+import * as Notifications from 'expo-notifications';
 
 export default function PasswordLoginScreen({ navigation }) {
   const userContext = useUser();
@@ -52,83 +54,215 @@ export default function PasswordLoginScreen({ navigation }) {
     setError('');
 
     try {
+      // Test database connection first
+      console.log('🔍 Testing database connection...');
+      const connectionTest = await UserService.testDatabaseConnection();
+      if (!connectionTest.success) {
+        console.error('❌ Database connection test failed:', connectionTest.error);
+        setError('Database connection issue. Please check your internet connection and try again.');
+        setLoading(false);
+        return;
+      }
+      console.log(`✅ Database connection test passed in ${connectionTest.queryTime}ms`);
+
       // Normalize email to lowercase for consistent comparison
       const normalizedEmail = emailOrMobile.toLowerCase().trim();
       console.log('🔍 Attempting login with normalized email:', normalizedEmail);
 
-      // Check if user exists and get password hash in a single query
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .ilike('email', normalizedEmail)
-        .single();
-
-      console.log('User lookup result:', { userData, userError });
-
-      if (userError) {
-        if (userError.code === 'PGRST116') {
-          // No user found
-          setError('This email is not registered. Please sign up first.');
-        } else {
-          console.error('Database error:', userError);
-          setError('Error checking user account. Please try again.');
+      // Use UserService to check if user exists with timeout protection
+      console.log('🔍 Starting user existence check...');
+      let exists = false;
+      let existingUser = null;
+      
+      // Skip UserService if database connection test was slow (>3 seconds)
+      const skipUserService = connectionTest.queryTime > 3000;
+      
+      if (skipUserService) {
+        console.log('⚠️ Database connection was slow, skipping UserService and using direct query');
+        try {
+          const { data: userData, error: dbError } = await supabase
+            .from('users')
+            .select('*')
+            .ilike('email', normalizedEmail)
+            .single();
+          
+          if (dbError && dbError.code !== 'PGRST116') {
+            console.error('❌ Direct database check error:', dbError);
+            throw new Error('Database check failed');
+          }
+          
+          exists = !!userData;
+          existingUser = userData;
+          console.log('✅ Direct database check completed (skipped UserService):', { exists, existingUser });
+        } catch (fallbackError) {
+          console.error('❌ Direct database check failed:', fallbackError);
+          throw new Error('Unable to verify user account. Please try again.');
         }
-        setLoading(false);
-        return;
+      } else {
+        try {
+          const userCheckPromise = UserService.checkUserExists(normalizedEmail);
+          
+          // Add timeout protection (15 seconds instead of 5)
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('User check timeout')), 15000)
+          );
+          
+          const result = await Promise.race([userCheckPromise, timeoutPromise]);
+          exists = result.exists;
+          existingUser = result.user;
+          console.log('✅ UserService check completed:', { exists, existingUser });
+        } catch (userServiceError) {
+          console.log('⚠️ UserService failed, trying direct database check:', userServiceError);
+          
+          // Fallback: Direct database check
+          try {
+            const { data: userData, error: dbError } = await supabase
+              .from('users')
+              .select('*')
+              .ilike('email', normalizedEmail)
+              .single();
+            
+            if (dbError && dbError.code !== 'PGRST116') {
+              console.error('❌ Direct database check error:', dbError);
+              throw new Error('Database check failed');
+            }
+            
+            exists = !!userData;
+            existingUser = userData;
+            console.log('✅ Direct database check completed:', { exists, existingUser });
+          } catch (fallbackError) {
+            console.error('❌ Fallback database check also failed:', fallbackError);
+            throw new Error('Unable to verify user account. Please try again.');
+          }
+        }
       }
+      
+      console.log('✅ User existence check completed:', { exists, existingUser });
 
-      if (!userData) {
+      if (!exists || !existingUser) {
+        // User not found - show phone notification and error
+        console.log('🔍 User not found in database, showing phone notification');
+        
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Account Not Found',
+              body: 'This email is not registered. Please go to Create Account first.',
+              data: { type: 'password_login_error' },
+            },
+            trigger: null, // Show immediately
+          });
+          console.log('✅ Phone notification sent for unregistered user');
+        } catch (notificationError) {
+          console.error('❌ Failed to send phone notification:', notificationError);
+        }
+        
         setError('This email is not registered. Please sign up first.');
         setLoading(false);
         return;
       }
 
-      // Verify password
-      console.log('🔐 Verifying password for user:', userData.email);
+      // User exists - verify password
+      console.log('🔐 Verifying password for user:', existingUser.email);
+      console.log('🔍 Available user fields:', Object.keys(existingUser));
+      console.log('🔍 User data received:', existingUser);
       console.log('Input password length:', password.length);
-      console.log('Stored password hash length:', userData.password_hash?.length);
+      console.log('🔍 Input password (first 3 chars):', password.substring(0, 3) + '...');
+      
+      // Check if this is a Google OAuth user (no password field)
+      if (!existingUser.password_hash && !existingUser.password && !existingUser.passwordHash && !existingUser.passwordhash) {
+        console.log('🔍 This appears to be a Google OAuth user (no password field)');
+        
+        // Show phone notification for Google OAuth users without passwords
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Google Account Detected',
+              body: 'This account was created with Google. You can either use Google Sign-In or set up a password in your account settings.',
+              data: { type: 'google_oauth_user_no_password' },
+            },
+            trigger: null, // Show immediately
+          });
+          console.log('✅ Phone notification sent for Google OAuth user without password');
+        } catch (notificationError) {
+          console.error('❌ Failed to send phone notification:', notificationError);
+        }
+        
+        setError('This account was created with Google. You can either use Google Sign-In or set up a password in your account settings.');
+        setLoading(false);
+        return;
+      }
+      
+      // Check for password in different possible field names
+      const passwordHash = existingUser.password_hash || existingUser.password || existingUser.passwordHash || existingUser.passwordhash;
+      console.log('🔍 Password field found:', {
+        password_hash: existingUser.password_hash,
+        password: existingUser.password,
+        passwordHash: existingUser.passwordHash,
+        passwordhash: existingUser.passwordhash,
+        finalPasswordHash: passwordHash
+      });
+      console.log('Stored password hash length:', passwordHash?.length);
+      console.log('🔍 Stored password (first 3 chars):', passwordHash ? passwordHash.substring(0, 3) + '...' : 'undefined');
 
-      if (!userData.password_hash) {
+      if (!passwordHash) {
         console.error('No password hash found for user');
+        console.error('Available fields:', Object.keys(existingUser));
         setError('Account setup incomplete. Please contact support.');
         setLoading(false);
         return;
       }
 
-      if (userData.password_hash !== password) {
+      // Enhanced password comparison logging
+      console.log('🔍 Password comparison details:');
+      console.log('  - Input password length:', password.length);
+      console.log('  - Stored password length:', passwordHash.length);
+      console.log('  - Input password type:', typeof password);
+      console.log('  - Stored password type:', typeof passwordHash);
+      console.log('  - Passwords match exactly:', password === passwordHash);
+      console.log('  - Input password trimmed:', `"${password.trim()}"`);
+      console.log('  - Stored password trimmed:', `"${passwordHash.trim()}"`);
+      console.log('  - Trimmed passwords match:', password.trim() === passwordHash.trim());
+
+      if (password !== passwordHash) {
         console.log('❌ Password mismatch:');
         console.log(' Input password:', `"${password}"`);
-        console.log(' Stored password:', `"${userData.password_hash}"`);
+        console.log(' Stored password:', `"${passwordHash}"`);
+        console.log(' Input password (hex):', Buffer.from(password).toString('hex'));
+        console.log(' Stored password (hex):', Buffer.from(passwordHash).toString('hex'));
         setError('Email and password don\'t match');
         setLoading(false);
         return;
       }
 
       // ✅ Login successful - prepare complete user data
-      console.log('✅ Login successful for user:', userData.email);
+      console.log('✅ Login successful for user:', existingUser.email);
       
       // Create complete user data object
       const completeUserData = {
-        id: userData.id,
-        email: userData.email,
-        firstName: userData.first_name || '',
-        lastName: userData.last_name || '',
-        full_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
-        phone: userData.phone || '',
-        address1: userData.address_line_1 || '',
-        address2: userData.address_line_2 || '',
-        city: userData.city || '',
-        state: userData.state || '',
-        zip: userData.zip_code || '',
-        avatar_url: userData.avatar_url || '',
-        isGoogleAuth: userData.is_google_auth || false,
-        created_at: userData.created_at,
-        updated_at: userData.updated_at
+        id: existingUser.id,
+        email: existingUser.email,
+        firstName: existingUser.first_name || '',
+        lastName: existingUser.last_name || '',
+        name: existingUser.first_name || existingUser.last_name ? `${existingUser.first_name || ''} ${existingUser.last_name || ''}`.trim() : '',
+        full_name: `${existingUser.first_name || ''} ${existingUser.last_name || ''}`.trim(),
+        phone: existingUser.phone || '',
+        address1: existingUser.address_line_1 || '',
+        address2: existingUser.address_line_2 || '',
+        city: existingUser.city || '',
+        state: existingUser.state || '',
+        zip: existingUser.zip_code || '',
+        avatar_url: existingUser.avatar_url || '',
+        profileImageUri: existingUser.avatar_url || '',
+        isGoogleAuth: false, // Default to false since is_google_auth field doesn't exist in database
+        created_at: existingUser.created_at,
+        updated_at: existingUser.updated_at
       };
       
       console.log('📋 Complete user data prepared:', completeUserData);
       
       // Store complete user data in AsyncStorage for other screens
+      console.log('💾 Storing user data in AsyncStorage...');
       await AsyncStorage.setItem('tempUserData', JSON.stringify(completeUserData));
       await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserData));
       
@@ -139,7 +273,7 @@ export default function PasswordLoginScreen({ navigation }) {
       await AsyncStorage.removeItem('previousProfilePicture');
       await AsyncStorage.removeItem('storedProfilePicture');
       
-      console.log('💾 User data stored in AsyncStorage');
+      console.log('✅ User data stored in AsyncStorage');
       
       // Set user in context (with safety check)
       if (setCustomUser && typeof setCustomUser === 'function') {
@@ -153,14 +287,26 @@ export default function PasswordLoginScreen({ navigation }) {
       }
       
       // Navigate to Welcomepage with complete user data
+      console.log('🔄 Preparing navigation to Welcomepage...');
+      const fullName = existingUser.first_name && existingUser.last_name 
+        ? `${existingUser.first_name} ${existingUser.last_name}`
+        : existingUser.first_name || existingUser.last_name || 'there';
+      
+      console.log('🔄 Navigating to Welcomepage with name:', fullName);
       navigation.replace('Welcomepage', { 
-        name: completeUserData.firstName || completeUserData.full_name?.split(' ')[0] || 'there',
+        name: fullName,
         userData: completeUserData
       });
       
+      console.log('✅ Navigation to Welcomepage completed with user data');
+      
     } catch (error) {
       console.error('❌ Login error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      if (error.message === 'User check timeout') {
+        setError('Login is taking too long. Please try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

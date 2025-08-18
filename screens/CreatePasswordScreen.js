@@ -128,15 +128,147 @@ export default function CreatePasswordScreen({ navigation, route }) {
       console.log('Password to save:', password);
       console.log('Is Google auth:', isGoogleAuth);
       
-      // For Google auth users, don't save to database yet - just pass data through
+      // For Google auth users, save the password to the database so they can use both methods
       if (isGoogleAuth) {
-        console.log('✅ Google auth user - skipping database save, passing data through');
-        navigation.navigate('FaceID', { 
-          userInfo, 
-          savedUser: null,
-          isGoogleAuth: true,
-          googleUserData: googleUserData
-        });
+        console.log('✅ Google auth user - saving password to database for hybrid login');
+        
+        try {
+          // Check if user already exists in database
+          const { data: existingGoogleUser, error: checkError } = await supabase
+            .from('users')
+            .select('*')
+            .ilike('email', userInfo.email)
+            .maybeSingle();
+            
+          if (checkError) {
+            console.error('Error checking existing Google user:', checkError);
+            setError('Failed to verify account. Please try again.');
+            return;
+          }
+          
+          if (existingGoogleUser) {
+            // Update existing Google user with password
+            console.log('Updating existing Google user with password:', existingGoogleUser.id);
+            const { data: updateData, error: updateError } = await supabase
+              .from('users')
+              .update({ 
+                password_hash: password, // Store password for hybrid login
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingGoogleUser.id)
+              .select();
+              
+            if (updateError) {
+              console.error('Password update error for Google user:', updateError);
+              setError('Failed to set password. Please try again.');
+              return;
+            }
+            
+            console.log('✅ Google user password saved successfully:', updateData);
+            console.log('🔍 Google user password being stored:', {
+              password: password,
+              passwordLength: password.length,
+              passwordType: typeof password,
+              passwordFirst3Chars: password.substring(0, 3) + '...',
+              userId: existingGoogleUser.id
+            });
+            
+            // Verify the password was stored correctly
+            const { data: verifyGoogleUser, error: verifyGoogleUserError } = await supabase
+              .from('users')
+              .select('password_hash')
+              .eq('id', existingGoogleUser.id)
+              .single();
+              
+            if (verifyGoogleUserError) {
+              console.error('Verification error for Google user:', verifyGoogleUserError);
+            } else {
+              console.log('🔍 Google user password verification:', {
+                storedPassword: verifyGoogleUser.password_hash,
+                storedPasswordLength: verifyGoogleUser.password_hash?.length,
+                storedPasswordType: typeof verifyGoogleUser.password_hash,
+                storedPasswordFirst3Chars: verifyGoogleUser.password_hash ? verifyGoogleUser.password_hash.substring(0, 3) + '...' : 'undefined',
+                matchesInput: verifyGoogleUser.password_hash === password
+              });
+            }
+            
+            // Create formatted user object with password
+            const formattedGoogleUser = {
+              ...existingGoogleUser,
+              password_hash: password,
+              id: updateData[0].id,
+              firstName: updateData[0].first_name,
+              lastName: updateData[0].last_name,
+              email: updateData[0].email,
+              phone: updateData[0].phone || '',
+              address1: updateData[0].address_line_1 || '',
+              address2: updateData[0].address_line_2 || '',
+              city: updateData[0].city || '',
+              state: updateData[0].state || '',
+              zip: updateData[0].zip_code || '',
+              created_at: updateData[0].created_at,
+              updated_at: updateData[0].updated_at
+            };
+            
+            navigation.navigate('FaceID', { 
+              userInfo, 
+              savedUser: formattedGoogleUser,
+              isGoogleAuth: true,
+              googleUserData: googleUserData
+            });
+          } else {
+            // Create new Google user with password
+            console.log('Creating new Google user with password');
+            const { data: newUser, error: createError } = await supabase
+              .from('users')
+              .insert({
+                email: userInfo.email,
+                first_name: userInfo.firstName || '',
+                last_name: userInfo.lastName || '',
+                password_hash: password, // Store password for hybrid login
+                avatar_url: userInfo.avatar_url || '',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .select();
+              
+            if (createError) {
+              console.error('Error creating Google user with password:', createError);
+              setError('Failed to create account. Please try again.');
+              return;
+            }
+            
+            console.log('✅ New Google user with password created successfully:', newUser);
+            
+            // Create formatted user object
+            const formattedNewGoogleUser = {
+              ...newUser[0],
+              id: newUser[0].id,
+              firstName: newUser[0].first_name,
+              lastName: newUser[0].last_name,
+              email: newUser[0].email,
+              phone: newUser[0].phone || '',
+              address1: newUser[0].address_line_1 || '',
+              address2: newUser[0].address_line_2 || '',
+              city: newUser[0].city || '',
+              state: newUser[0].state || '',
+              zip: newUser[0].zip_code || '',
+              created_at: newUser[0].created_at,
+              updated_at: newUser[0].updated_at
+            };
+            
+            navigation.navigate('FaceID', { 
+              userInfo, 
+              savedUser: formattedNewGoogleUser,
+              isGoogleAuth: true,
+              googleUserData: googleUserData
+            });
+          }
+        } catch (error) {
+          console.error('Error handling Google user password setup:', error);
+          setError('Failed to set up password. Please try again.');
+          return;
+        }
         return;
       }
       
@@ -163,6 +295,12 @@ export default function CreatePasswordScreen({ navigation, route }) {
 
         console.log('Password updated successfully:', updateData);
         console.log('Updated user data:', updateData[0]);
+        console.log('🔍 Password being stored:', {
+          password: password,
+          passwordLength: password.length,
+          passwordType: typeof password,
+          passwordFirst3Chars: password.substring(0, 3) + '...'
+        });
         
         // Verify the update worked by checking the database
         const { data: verifyData, error: verifyError } = await supabase
@@ -176,6 +314,13 @@ export default function CreatePasswordScreen({ navigation, route }) {
         } else {
           console.log('Verification - User in database:', verifyData);
           console.log('Password hash in database:', verifyData.password_hash);
+          console.log('🔍 Stored password verification:', {
+            storedPassword: verifyData.password_hash,
+            storedPasswordLength: verifyData.password_hash?.length,
+            storedPasswordType: typeof verifyData.password_hash,
+            storedPasswordFirst3Chars: verifyData.password_hash ? verifyData.password_hash.substring(0, 3) + '...' : 'undefined',
+            matchesInput: verifyData.password_hash === password
+          });
         }
         
         // Create a properly formatted user object that matches what the UI expects
@@ -220,11 +365,7 @@ export default function CreatePasswordScreen({ navigation, route }) {
               ? `${existingUser.first_name} ${existingUser.last_name}`
               : 'there';
             
-            navigation.replace('Welcomepage', { 
-              name: fullName,
-              user: existingUser,
-              email: existingUser.email
-            });
+            navigation.replace('Home');
             return;
           }
           
@@ -264,6 +405,32 @@ export default function CreatePasswordScreen({ navigation, route }) {
         }
 
         console.log('User created successfully:', data);
+        console.log('🔍 Password being stored for new user:', {
+          password: password,
+          passwordLength: password.length,
+          passwordType: typeof password,
+          passwordFirst3Chars: password.substring(0, 3) + '...',
+          userId: data[0].id
+        });
+        
+        // Verify the password was stored correctly
+        const { data: verifyNewUser, error: verifyNewUserError } = await supabase
+          .from('users')
+          .select('password_hash')
+          .eq('id', data[0].id)
+          .single();
+          
+        if (verifyNewUserError) {
+          console.error('Verification error for new user:', verifyNewUserError);
+        } else {
+          console.log('🔍 New user password verification:', {
+            storedPassword: verifyNewUser.password_hash,
+            storedPasswordLength: verifyNewUser.password_hash?.length,
+            storedPasswordType: typeof verifyNewUser.password_hash,
+            storedPasswordFirst3Chars: verifyNewUser.password_hash ? verifyNewUser.password_hash.substring(0, 3) + '...' : 'undefined',
+            matchesInput: verifyNewUser.password_hash === password
+          });
+        }
         
         // Create a properly formatted user object that matches what the UI expects
         const formattedUser = {

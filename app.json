@@ -22,7 +22,7 @@
     },
     "ios": {
       "useAppleSignIn": true,
-      "bundleIdentifier": "com.anonymous.jerroddd",
+      "bundleIdentifier": "com.anonymous.jerrod",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

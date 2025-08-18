@@ -1,0 +1,17 @@
+[33mc7802c5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Combined code with entire group connecting screens. Still has some logical errors
+[33m472403a[m Implemented most of onboarding sprint, still need to figure out errors and add a couple screens
+[33m8106202[m switch to cloud prebuild (CNG)
+[33m77e5006[m backup before ios regen
+[33m7451f3e[m Added address autocomplete, database to allow signing in, as well as faceid
+[33m7c52c3f[m Combined all of our codes giving us the most up to date project
+[33m02a891a[m New code to work with
+[33m2788e24[m Fixed all Errors
+[33mfb5683f[m New Phone Auth
+[33mbe73377[m New Phone Auth
+[33m2f24480[m New login screen
+[33m6596e02[m Added mark2_dark.png into assets
+[33m57f013d[m Fixed address automation error annd implemented Jerrod's code for the screens
+[33m827ebe9[m Added babel.config to folder
+[33m9918f33[m Edited code to remove supabase
+[33mcb7fe70[m Merge branch 'main' of https://github.com/jerrodjayg/Couri-Mobile into HEAD
+[33mc720355[m Went back to old code and implemented new software

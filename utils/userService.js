@@ -50,6 +50,33 @@ function inferExt(contentType, fileUri) {
  * UserService — email-first user persistence
  */
 export class UserService {
+  // Test database connection
+  static async testDatabaseConnection() {
+    try {
+      console.log('🔍 testDatabaseConnection: Testing database connection...');
+      const startTime = Date.now();
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      const endTime = Date.now();
+      const queryTime = endTime - startTime;
+      
+      if (error) {
+        console.log('❌ testDatabaseConnection failed:', error);
+        return { success: false, error, queryTime };
+      }
+      
+      console.log(`✅ testDatabaseConnection: Success in ${queryTime}ms`);
+      return { success: true, queryTime };
+    } catch (e) {
+      console.log('❌ testDatabaseConnection fatal:', e);
+      return { success: false, error: e };
+    }
+  }
+
   static async checkUserExists(email) {
     try {
       if (!email) {
@@ -57,13 +84,18 @@ export class UserService {
         return { exists: false, user: null };
       }
       
-      console.log('🔍 checkUserExists: Checking for email:', email);
+      console.log('🔍 checkUserExists: Starting database query for email:', email);
+      const startTime = Date.now();
+      
       const { data, error } = await supabase
         .from('users')
-        .select('id, first_name, last_name, email, avatar_url')
+        .select('id, first_name, last_name, email, avatar_url, password_hash')
         .ilike('email', email.toLowerCase())
         .maybeSingle();
       
+      const endTime = Date.now();
+      const queryTime = endTime - startTime;
+      console.log(`🔍 checkUserExists: Database query completed in ${queryTime}ms`);
       console.log('🔍 checkUserExists: Database response - data:', data, 'error:', error);
       
       if (error && error.code !== 'PGRST116') {
@@ -107,6 +139,171 @@ export class UserService {
       return { success: false, error };
     }
     return { success: true, user: data };
+  }
+
+  static async saveGoogleAuthUser(googleUser, additionalData = {}) {
+    try {
+      console.log('🔍 saveGoogleAuthUser: Starting with user:', googleUser.email);
+      
+      // Filter out camelCase fields that don't match database schema
+      const { firstName, lastName, ...filteredAdditionalData } = additionalData;
+      
+      // Prepare the payload
+      const payload = {
+        email: googleUser.email || '',
+        first_name: (firstName || additionalData.firstName || googleUser.user_metadata?.first_name || googleUser.user_metadata?.name?.split(' ')[0] || '').toString(),
+        last_name: (lastName || additionalData.lastName || googleUser.user_metadata?.last_name || googleUser.user_metadata?.name?.split(' ').slice(1).join(' ') || '').toString(),
+        phone: (additionalData.phone || googleUser.phone || '').toString(), // Ensure phone is never null
+        address_line_1: (additionalData.address1 || additionalData.address_line_1 || '').toString(), // Ensure address fields are never null
+        address_line_2: (additionalData.address2 || additionalData.address_line_2 || '').toString(), // Ensure address fields are never null
+        city: (additionalData.city || '').toString(), // Ensure city is never null
+        state: (additionalData.state || '').toString(), // Ensure state is never null
+        zip_code: (additionalData.zip || additionalData.zip_code || '').toString(), // Ensure zip is never null
+        avatar_url: googleUser.user_metadata?.avatar_url || googleUser.user_metadata?.picture || null, // Use null if no avatar
+        auth_user_id: googleUser.id || null, // Use null instead of empty string for UUID field
+        created_at: new Date().toISOString(), // Ensure created_at is set for new users
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('🔍 saveGoogleAuthUser: Prepared payload:', payload);
+      console.log('🔍 saveGoogleAuthUser: Payload details:');
+      console.log('  - email:', payload.email);
+      console.log('  - first_name:', payload.first_name, '(type:', typeof payload.first_name, ')');
+      console.log('  - last_name:', payload.last_name, '(type:', typeof payload.last_name, ')');
+      console.log('  - phone:', payload.phone, '(type:', typeof payload.phone, ')');
+      console.log('  - address_line_1:', payload.address_line_1, '(type:', typeof payload.address_line_1, ')');
+      console.log('  - address_line_2:', payload.address_line_2, '(type:', typeof payload.address_line_2, ')');
+      console.log('  - city:', payload.city, '(type:', typeof payload.city, ')');
+      console.log('  - state:', payload.state, '(type:', typeof payload.state, ')');
+      console.log('  - zip_code:', payload.zip_code, '(type:', typeof payload.zip_code, ')');
+      console.log('  - avatar_url:', payload.avatar_url, '(type:', typeof payload.avatar_url, ')');
+      console.log('  - auth_user_id:', payload.auth_user_id, '(type:', typeof payload.auth_user_id, ')');
+      console.log('  - created_at:', payload.created_at, '(type:', typeof payload.created_at, ')');
+      console.log('  - updated_at:', payload.updated_at, '(type:', typeof payload.updated_at, ')');
+
+      // Check if user already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, avatar_url')
+        .eq('email', payload.email)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('❌ saveGoogleAuthUser: Error checking existing user:', checkError);
+        throw checkError;
+      }
+
+      if (existingUser) {
+        console.log('🔍 saveGoogleAuthUser: User exists, updating profile...');
+        // Update existing user with only non-conflicting fields
+        const updatePayload = {
+          updated_at: payload.updated_at,
+          auth_user_id: payload.auth_user_id, // Update the auth_user_id
+        };
+        
+        // Only update avatar if it's different and not empty
+        if (payload.avatar_url && payload.avatar_url !== existingUser.avatar_url) {
+          updatePayload.avatar_url = payload.avatar_url;
+        }
+        
+        // Only update names if they're different and not empty
+        if (payload.first_name && payload.first_name !== existingUser.first_name) {
+          updatePayload.first_name = payload.first_name;
+        }
+        if (payload.last_name && payload.last_name !== existingUser.last_name) {
+          updatePayload.last_name = payload.last_name;
+        }
+        
+        console.log('🔍 saveGoogleAuthUser: Update payload:', updatePayload);
+        
+        const { data, error } = await supabase
+          .from('users')
+          .update(updatePayload)
+          .eq('email', payload.email)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('❌ saveGoogleAuthUser: Update error:', error);
+          throw error;
+        }
+
+        console.log('✅ saveGoogleAuthUser: User updated successfully:', data);
+        return { success: true, user: data, isUpdate: true };
+      } else {
+        console.log('🔍 saveGoogleAuthUser: User not found, creating new user...');
+        // Insert new user
+        const { data, error } = await supabase
+          .from('users')
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('❌ saveGoogleAuthUser: Insert error:', error);
+          throw error;
+        }
+
+        console.log('✅ saveGoogleAuthUser: New user created successfully:', data);
+        return { success: true, user: data, isUpdate: false };
+      }
+    } catch (error) {
+      console.error('❌ saveGoogleAuthUser: Fatal error:', error);
+      throw error;
+    }
+  }
+
+  // New function specifically for handling existing Google users
+  static async handleExistingGoogleUser(googleUser, existingUser) {
+    try {
+      console.log('🔍 handleExistingGoogleUser: Handling existing user for Google sign-in:', existingUser.email);
+      
+      // Only update non-conflicting fields
+      const updatePayload = {
+        updated_at: new Date().toISOString(),
+        auth_user_id: googleUser.id || null, // Link the Google auth ID
+      };
+      
+      // Only update avatar if it's different and not empty
+      if (googleUser.user_metadata?.avatar_url && 
+          googleUser.user_metadata.avatar_url !== existingUser.avatar_url) {
+        updatePayload.avatar_url = googleUser.user_metadata.avatar_url;
+      }
+      
+      // Only update names if they're different and not empty
+      if (googleUser.user_metadata?.name && 
+          googleUser.user_metadata.name !== existingUser.first_name) {
+        updatePayload.first_name = googleUser.user_metadata.name;
+      }
+      
+      console.log('🔍 handleExistingGoogleUser: Update payload:', updatePayload);
+      
+      // Only update if we have changes
+      if (Object.keys(updatePayload).length > 1) { // More than just updated_at
+        const { data, error } = await supabase
+          .from('users')
+          .update(updatePayload)
+          .eq('email', existingUser.email)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('❌ handleExistingGoogleUser: Update error:', error);
+          // Don't throw - just return existing user data
+          return { success: true, user: existingUser, isUpdate: false };
+        }
+
+        console.log('✅ handleExistingGoogleUser: User updated successfully:', data);
+        return { success: true, user: data, isUpdate: true };
+      } else {
+        console.log('🔍 handleExistingGoogleUser: No updates needed, returning existing user');
+        return { success: true, user: existingUser, isUpdate: false };
+      }
+    } catch (error) {
+      console.error('❌ handleExistingGoogleUser: Fatal error:', error);
+      // Don't throw - just return existing user data
+      return { success: true, user: existingUser, isUpdate: false };
+    }
   }
 
   static async updateUserProfile(userEmail, profileData) {

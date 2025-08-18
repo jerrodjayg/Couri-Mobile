@@ -1,10 +1,11 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { UserProvider } from './contexts/UserContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
+import { supabase } from './screens/supabaseClient';
 
 import UploadPhotoScreen from './screens/UploadPhotoScreen';
 import SplashScreen from './screens/SplashScreen';
@@ -27,20 +28,89 @@ import PhoneInputScreen from './screens/PhoneInputScreen';
 import PasswordChangedConfirmation from './screens/PasswordChangedConfirmation';
 import ConfirmInfoScreen from './screens/ConfirmInfoScreen';
 import SupportScreen from './screens/SupportScreen';
+import BankInfo from './screens/BankInfo';
+import Transactions from './screens/Transactions';
+import ChatHistory from './screens/ChatHistory';
+import Notification from './screens/Notification';
+import Legal from './screens/Legal';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
-const linking = { prefixes: ["com.anonymous.jerroddd://" ],
+const linking = { 
+  prefixes: ["com.anonymous.jerrod://"],
+  config: {
+    screens: {
+      Splash: 'splash',
+      Home: 'home',
+      CreateAccount: 'create-account',
+      Login: 'login',
+      Welcomepage: 'welcome',
+      // Add other screens as needed
+    }
+  }
 };
 
 export default function App() {
   console.log('🚀 App component rendering');
+  const navigationRef = useRef();
+  
+  // Handle deep linking for OAuth callbacks
+  useEffect(() => {
+    const handleDeepLink = async (url) => {
+      console.log('🔗 Deep link received:', url);
+      
+      if (url && url.includes('code=')) {
+        console.log('🔑 OAuth callback detected with authorization code');
+        
+        try {
+          // Extract the authorization code from the URL
+          const urlObj = new URL(url);
+          const code = urlObj.searchParams.get('code');
+          
+          if (code) {
+            console.log('🔑 Authorization code extracted:', code);
+            
+            // Let Supabase handle the OAuth callback
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+              console.error('❌ OAuth callback error:', error);
+            } else {
+              console.log('✅ OAuth callback successful, session established');
+              console.log('🔑 Session data:', data);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error handling OAuth callback:', error);
+        }
+      }
+    };
+
+    // Handle initial URL if app was opened via deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('🔗 Initial deep link URL:', url);
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for deep links while app is running
+    const subscription = Linking.addEventListener('url', (event) => {
+      console.log('🔗 Deep link event received:', event.url);
+      handleDeepLink(event.url);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
   
   return (
    <UserProvider>
    <GestureHandlerRootView style={{ flex: 1 }}>
    {/* Only one NavigationContainer */}
    <NavigationContainer 
+     ref={navigationRef}
      linking={linking}
      onStateChange={(state) => {
        console.log('🔄 App navigation state changed:', state?.routes?.map(r => r.name));
@@ -69,9 +139,14 @@ export default function App() {
  <Stack.Screen name="FaceID" component={FaceIDScreen} />
  <Stack.Screen name="PhoneInput" component={PhoneInputScreen} />
  <Stack.Screen name="PasswordChangedConfirmation" component={PasswordChangedConfirmation} />
- <Stack.Screen name="ConfirmInfo" component={ConfirmInfoScreen} />
+  <Stack.Screen name="ConfirmInfo" component={ConfirmInfoScreen} />
  <Stack.Screen name="Support" component={SupportScreen} />
- </Stack.Navigator>
+ <Stack.Screen name="BankInfo" component={BankInfo} />
+ <Stack.Screen name="Transactions" component={Transactions} />
+ <Stack.Screen name="ChatHistory" component={ChatHistory} />
+ <Stack.Screen name="Notification" component={Notification} />
+ <Stack.Screen name="Legal" component={Legal} />
+</Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>
  </UserProvider>

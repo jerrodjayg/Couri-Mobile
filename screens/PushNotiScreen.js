@@ -39,23 +39,30 @@ export default function PushNotiScreen({ navigation, route }) {
         console.log('🔍 User context ID:', user?.id);
         console.log('🔍 User context email:', user?.email);
         
+        // DEBUG: Add comprehensive logging for user data flow
+        console.log('🔍 PushNotiScreen DEBUG - Starting user data processing');
+        console.log('🔍 PushNotiScreen DEBUG - User from params:', userFromParams);
+        console.log('🔍 PushNotiScreen DEBUG - Is Google auth:', isGoogleAuth);
+        console.log('🔍 PushNotiScreen DEBUG - Google user data:', googleUserData);
+        
         // OPTIMIZATION: Don't block UI with database operations
         // Save user data to database in background
         if (isGoogleAuth) {
           console.log('🔄 Calling saveGoogleUserToDatabase in background...');
+          console.log('🔍 PushNotiScreen DEBUG - Starting Google user database save');
           // Don't await - let it run in background
           saveGoogleUserToDatabase().catch(error => 
             console.log('⚠️ Background save error:', error)
           );
         } else {
           console.log('🔄 Calling saveRegularUserToDatabase in background...');
+          console.log('🔍 PushNotiScreen DEBUG - Starting regular user database save');
           // Don't await - let it run in background
           saveRegularUserToDatabase().catch(error => 
             console.log('⚠️ Background save error:', error)
           );
         }
         
-
 
         // Handle notifications without blocking
         const { status } = await Notifications.getPermissionsAsync();
@@ -476,9 +483,12 @@ const saveRegularUserToDatabase = async () => {
   const saveGoogleUserToDatabase = async () => {
     try {
       console.log('🔄 Saving Google Auth user to database...');
+      console.log('🔍 PushNotiScreen DEBUG - saveGoogleUserToDatabase started');
+      console.log('🔍 PushNotiScreen DEBUG - User from params:', userFromParams);
       
       if (!userFromParams) {
         console.log('❌ No user data available to save');
+        console.log('🔍 PushNotiScreen DEBUG - userFromParams is null/undefined');
         return;
       }
 
@@ -528,7 +538,6 @@ const saveRegularUserToDatabase = async () => {
         state: userFromParams.state,
         zip_code: userFromParams.zip,
         avatar_url: '', // Don't use Google avatar by default
-        is_google_auth: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -561,7 +570,9 @@ const saveRegularUserToDatabase = async () => {
       // ALSO save to users table for authentication
       console.log('🔄 Saving Google user data to Supabase users table...');
       const userDataForUsersTable = {
-        id: userId || 'temp_user',
+        // Don't include 'id' field - let database auto-generate it
+        // Store the Supabase Auth UUID in auth_user_id field for reference
+        auth_user_id: userId || null,
         email: userFromParams.email,
         first_name: userFromParams.firstName,
         last_name: userFromParams.lastName,
@@ -591,7 +602,7 @@ const saveRegularUserToDatabase = async () => {
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .upsert(userDataForUsersTable, {
-          onConflict: 'id'
+          onConflict: 'email'  // Use email for conflict resolution since we're not providing an ID
         });
 
       if (usersError) {
@@ -603,40 +614,14 @@ const saveRegularUserToDatabase = async () => {
           hint: usersError.hint
         });
         
-        // Handle data type errors specifically
-        if (usersError.code === '22P02') {
-          console.error('❌ Data type error detected - likely ID field type mismatch');
-          console.log('🔍 Current user ID value:', userId);
-          console.log('🔍 Current user ID type:', typeof userId);
-          console.log('🔍 Expected: numeric ID or UUID, got:', userId);
-          
-          // Try to fix the ID if it's a string that should be numeric
-          if (typeof userId === 'string' && userId.startsWith('temp_')) {
-            console.log('🔍 Attempting to fix temporary ID format...');
-            // Generate a proper UUID
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-              const newUserId = crypto.randomUUID();
-              console.log('✅ Generated new UUID:', newUserId);
-              
-              // Update the data and retry
-              const fixedUserData = { ...userDataForUsersTable, id: newUserId };
-              console.log('🔍 Retrying with fixed ID:', newUserId);
-              
-              const { data: retryData, error: retryError } = await supabase
-                .from('users')
-                .upsert(fixedUserData, {
-                  onConflict: 'id'
-                });
-              
-              if (retryError) {
-                console.error('❌ Retry with fixed ID still failed:', retryError);
-              } else {
-                console.log('✅ Successfully saved with fixed ID:', retryData);
-                return; // Exit early on success
-              }
-            }
-          }
-        }
+        // Log the error for debugging
+        console.error('❌ Error saving to users table:', usersError);
+        console.log('🔍 Error details:', {
+          code: usersError.code,
+          message: usersError.message,
+          details: usersError.details,
+          hint: usersError.hint
+        });
         
 
       } else {
@@ -659,11 +644,27 @@ const saveRegularUserToDatabase = async () => {
         isGoogleAuth: true
       };
 
+      // Store in both AsyncStorage keys for consistency
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataToStore));
+      await AsyncStorage.setItem('userProfileData', JSON.stringify({
+        id: userDataToStore.id,
+        name: userDataToStore.firstName,
+        full_name: `${userDataToStore.firstName} ${userDataToStore.lastName}`.trim(),
+        avatar_url: userDataToStore.avatar_url,
+        email: userDataToStore.email
+      }));
+      
       console.log('✅ User data stored in AsyncStorage');
+      console.log('🔍 PushNotiScreen DEBUG - User data stored in AsyncStorage:', userDataToStore);
+      console.log('🔍 PushNotiScreen DEBUG - User data also stored in userProfileData');
 
     } catch (error) {
       console.error('❌ Error saving Google Auth user to database:', error);
+      console.log('🔍 PushNotiScreen DEBUG - Database save error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code
+      });
       // Don't throw error, just log it and continue
       console.log('⚠️ Continuing with flow despite error');
     }
@@ -732,12 +733,20 @@ const saveRegularUserToDatabase = async () => {
 
       await getTokenAndSave();
       
-             // Navigate to UploadPhoto for all users
-       navigation.navigate('UploadPhoto', { 
-         userInfo: userFromParams,
-         isGoogleAuth: isGoogleAuth || false,
-         googleUserData: googleUserData
-       });
+      console.log('🔍 PushNotiScreen DEBUG - Navigating to Welcomepage');
+      console.log('🔍 PushNotiScreen DEBUG - Navigation data:', {
+        userInfo: userFromParams,
+        isGoogleAuth: isGoogleAuth || false,
+        googleUserData: googleUserData
+      });
+      
+      // Navigate to Welcomepage to show user info after completing sign-up flow
+      navigation.replace('Welcomepage', { 
+        name: userFromParams?.firstName || userFromParams?.name || 'there',
+        userData: userFromParams,
+        isGoogleAuth: isGoogleAuth || false,
+        googleUserData: googleUserData
+      });
     } catch (error) {
       console.error('Error enabling notifications:', error);
       Alert.alert('Error', 'Failed to enable push notifications. Please try again.');
@@ -745,13 +754,17 @@ const saveRegularUserToDatabase = async () => {
   };
 
      const handleMaybeLater = async () => {
-     // Navigate to UploadPhoto for all users
-     navigation.navigate('UploadPhoto', { 
-       userInfo: userFromParams,
-       isGoogleAuth: isGoogleAuth || false,
-       googleUserData: googleUserData
-     });
-   };
+       console.log('🔍 PushNotiScreen DEBUG - handleMaybeLater called');
+       console.log('🔍 PushNotiScreen DEBUG - Navigating to Welcomepage (maybe later)');
+       
+       // Navigate to Welcomepage to show user info after completing sign-up flow
+       navigation.replace('Welcomepage', { 
+         name: userFromParams?.firstName || userFromParams?.name || 'there',
+         userData: userFromParams,
+         isGoogleAuth: isGoogleAuth || false,
+         googleUserData: googleUserData
+       });
+     };
 
   return (
     <View style={styles.container}>

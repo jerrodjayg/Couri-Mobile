@@ -38,7 +38,7 @@ export default function ConfirmInfoScreen({ route, navigation }) {
         return;
       }
 
-      navigation.navigate('Welcomepage', { name: form.firstName });
+      navigation.navigate('Home');
     } catch (error) {
       console.error('Unexpected error:', error);
       alert('An unexpected error occurred.');

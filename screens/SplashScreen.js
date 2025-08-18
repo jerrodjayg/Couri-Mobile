@@ -1,31 +1,107 @@
 import { supabase } from './supabaseClient';
 import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SplashScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-  const checkSession = async () => {
-    const { data } = await supabase.auth.getSession();
-
-    setTimeout(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 1000,
-        useNativeDriver: true,
-      }).start(() => {
-        if (data?.session) {
-          navigation.replace('Welcomepage'); // user is already signed in
-        } else {
-          navigation.replace('Home'); // go to landing page
+    const checkSession = async () => {
+      try {
+        // Check for user's last action first
+        const lastAction = await AsyncStorage.getItem('userLastAction');
+        console.log('🔍 SplashScreen: User last action:', lastAction);
+        
+        // If user deleted account or signed out, go to Home screen
+        if (lastAction === 'delete_account' || lastAction === 'sign_out') {
+          console.log('✅ SplashScreen: User deleted account or signed out, navigating to Home');
+          // Clear the last action flag
+          await AsyncStorage.removeItem('userLastAction');
+          setTimeout(() => {
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 1000,
+              useNativeDriver: true,
+            }).start(() => {
+              navigation.replace('Home');
+            });
+          }, 2000);
+          return;
         }
-      });
-    }, 2000);
-  };
+        
+        // Check if user just completed account creation
+        const justCreatedAccount = await AsyncStorage.getItem('justCreatedAccount');
+        if (justCreatedAccount === 'true') {
+          console.log('✅ SplashScreen: User just created account, navigating to Welcomepage');
+          // Clear the flag
+          await AsyncStorage.removeItem('justCreatedAccount');
+          setTimeout(() => {
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 1000,
+              useNativeDriver: true,
+            }).start(() => {
+              navigation.replace('Welcomepage');
+            });
+          }, 2000);
+          return;
+        }
+        
+        const { data } = await supabase.auth.getSession();
+        
+        // If user has a valid session, check if they exist in database
+        if (data?.session?.user) {
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('id, email')
+            .eq('email', data.session.user.email)
+            .single();
+          
+          if (userData && !error) {
+            // User exists in database - go to Welcome page
+            console.log('✅ SplashScreen: Returning user found, navigating to Welcome page');
+            setTimeout(() => {
+              Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 1000,
+                useNativeDriver: true,
+              }).start(() => {
+                navigation.replace('Welcomepage');
+              });
+            }, 2000);
+            return;
+          }
+        }
+        
+        // No session or user not in database - go to Home screen
+        console.log('✅ SplashScreen: No session or new user, navigating to Home');
+        setTimeout(() => {
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }).start(() => {
+            navigation.replace('Home');
+          });
+        }, 2000);
+      } catch (error) {
+        console.error('❌ SplashScreen: Error checking session:', error);
+        // On error, go to Home screen
+        setTimeout(() => {
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }).start(() => {
+            navigation.replace('Home');
+          });
+        }, 2000);
+      }
+    };
 
-  checkSession();
-}, [fadeAnim]);
+    checkSession();
+  }, [fadeAnim, navigation]);
 
 
   return (

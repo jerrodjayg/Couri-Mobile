@@ -43,63 +43,63 @@ export default function ProfileScreen({ navigation, route }) {
         
         // Check AsyncStorage for comprehensive user data
         const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        let mergedUserData = {};
+        
+        // Merge data from both sources, with userProfileData taking precedence
+        if (userProfileData) {
+          const parsedUserData = JSON.parse(userProfileData);
+          console.log('✅ Profile - Found persistent user data in AsyncStorage:', parsedUserData);
+          mergedUserData = { ...parsedUserData };
+        }
+        
         if (tempUserData) {
           const parsedData = JSON.parse(tempUserData);
           if (parsedData.userInitials && !userInitials) {
             setUserInitials(parsedData.userInitials);
           }
           
+          // Merge tempUserData with existing merged data
+          mergedUserData = { ...mergedUserData, ...parsedData };
+          
           // Update profile data with comprehensive user information
           setProfileData({
-            firstName: parsedData.firstName || parsedData.first_name || '',
-            lastName: parsedData.lastName || parsedData.last_name || '',
-            name: parsedData.full_name || parsedData.name || `${parsedData.firstName || ''} ${parsedData.lastName || ''}`.trim(),
-            phone: parsedData.phone || '',
-            email: parsedData.email || '',
-            address1: parsedData.address1 || '',
-            address2: parsedData.address2 || '',
-            city: parsedData.city || '',
-            state: parsedData.state || '',
-            zip: parsedData.zip || '',
-            fullAddress: formatFullAddress(parsedData),
+            firstName: mergedUserData.firstName || mergedUserData.first_name || '',
+            lastName: mergedUserData.lastName || mergedUserData.last_name || '',
+            name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
+            phone: mergedUserData.phone || '',
+            email: mergedUserData.email || '',
+            address1: mergedUserData.address1 || '',
+            address2: mergedUserData.address2 || '',
+            city: mergedUserData.city || '',
+            state: mergedUserData.state || '',
+            zip: mergedUserData.zip || '',
+            fullAddress: formatFullAddress(mergedUserData),
           });
           
           // Update userProfile with profile picture if available
           // BUT only if user didn't skip photo upload
-          if (!parsedData.hasSkippedPhoto && (parsedData.avatar_url || parsedData.profileImageUri)) {
+          if (!mergedUserData.hasSkippedPhoto && (mergedUserData.avatar_url || mergedUserData.profileImageUri)) {
             setUserProfile(prev => ({
               ...prev,
-              avatar_url: parsedData.avatar_url || parsedData.profileImageUri
+              id: mergedUserData.id || 'temp_user',
+              name: mergedUserData.name || mergedUserData.full_name,
+              full_name: mergedUserData.full_name || mergedUserData.name,
+              avatar_url: mergedUserData.avatar_url || mergedUserData.profileImageUri,
+              email: mergedUserData.email
             }));
-          } else if (parsedData.hasSkippedPhoto) {
+          } else if (mergedUserData.hasSkippedPhoto) {
             // User explicitly skipped photo - show initials
             setUserProfile(prev => ({
               ...prev,
-              avatar_url: '' // Force empty to show initials
+              id: mergedUserData.id || 'temp_user',
+              name: mergedUserData.name || mergedUserData.full_name,
+              full_name: mergedUserData.full_name || mergedUserData.name,
+              avatar_url: '', // Force empty to show initials
+              email: mergedUserData.email
             }));
           }
-        }
-        
-        // Check for userProfileData (from OAuth flow)
-        const userProfileData = await AsyncStorage.getItem('userProfileData');
-        if (userProfileData) {
-          const parsedUserData = JSON.parse(userProfileData);
-          console.log('✅ Profile - Found persistent user data in AsyncStorage:', parsedUserData);
-          
-          setUserProfile({
-            id: parsedUserData.id,
-            name: parsedUserData.name,
-            full_name: parsedUserData.full_name,
-            avatar_url: parsedUserData.avatar_url,
-            email: parsedUserData.email
-          });
-          
-          // Update profile data with OAuth user information
-          setProfileData(prev => ({
-            ...prev,
-            name: parsedUserData.full_name || parsedUserData.name || prev.name,
-            email: parsedUserData.email || prev.email,
-          }));
         }
         
         // Fallback to user context if no AsyncStorage data
@@ -118,6 +118,10 @@ export default function ProfileScreen({ navigation, route }) {
             email: user.email || prev.email,
           }));
         }
+        
+        console.log('🔍 Profile - Final merged user data:', mergedUserData);
+        console.log('🔍 Profile - Final profile data:', profileData);
+        
       } catch (error) {
         console.log('⚠️ Error fetching user profile in ProfileScreen:', error);
       }
@@ -239,7 +243,7 @@ export default function ProfileScreen({ navigation, route }) {
             {/* Profile Picture Section */}
             <View style={styles.profilePictureSection}>
               <View style={styles.profilePictureContainer}>
-                {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+                {userProfile?.avatar_url && userProfile.avatar_url !== '' && !userProfile.hasSkippedPhoto ? (
                   <Image 
                     source={{ uri: userProfile.avatar_url }} 
                     style={styles.profilePicture}

@@ -17,7 +17,77 @@ export default function UploadPhotoScreen({ navigation, route }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [completeUserInfo, setCompleteUserInfo] = useState(null);
   const { userInfo, savedUser } = route.params || {};
+
+  // DEBUG: Add comprehensive logging for user data flow
+  useEffect(() => {
+    console.log('🔍 UploadPhotoScreen DEBUG - Component mounted');
+    console.log('🔍 UploadPhotoScreen DEBUG - Route params:', route?.params);
+    console.log('🔍 UploadPhotoScreen DEBUG - User info from params:', userInfo);
+    console.log('🔍 UploadPhotoScreen DEBUG - Saved user from params:', savedUser);
+    
+    // Check AsyncStorage for existing user data
+    const checkAsyncStorage = async () => {
+      try {
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        console.log('🔍 UploadPhotoScreen DEBUG - tempUserData from AsyncStorage:', tempUserData ? JSON.parse(tempUserData) : null);
+        console.log('🔍 UploadPhotoScreen DEBUG - userProfileData from AsyncStorage:', userProfileData ? JSON.parse(userProfileData) : null);
+        
+        // CRITICAL: If we have existing user data in AsyncStorage, merge it with route params
+        // This ensures we don't lose any user data when adding a profile picture
+        if (tempUserData || userProfileData) {
+          const existingTempData = tempUserData ? JSON.parse(tempUserData) : {};
+          const existingProfileData = userProfileData ? JSON.parse(userProfileData) : {};
+          
+          // Merge existing data with route params to ensure complete user information
+          const mergedUserInfo = {
+            ...existingTempData,
+            ...existingProfileData,
+            ...userInfo, // Route params take precedence but don't override existing data
+          };
+          
+          console.log('🔍 UploadPhotoScreen DEBUG - Merged user info with existing data:', mergedUserInfo);
+          
+          // Update the userInfo state to include all existing data
+          if (Object.keys(mergedUserInfo).length > 0) {
+            // Store the merged data back to ensure consistency
+            await AsyncStorage.setItem('tempUserData', JSON.stringify(mergedUserInfo));
+            console.log('✅ UploadPhotoScreen DEBUG - Updated tempUserData with merged user info');
+            
+            // Set the complete user info state
+            setCompleteUserInfo(mergedUserInfo);
+          }
+        }
+      } catch (error) {
+        console.log('🔍 UploadPhotoScreen DEBUG - AsyncStorage check error:', error);
+      }
+    };
+    
+    checkAsyncStorage();
+    
+    // Fallback: If no existing data found, use route params
+    if (!completeUserInfo && userInfo) {
+      setCompleteUserInfo(userInfo);
+      console.log('🔍 UploadPhotoScreen DEBUG - Using route params as fallback for user info');
+    }
+  }, []);
+  
+  // Use completeUserInfo if available, otherwise fall back to route params
+  const effectiveUserInfo = completeUserInfo || userInfo;
+
+  // DEBUG: Function to log all user data in AsyncStorage
+  const logAllUserData = async (stage) => {
+    try {
+      const tempUserData = await AsyncStorage.getItem('tempUserData');
+      const userProfileData = await AsyncStorage.getItem('userProfileData');
+      console.log(`🔍 UploadPhotoScreen DEBUG - [${stage}] tempUserData:`, tempUserData ? JSON.parse(tempUserData) : null);
+      console.log(`🔍 UploadPhotoScreen DEBUG - [${stage}] userProfileData:`, userProfileData ? JSON.parse(userProfileData) : null);
+    } catch (error) {
+      console.log(`🔍 UploadPhotoScreen DEBUG - [${stage}] AsyncStorage check error:`, error);
+    }
+  };
 
   useEffect(() => {
     // Request permissions on component mount
@@ -81,37 +151,112 @@ export default function UploadPhotoScreen({ navigation, route }) {
   };
 
   const handleContinue = async () => {
+    console.log('🔍 UploadPhotoScreen DEBUG - handleContinue called');
+    console.log('🔍 UploadPhotoScreen DEBUG - Selected image:', selectedImage);
+    console.log('🔍 UploadPhotoScreen DEBUG - Effective user info:', effectiveUserInfo);
+    
     if (!selectedImage) {
       Alert.alert('Photo Required', 'Please select or take a photo to continue.');
       return;
     }
 
     try {
+      console.log('🔍 UploadPhotoScreen DEBUG - Storing user data with photo');
+      
+      // Log user data BEFORE storing
+      await logAllUserData('BEFORE_STORING_PHOTO');
+      
+      // CRITICAL FIX: Read existing user data from AsyncStorage to ensure we don't lose any information
+      let existingTempData = {};
+      let existingProfileData = {};
+      
+      try {
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        if (tempUserData) {
+          existingTempData = JSON.parse(tempUserData);
+          console.log('🔍 UploadPhotoScreen DEBUG - Found existing tempUserData:', existingTempData);
+        }
+        
+        if (userProfileData) {
+          existingProfileData = JSON.parse(userProfileData);
+          console.log('🔍 UploadPhotoScreen DEBUG - Found existing userProfileData:', existingProfileData);
+        }
+      } catch (error) {
+        console.log('🔍 UploadPhotoScreen DEBUG - Error reading existing data:', error);
+      }
+      
+      // Merge all existing data sources to ensure complete user information
+      const completeExistingData = {
+        ...existingProfileData,  // userProfileData has the most complete info
+        ...existingTempData,     // tempUserData may have additional info
+        ...effectiveUserInfo,    // route params
+      };
+      
+      console.log('🔍 UploadPhotoScreen DEBUG - Complete merged existing data:', completeExistingData);
+      
       // Store the image URI in multiple places for consistent access
       const userData = {
-        ...userInfo,
+        ...completeExistingData,  // Use merged data instead of just effectiveUserInfo
         profileImageUri: selectedImage,
         avatar_url: selectedImage, // Add this for consistency
         isGoogleAuth: route.params?.isGoogleAuth || false,
       };
 
+      console.log('🔍 UploadPhotoScreen DEBUG - User data to store:', userData);
+
       // Store in AsyncStorage for the welcome screen to access
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
       
-      // Also store in userProfileData for other screens
-      await AsyncStorage.setItem('userProfileData', JSON.stringify({
-        id: userInfo?.id || 'temp_user',
-        name: userInfo?.firstName || userInfo?.name || '',
-        full_name: `${userInfo?.firstName || ''} ${userInfo?.lastName || ''}`.trim(),
+      // Store COMPLETE user data in userProfileData for other screens
+      // This ensures all user information is preserved when adding profile picture
+      const completeUserProfileData = {
+        // PRESERVE ALL EXISTING USER DATA FIRST using merged data
+        ...completeExistingData,
+        // Then add/update specific fields
+        id: completeExistingData?.id || 'temp_user',
         avatar_url: selectedImage,
-        email: userInfo?.email || ''
-      }));
+        profileImageUri: selectedImage,
+        // Ensure these fields exist (but don't override if they're already in completeExistingData)
+        firstName: completeExistingData?.firstName || completeExistingData?.name?.split(' ')[0] || '',
+        lastName: completeExistingData?.name?.split(' ').slice(1).join(' ') || '',
+        name: completeExistingData?.firstName || completeExistingData?.name || '',
+        full_name: completeExistingData?.full_name || `${completeExistingData?.firstName || ''} ${completeExistingData?.lastName || ''}`.trim(),
+        email: completeExistingData?.email || '',
+        phone: completeExistingData?.phone || '',
+        address1: completeExistingData?.address1 || '',
+        address2: completeExistingData?.address2 || '',
+        city: completeExistingData?.city || '',
+        state: completeExistingData?.state || '',
+        zip: completeExistingData?.zip || '',
+      };
+      
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserProfileData));
+      
+      // Log user data AFTER storing
+      await logAllUserData('AFTER_STORING_PHOTO');
+      
+      // ADDITIONAL DEBUG: Log the exact data being stored
+      console.log('🔍 UploadPhotoScreen DEBUG - COMPLETE userData being stored in tempUserData:', JSON.stringify(userData, null, 2));
+      console.log('🔍 UploadPhotoScreen DEBUG - COMPLETE userProfileData being stored:', JSON.stringify(completeUserProfileData, null, 2));
+      console.log('🔍 UploadPhotoScreen DEBUG - Data comparison - Original userInfo vs Stored:', {
+        originalKeys: Object.keys(userInfo || {}),
+        storedKeys: Object.keys(completeUserProfileData),
+        hasAllOriginalData: Object.keys(userInfo || {}).every(key => completeUserProfileData.hasOwnProperty(key))
+      });
       
       console.log('✅ User data with photo stored in AsyncStorage (tempUserData and userProfileData)');
+      console.log('🔍 UploadPhotoScreen DEBUG - Complete userProfileData stored:', completeUserProfileData);
+      console.log('🔍 UploadPhotoScreen DEBUG - Navigating to Welcomepage with photo data');
 
-      // Navigate to Welcomepage with the user data
+      // Set flag to indicate user just completed account creation - this ensures they stay on Welcomepage
+      await AsyncStorage.setItem('justCreatedAccount', 'true');
+      console.log('✅ UploadPhotoScreen: justCreatedAccount flag set to true');
+
+      // Navigate to Welcomepage to show user info after completing sign-up flow
       navigation.replace('Welcomepage', { 
-        name: userInfo?.firstName || userInfo?.name || 'there',
+        name: completeExistingData?.firstName || completeExistingData?.name || 'there',
         userData: userData
       });
     } catch (error) {
@@ -121,23 +266,61 @@ export default function UploadPhotoScreen({ navigation, route }) {
   };
 
   const handleSkip = async () => {
+    console.log('🔍 UploadPhotoScreen DEBUG - handleSkip called');
+    console.log('🔍 UploadPhotoScreen DEBUG - Effective user info for initials:', effectiveUserInfo);
+    
     try {
       // Generate user initials for profile picture
       let userInitials = '?';
-      if (userInfo?.firstName && userInfo?.lastName) {
-        userInitials = (userInfo.firstName.charAt(0) + userInfo.lastName.charAt(0)).toUpperCase();
-      } else if (userInfo?.name) {
-        const names = userInfo.name.split(' ');
+      if (effectiveUserInfo?.firstName && effectiveUserInfo?.lastName) {
+        userInitials = (effectiveUserInfo.firstName.charAt(0) + effectiveUserInfo.lastName.charAt(0)).toUpperCase();
+      } else if (effectiveUserInfo?.name) {
+        const names = effectiveUserInfo.name.split(' ');
         if (names.length >= 2) {
           userInitials = (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
         } else if (names.length === 1) {
           userInitials = names[0].charAt(0).toUpperCase();
         }
       }
+      
+      console.log('🔍 UploadPhotoScreen DEBUG - Generated user initials:', userInitials);
+
+      // Log user data BEFORE storing
+      await logAllUserData('BEFORE_STORING_SKIP');
+
+      // CRITICAL FIX: Read existing user data from AsyncStorage to ensure we don't lose any information
+      let existingTempData = {};
+      let existingProfileData = {};
+      
+      try {
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        if (tempUserData) {
+          existingTempData = JSON.parse(tempUserData);
+          console.log('🔍 UploadPhotoScreen DEBUG - Found existing tempUserData (skip):', existingTempData);
+        }
+        
+        if (userProfileData) {
+          existingProfileData = JSON.parse(userProfileData);
+          console.log('🔍 UploadPhotoScreen DEBUG - Found existing userProfileData (skip):', existingProfileData);
+        }
+      } catch (error) {
+        console.log('🔍 UploadPhotoScreen DEBUG - Error reading existing data (skip):', error);
+      }
+      
+      // Merge all existing data sources to ensure complete user information
+      const completeExistingData = {
+        ...existingProfileData,  // userProfileData has the most complete info
+        ...existingTempData,     // tempUserData may have additional info
+        ...effectiveUserInfo,    // route params
+      };
+      
+      console.log('🔍 UploadPhotoScreen DEBUG - Complete merged existing data (skip):', completeExistingData);
 
       // Store user data without photo but with initials - EXPLICITLY NO PROFILE PICTURE
       const userData = {
-        ...userInfo,
+        ...completeExistingData,  // Use merged data instead of just effectiveUserInfo
         isGoogleAuth: route.params?.isGoogleAuth || false,
         userInitials: userInitials,
         hasSkippedPhoto: true,
@@ -147,25 +330,61 @@ export default function UploadPhotoScreen({ navigation, route }) {
 
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
       
-      // Also store in userProfileData for other screens - EXPLICITLY NO PROFILE PICTURE
-      await AsyncStorage.setItem('userProfileData', JSON.stringify({
-        id: userInfo?.id || 'temp_user',
-        name: userInfo?.firstName || userInfo?.name || '',
-        full_name: `${userInfo?.firstName || ''} ${userInfo?.lastName || ''}`.trim(),
+      // Store COMPLETE user data in userProfileData for other screens - EXPLICITLY NO PROFILE PICTURE
+      // This ensures all user information is preserved even when skipping photo
+      const completeUserProfileData = {
+        // PRESERVE ALL EXISTING USER DATA FIRST using merged data
+        ...completeExistingData,
+        // Then add/update specific fields
+        id: completeExistingData?.id || 'temp_user',
         avatar_url: '', // Explicitly set to empty
-        email: userInfo?.email || ''
-      }));
+        profileImageUri: '', // Explicitly set to empty
+        hasSkippedPhoto: true,
+        userInitials: userInitials,
+        // Ensure these fields exist (but don't override if they're already in completeExistingData)
+        firstName: completeExistingData?.firstName || completeExistingData?.name?.split(' ')[0] || '',
+        lastName: completeExistingData?.name?.split(' ').slice(1).join(' ') || '',
+        name: completeExistingData?.firstName || completeExistingData?.name || '',
+        full_name: completeExistingData?.full_name || `${completeExistingData?.firstName || ''} ${completeExistingData?.lastName || ''}`.trim(),
+        email: completeExistingData?.email || '',
+        phone: completeExistingData?.phone || '',
+        address1: completeExistingData?.address1 || '',
+        address2: completeExistingData?.address2 || '',
+        city: completeExistingData?.city || '',
+        state: completeExistingData?.state || '',
+        zip: completeExistingData?.zip || '',
+      };
+      
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserProfileData));
+      
+      // Log user data AFTER storing
+      await logAllUserData('AFTER_STORING_SKIP');
+      
+      // ADDITIONAL DEBUG: Log the exact data being stored
+      console.log('🔍 UploadPhotoScreen DEBUG - COMPLETE userData being stored in tempUserData (skip):', JSON.stringify(userData, null, 2));
+      console.log('🔍 UploadPhotoScreen DEBUG - COMPLETE userProfileData being stored (skip):', JSON.stringify(completeUserProfileData, null, 2));
+      console.log('🔍 UploadPhotoScreen DEBUG - Data comparison - Original userInfo vs Stored (skip):', {
+        originalKeys: Object.keys(userInfo || {}),
+        storedKeys: Object.keys(completeUserProfileData),
+        hasAllOriginalData: Object.keys(userInfo || {}).every(key => completeUserProfileData.hasOwnProperty(key))
+      });
       
       // CLEAR any existing profile pictures from previous sessions
       await AsyncStorage.removeItem('previousProfilePicture');
       await AsyncStorage.removeItem('storedProfilePicture');
       
       console.log('✅ User data with initials stored in AsyncStorage (photo skipped) - NO PROFILE PICTURE');
+      console.log('🔍 UploadPhotoScreen DEBUG - Complete userProfileData stored (no photo):', completeUserProfileData);
       console.log('🗑️ Cleared any previous profile picture data');
+      console.log('🔍 UploadPhotoScreen DEBUG - Navigating to Welcomepage with initials data');
 
-      // Navigate to Welcomepage
+      // Set flag to indicate user just completed account creation - this ensures they stay on Welcomepage
+      await AsyncStorage.setItem('justCreatedAccount', 'true');
+      console.log('✅ UploadPhotoScreen: justCreatedAccount flag set to true (skip path)');
+
+      // Navigate to Welcomepage to show user info after completing sign-up flow
       navigation.replace('Welcomepage', { 
-        name: userInfo?.firstName || userInfo?.name || 'there',
+        name: completeExistingData?.firstName || completeExistingData?.name || 'there',
         userData: userData
       });
     } catch (error) {

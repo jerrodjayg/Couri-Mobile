@@ -27,55 +27,66 @@ export default function MyAccountScreen({ navigation, route }) {
           setUserInitials(route.params.userData.userInitials);
         }
         
-        // Check AsyncStorage for user data with initials
+        // Check AsyncStorage for comprehensive user data
         const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        let mergedUserData = {};
+        
+        // Merge data from both sources, with userProfileData taking precedence
+        if (userProfileData) {
+          const parsedUserData = JSON.parse(userProfileData);
+          console.log('✅ MyAccount - Found persistent user data in AsyncStorage:', parsedUserData);
+          mergedUserData = { ...parsedUserData };
+        }
+        
         if (tempUserData) {
           const parsedData = JSON.parse(tempUserData);
           if (parsedData.userInitials && !userInitials) {
             setUserInitials(parsedData.userInitials);
           }
           
+          // Merge tempUserData with existing merged data
+          mergedUserData = { ...mergedUserData, ...parsedData };
+          
           // Update userProfile with profile picture if available
           // BUT only if user didn't skip photo upload
-          if (!parsedData.hasSkippedPhoto && (parsedData.avatar_url || parsedData.profileImageUri)) {
+          if (!mergedUserData.hasSkippedPhoto && (mergedUserData.avatar_url || mergedUserData.profileImageUri)) {
             setUserProfile(prev => ({
               ...prev,
-              avatar_url: parsedData.avatar_url || parsedData.profileImageUri
+              id: mergedUserData.id || 'temp_user',
+              name: mergedUserData.name || mergedUserData.full_name || mergedUserData.firstName,
+              full_name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
+              avatar_url: mergedUserData.avatar_url || mergedUserData.profileImageUri,
+              email: mergedUserData.email
             }));
-          } else if (parsedData.hasSkippedPhoto) {
+          } else if (mergedUserData.hasSkippedPhoto) {
             // User explicitly skipped photo - show initials
             setUserProfile(prev => ({
               ...prev,
-              avatar_url: '' // Force empty to show initials
+              id: mergedUserData.id || 'temp_user',
+              name: mergedUserData.name || mergedUserData.full_name || mergedUserData.firstName,
+              full_name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
+              avatar_url: '', // Force empty to show initials
+              email: mergedUserData.email
             }));
           }
         }
         
-        // First try to get user data from persistent AsyncStorage (from OAuth flow)
-        const userProfileData = await AsyncStorage.getItem('userProfileData');
-        if (userProfileData) {
-          const parsedUserData = JSON.parse(userProfileData);
-          console.log('✅ MyAccount - Found persistent user data in AsyncStorage:', parsedUserData);
-          
+        // Fallback to user context if no AsyncStorage data
+        if (user && !tempUserData && !userProfileData) {
           setUserProfile({
-            id: parsedUserData.id, // Add user ID
-            name: parsedUserData.name,
-            full_name: parsedUserData.full_name,
-            avatar_url: parsedUserData.avatar_url,
-            email: parsedUserData.email
+            id: user.id,
+            name: user.user_metadata?.name || user.user_metadata?.full_name,
+            full_name: user.user_metadata?.full_name,
+            avatar_url: user.user_metadata?.avatar_url,
+            email: user.email
           });
-        } else {
-          // Fallback to user context
-          if (user) {
-            setUserProfile({
-              id: user.id, // Add user ID
-              name: user.user_metadata?.name || user.user_metadata?.full_name,
-              full_name: user.user_metadata?.full_name,
-              avatar_url: user.user_metadata?.avatar_url,
-              email: user.email
-            });
-          }
         }
+        
+        console.log('🔍 MyAccount - Final merged user data:', mergedUserData);
+        console.log('🔍 MyAccount - Final user profile:', userProfile);
+        
       } catch (error) {
         console.log('⚠️ Error fetching user profile in MyAccount:', error);
       }
@@ -163,9 +174,24 @@ export default function MyAccountScreen({ navigation, route }) {
     if (menuItem === 'Login & Security') {
       console.log('Navigating to LoginSecurity screen');
       navigation.navigate('LoginSecurity');
+    } else if (menuItem === 'Banks & Cards') {
+      console.log('Navigating to BankInfo screen');
+      navigation.navigate('BankInfo');
+    } else if (menuItem === 'Transactions') {
+      console.log('Navigating to Transactions screen');
+      navigation.navigate('Transactions');
+    } else if (menuItem === 'Chat History') {
+      console.log('Navigating to ChatHistory screen');
+      navigation.navigate('ChatHistory');
+    } else if (menuItem === 'Notification Settings') {
+      console.log('Navigating to Notification screen');
+      navigation.navigate('Notification');
     } else if (menuItem === 'Support') {
       console.log('Navigating to Support screen');
       navigation.navigate('Support');
+    } else if (menuItem === 'Legal') {
+      console.log('Navigating to Legal screen');
+      navigation.navigate('Legal');
     } else {
       // Placeholder for other menu items
       console.log(`Pressed: ${menuItem} - no navigation implemented yet`);

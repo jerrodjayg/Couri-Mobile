@@ -76,7 +76,13 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
   // Populate form with userInfo from route params if it exists
   useEffect(() => {
+    console.log('🔍 PersonalInfoScreen DEBUG - Component mounted');
+    console.log('🔍 PersonalInfoScreen DEBUG - Route params:', route?.params);
+    console.log('🔍 PersonalInfoScreen DEBUG - User info from params:', userInfo);
+    console.log('🔍 PersonalInfoScreen DEBUG - Phone from params:', phone);
+    
     if (userInfo) {
+      console.log('🔍 PersonalInfoScreen DEBUG - Setting form with user info');
       setForm({
         firstName: userInfo.firstName || '',
         lastName: userInfo.lastName || '',
@@ -93,18 +99,36 @@ export default function PersonalInfoScreen({ navigation, route }) {
     // If this is a Google auth user, pre-fill some fields and make email read-only
     if (route.params?.isGoogleAuth && userInfo?.email) {
       console.log('✅ Google auth user detected, pre-filling form');
+      console.log('🔍 PersonalInfoScreen DEBUG - Google auth user data:', route.params?.googleUserData);
+      
       // Pre-fill with Google user data if available
       if (route.params?.googleUserData) {
         const googleData = route.params.googleUserData;
+        console.log('🔍 PersonalInfoScreen DEBUG - Processing Google user data:', googleData);
+        
+        // Extract names from Google user metadata
+        const fullName = googleData.user_metadata?.full_name || googleData.user_metadata?.name || '';
+        const firstName = fullName.split(' ')[0] || '';
+        const lastName = fullName.split(' ').slice(1).join(' ') || '';
+        
+        console.log('🔍 PersonalInfoScreen DEBUG - Extracted names:', { fullName, firstName, lastName });
+        
         setForm(prev => ({
           ...prev,
-          firstName: googleData.user_metadata?.given_name || googleData.user_metadata?.name?.split(' ')[0] || userInfo.firstName || '',
-          lastName: googleData.user_metadata?.family_name || googleData.user_metadata?.name?.split(' ').slice(1).join(' ') || userInfo.lastName || '',
+          firstName: firstName || userInfo.firstName || '',
+          lastName: lastName || userInfo.lastName || '',
           email: googleData.email || userInfo.email || '',
         }));
+        
+        console.log('🔍 PersonalInfoScreen DEBUG - Form updated with Google data');
       }
     }
   }, [userInfo, phone, route.params?.isGoogleAuth, route.params?.googleUserData]);
+
+  // Log form state after it's updated
+  useEffect(() => {
+    console.log('🔍 PersonalInfoScreen DEBUG - Current form state:', form);
+  }, [form]);
 
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -201,17 +225,30 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
 
   const onContinue = async () => {
+    console.log('🔍 PersonalInfoScreen DEBUG - onContinue called');
+    console.log('🔍 PersonalInfoScreen DEBUG - Current form data:', form);
+    console.log('🔍 PersonalInfoScreen DEBUG - Route params:', route?.params);
+    
     setError('');
 
     if (!allRequiredFieldsFilled()) {
+      console.log('🔍 PersonalInfoScreen DEBUG - Missing required fields');
       setError('missingFields');
       return;
     }
 
     if (!isValidEmail(form.email)) {
+      console.log('🔍 PersonalInfoScreen DEBUG - Invalid email format');
       setError('invalidEmail');
       return;
     }
+
+    console.log('🔍 PersonalInfoScreen DEBUG - Form validation passed, navigating to CreatePassword');
+    console.log('🔍 PersonalInfoScreen DEBUG - Navigating with data:', {
+      userInfo: form,
+      isGoogleAuth: route.params?.isGoogleAuth || false,
+      googleUserData: route.params?.googleUserData || null
+    });
 
     // Don't save to database here - just navigate with form data
     // The user will be created in the onboarding flow when they reach PushNotiScreen

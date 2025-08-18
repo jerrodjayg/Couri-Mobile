@@ -6,131 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 
 export default function LoginSecurityScreen({ navigation }) {
-  const { user } = useUser();
+  const { user, setCustomUser } = useUser();
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Create profiles table if it doesn't exist
-  const createProfilesTable = async () => {
-    try {
-      console.log('🔄 Creating profiles table...');
-      
-      // Create the profiles table directly with SQL
-      const { error } = await supabase.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS profiles (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            email TEXT UNIQUE NOT NULL,
-            first_name TEXT,
-            last_name TEXT,
-            full_name TEXT,
-            phone TEXT,
-            address1 TEXT,
-            address2 TEXT,
-            city TEXT,
-            state TEXT,
-            zip TEXT,
-            avatar_url TEXT DEFAULT '',
-            is_google_auth BOOLEAN DEFAULT false,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          -- Create updated_at trigger if it doesn't exist
-          CREATE OR REPLACE FUNCTION update_updated_at_column()
-          RETURNS TRIGGER AS $$
-          BEGIN
-            NEW.updated_at = NOW();
-            RETURN NEW;
-          END;
-          $$ language 'plpgsql';
-          
-          DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
-          CREATE TRIGGER update_profiles_updated_at
-            BEFORE UPDATE ON profiles
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-        `
-      });
-      
-      if (error) {
-        console.log('⚠️ Could not create table via RPC:', error);
-        // Try alternative approach - just check if table exists
-        const { error: checkError } = await supabase
-          .from('profiles')
-          .select('*')
-          .limit(1);
-        
-        if (checkError && checkError.code === '42P01') {
-          console.log('🔄 Profiles table still does not exist after creation attempt');
-          console.log('🔄 You may need to create the table manually in Supabase dashboard');
-        } else {
-          console.log('✅ Profiles table is accessible');
-        }
-      } else {
-        console.log('✅ Profiles table created successfully');
-      }
-    } catch (error) {
-      console.log('⚠️ Error creating profiles table:', error);
-      console.log('🔄 You may need to create the table manually in Supabase dashboard');
-    }
-  };
-
-  // Create users table if it doesn't exist
-  const createUsersTable = async () => {
-    try {
-      console.log('🔄 Creating users table...');
-      
-      // Create the users table with all fields that the existing code expects
-      const { error } = await supabase.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS users (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            email TEXT UNIQUE NOT NULL,
-            first_name TEXT,
-            last_name TEXT,
-            phone TEXT,
-            password_hash TEXT DEFAULT NULL,
-            address1 TEXT,
-            address2 TEXT,
-            city TEXT,
-            state TEXT,
-            zip TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          -- Create updated_at trigger if it doesn't exist
-          DROP TRIGGER IF EXISTS update_users_updated_at ON users;
-          CREATE TRIGGER update_users_updated_at
-            BEFORE UPDATE ON users
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-        `
-      });
-      
-      if (error) {
-        console.log('⚠️ Could not create users table via RPC:', error);
-        // Try alternative approach - just check if table exists
-        const { error: checkError } = await supabase
-          .from('users')
-          .select('*')
-          .limit(1);
-        
-        if (checkError && checkError.code === '42P01') {
-          console.log('🔄 Users table still does not exist after creation attempt');
-          console.log('🔄 You may need to create the table manually in Supabase dashboard');
-        } else {
-          console.log('✅ Users table is accessible');
-        }
-      } else {
-        console.log('✅ Users table created successfully');
-      }
-    } catch (error) {
-      console.log('⚠️ Error creating users table:', error);
-      console.log('🔄 You may need to create the table manually in Supabase dashboard');
-    }
-  };
 
   const handlePasswordEdit = () => {
     console.log('Edit password tapped - navigating to ChangePasswordScreen');
@@ -182,114 +60,55 @@ export default function LoginSecurityScreen({ navigation }) {
   };
 
   const confirmDeleteAccount = async () => {
+    console.log('🔄 Starting account deletion process...');
     setLoading(true);
-    
-    try {
-      console.log('🔄 Starting account deletion process...');
-      
-      // Get user ID from context or AsyncStorage
-      let currentUserId = user?.id;
-      
-      if (!currentUserId) {
-        // Try to get user ID from AsyncStorage
-        try {
-          const userProfileData = await AsyncStorage.getItem('userProfileData');
-          if (userProfileData) {
-            const parsedData = JSON.parse(userProfileData);
-            currentUserId = parsedData.id;
-            console.log('✅ Got user ID from AsyncStorage:', currentUserId);
-          }
-        } catch (storageError) {
-          console.log('⚠️ Error reading from AsyncStorage:', storageError);
-        }
-      }
 
+    try {
+      const currentUserId = user?.id;
       if (!currentUserId) {
-        Alert.alert('Error', 'User not authenticated. Please try logging in again.');
+        console.error('❌ No user ID available for deletion');
+        Alert.alert('Error', 'User ID not found. Please try again.');
         setLoading(false);
         return;
       }
 
       console.log('🔄 Using user ID for deletion:', currentUserId);
 
-      // Delete user profile from profiles table
-      console.log('🔄 Deleting user profile from profiles table...');
-      try {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', currentUserId);
-
-        if (profileError) {
-          if (profileError.code === '42P01') {
-            console.log('⚠️ Profiles table does not exist, creating it first...');
-            // Try to create the profiles table
-            await createProfilesTable();
-            // Retry the deletion
-            const { error: retryError } = await supabase
-              .from('profiles')
-              .delete()
-              .eq('id', currentUserId);
-            if (retryError) {
-              console.error('❌ Error deleting profile after table creation:', retryError);
-            } else {
-              console.log('✅ Profile data deleted successfully after table creation');
-            }
-          } else {
-            console.error('❌ Error deleting profile:', profileError);
-            Alert.alert('Error', 'Failed to delete profile data. Please try again.');
-            setLoading(false);
-            return;
-          }
-        } else {
-          console.log('✅ Profile data deleted successfully');
-        }
-      } catch (profileError) {
-        console.log('⚠️ Profiles table operation failed:', profileError);
-      }
-
-      // Try to delete from users table if it exists
+      // Try to delete user data from users table if it exists
       console.log('🔄 Attempting to delete user data from users table...');
       try {
-        // First check if the users table exists and what the ID column type is
-        const { data: tableInfo, error: tableError } = await supabase
+        // Delete by email (more reliable than ID)
+        const { error: userError } = await supabase
           .from('users')
-          .select('id')
-          .limit(1);
-        
-        if (tableError) {
-          if (tableError.code === '42P01') {
-            console.log('⚠️ Users table does not exist, creating it first...');
-            // Try to create the users table
-            await createUsersTable();
-            // Retry the deletion
-            const { error: retryError } = await supabase
-              .from('users')
-              .delete()
-              .ilike('email', user?.email || 'unknown@email.com');
-            if (retryError) {
-              console.error('❌ Error deleting user after table creation:', retryError);
-            } else {
-              console.log('✅ User data deleted successfully after table creation');
-            }
-          } else {
-            console.error('❌ Error checking users table:', tableError);
-          }
-        } else {
-          // Try to delete by email instead of ID (more reliable)
-          const { error: userError } = await supabase
-            .from('users')
-            .delete()
-            .ilike('email', user?.email || 'unknown@email.com');
+          .delete()
+          .eq('email', user?.email);
 
-          if (userError) {
-            console.error('❌ Error deleting user data:', userError);
-          } else {
-            console.log('✅ User data deleted successfully');
-          }
+        if (userError) {
+          console.log('⚠️ Users table might not exist or user not found:', userError);
+          // Continue with account deletion even if users table deletion fails
+        } else {
+          console.log('✅ User data deleted successfully from users table');
         }
       } catch (userError) {
-        console.log('⚠️ Users table operation failed:', userError);
+        console.log('⚠️ Users table might not exist:', userError);
+        // Continue with account deletion even if users table deletion fails
+      }
+
+      // Delete the user account from Supabase Auth
+      console.log('🔄 Attempting to delete user account from Supabase Auth...');
+      try {
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(currentUserId);
+        
+        if (deleteError) {
+          console.log('⚠️ Admin delete user failed (might not have admin privileges):', deleteError);
+          // If admin delete fails, we'll just sign out the user
+          console.log('🔄 Falling back to sign out only...');
+        } else {
+          console.log('✅ User account deleted successfully from Supabase Auth');
+        }
+      } catch (adminError) {
+        console.log('⚠️ Admin delete user failed:', adminError);
+        // Continue with sign out
       }
 
       // Sign out the user
@@ -307,36 +126,45 @@ export default function LoginSecurityScreen({ navigation }) {
       
       // Clear all local user data
       try {
-        await AsyncStorage.removeItem('userProfileData');
         await AsyncStorage.removeItem('tempUserData');
-        await AsyncStorage.removeItem('expoPushToken');
-        await AsyncStorage.removeItem('currentUserEmail');
-        console.log('✅ Cleared local user data');
-      } catch (clearError) {
-        console.log('⚠️ Could not clear local data:', clearError);
+        await AsyncStorage.removeItem('userProfileData');
+        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem('user');
+        
+        // Set flag to indicate account was deleted - next app open will go to Home
+        await AsyncStorage.setItem('userLastAction', 'delete_account');
+        console.log('✅ Local storage cleared and delete_account flag set');
+      } catch (storageError) {
+        console.log('⚠️ Error clearing local storage:', storageError);
       }
-      
+
+      // Clear user context
+      if (setCustomUser) {
+        setCustomUser(null);
+        console.log('✅ User context cleared');
+      }
+
+      // Show success message and navigate to Home screen
       Alert.alert(
         'Account Deleted',
-        'Your account and all associated data has been permanently deleted. You have been signed out.',
+        'Your account has been successfully deleted.',
         [
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to splash screen
+              console.log('🔄 Navigating to Home screen...');
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Splash' }],
+                routes: [{ name: 'Home' }],
               });
-            },
-          },
+            }
+          }
         ]
       );
-      
+
     } catch (error) {
-      console.error('❌ Account deletion error:', error);
-      Alert.alert('Error', 'Failed to delete account. Please try again.');
-    } finally {
+      console.error('❌ Error during account deletion:', error);
+      Alert.alert('Error', 'An error occurred while deleting your account. Please try again.');
       setLoading(false);
     }
   };
