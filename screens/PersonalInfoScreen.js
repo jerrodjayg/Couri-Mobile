@@ -219,7 +219,18 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
   const allRequiredFieldsFilled = () => {
     const required = ['firstName', 'lastName', 'email', 'phone', 'address1', 'city', 'state', 'zip'];
-    return required.every((field) => form[field] && form[field].trim() !== '');
+    
+    console.log('🔍 PersonalInfoScreen DEBUG - Checking required fields:');
+    required.forEach(field => {
+      const value = form[field];
+      const isEmpty = !value || value.trim() === '';
+      console.log(`  ${field}: "${value}" (empty: ${isEmpty})`);
+    });
+    
+    const allFilled = required.every((field) => form[field] && form[field].trim() !== '');
+    console.log('🔍 PersonalInfoScreen DEBUG - All required fields filled:', allFilled);
+    
+    return allFilled;
   };
 
 
@@ -244,6 +255,17 @@ export default function PersonalInfoScreen({ navigation, route }) {
     }
 
     console.log('🔍 PersonalInfoScreen DEBUG - Form validation passed, navigating to CreatePassword');
+    console.log('🔍 PersonalInfoScreen DEBUG - Form data being passed:', {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+      address1: form.address1,
+      address2: form.address2,
+      city: form.city,
+      state: form.state,
+      zip: form.zip
+    });
     console.log('🔍 PersonalInfoScreen DEBUG - Navigating with data:', {
       userInfo: form,
       isGoogleAuth: route.params?.isGoogleAuth || false,
@@ -315,6 +337,18 @@ export default function PersonalInfoScreen({ navigation, route }) {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.sectionTitle}>Personal Info</Text>
+          
+          {/* Debug Button */}
+          <TouchableOpacity 
+            style={styles.debugButton} 
+            onPress={() => {
+              console.log('🔍 PersonalInfoScreen DEBUG - Current form state:', form);
+              Alert.alert('Debug Info', 'Check console for current form state');
+            }}
+          >
+            <Text style={styles.debugButtonText}>Show Form State (Debug)</Text>
+          </TouchableOpacity>
+          
           <TextInput placeholder="First Name*" value={form.firstName} onChangeText={(text) => handleChange('firstName', text)} style={styles.input} />
           <TextInput placeholder="Last Name*" value={form.lastName} onChangeText={(text) => handleChange('lastName', text)} style={styles.input} />
           <TextInput 
@@ -416,6 +450,19 @@ const styles = StyleSheet.create({
   link: { textDecorationLine: 'underline', color: '#000' },
   button: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 50, alignItems: 'center', marginBottom: 50 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  debugButton: { 
+    backgroundColor: '#007AFF', 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderRadius: 8, 
+    marginBottom: 20,
+    alignItems: 'center'
+  },
+  debugButtonText: { 
+    color: '#fff', 
+    fontSize: 14, 
+    fontWeight: '600' 
+  },
   errorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   errorIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
   errorIconText: { color: 'white', fontWeight: 'bold', fontSize: 14, lineHeight: 14 },

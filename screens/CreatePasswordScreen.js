@@ -27,6 +27,21 @@ export default function CreatePasswordScreen({ navigation, route }) {
       hasGoogleUserData: !!googleUserData,
       googleUserData: googleUserData
     });
+    
+    // DEBUG: Log the actual userInfo content to see what data we have
+    if (userInfo) {
+      console.log('🔍 CreatePasswordScreen DEBUG - userInfo content:', {
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        email: userInfo.email,
+        phone: userInfo.phone,
+        address1: userInfo.address1,
+        address2: userInfo.address2,
+        city: userInfo.city,
+        state: userInfo.state,
+        zip: userInfo.zip
+      });
+    }
   }, [userInfo, savedUser, isGoogleAuth, googleUserData]);
   
   // Test database connection and permissions on component mount
@@ -210,6 +225,17 @@ export default function CreatePasswordScreen({ navigation, route }) {
               updated_at: updateData[0].updated_at
             };
             
+            console.log('🔍 CreatePasswordScreen DEBUG - Navigating to FaceID with userInfo:', {
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              email: userInfo.email,
+              phone: userInfo.phone,
+              address1: userInfo.address1,
+              city: userInfo.city,
+              state: userInfo.state,
+              zip: userInfo.zip
+            });
+            
             navigation.navigate('FaceID', { 
               userInfo, 
               savedUser: formattedGoogleUser,
@@ -256,6 +282,17 @@ export default function CreatePasswordScreen({ navigation, route }) {
               created_at: newUser[0].created_at,
               updated_at: newUser[0].updated_at
             };
+            
+            console.log('🔍 CreatePasswordScreen DEBUG - Navigating to FaceID with userInfo (new user):', {
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              email: userInfo.email,
+              phone: userInfo.phone,
+              address1: userInfo.address1,
+              city: userInfo.city,
+              state: userInfo.state,
+              zip: userInfo.zip
+            });
             
             navigation.navigate('FaceID', { 
               userInfo, 
@@ -338,6 +375,17 @@ export default function CreatePasswordScreen({ navigation, route }) {
           created_at: updateData[0].created_at,
           updated_at: updateData[0].updated_at
         };
+        
+        console.log('🔍 CreatePasswordScreen DEBUG - Navigating to FaceID with userInfo (regular user):', {
+          firstName: userInfo.firstName,
+          lastName: userInfo.lastName,
+          email: userInfo.email,
+          phone: userInfo.phone,
+          address1: userInfo.address1,
+          city: userInfo.city,
+          state: userInfo.state,
+          zip: userInfo.zip
+        });
         
         navigation.navigate('FaceID', { userInfo, savedUser: formattedUser });
       } else {

@@ -144,3 +144,6 @@ If navigation still doesn't work, check console logs for:
 
 These logs will show exactly what's happening during the session detection process.
 
+
+
+

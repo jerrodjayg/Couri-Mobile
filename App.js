@@ -33,6 +33,9 @@ import Transactions from './screens/Transactions';
 import ChatHistory from './screens/ChatHistory';
 import Notification from './screens/Notification';
 import Legal from './screens/Legal';
+import URL from './screens2/URL';
+import ProductPrice from './screens2/ProductPrice';
+import ConfirmAddress from './screens2/ConfirmAddress';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -146,6 +149,9 @@ export default function App() {
  <Stack.Screen name="ChatHistory" component={ChatHistory} />
  <Stack.Screen name="Notification" component={Notification} />
  <Stack.Screen name="Legal" component={Legal} />
+         <Stack.Screen name="URL" component={URL} />
+        <Stack.Screen name="ProductPrice" component={ProductPrice} />
+        <Stack.Screen name="ConfirmAddress" component={ConfirmAddress} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>

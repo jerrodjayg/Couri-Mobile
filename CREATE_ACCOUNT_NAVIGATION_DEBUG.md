@@ -118,3 +118,6 @@ navigation.push('CreateAccount'); // Alternative to navigate
 
 The debugging should reveal exactly where the navigation is failing and why the CreateAccountScreen isn't appearing as expected.
 
+
+
+

@@ -14,13 +14,194 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  Modal,
+  PanResponder,
 } from 'react-native';
+
+// Modal Component
+const CouriModal = ({ visible, onClose, onGetStarted }) => {
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isGetStartedEnabled, setIsGetStartedEnabled] = useState(false);
+  const panAnim = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 10;
+      },
+      onPanResponderGrant: () => {
+        panAnim.setOffset(panAnim._value);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          panAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        panAnim.flattenOffset();
+        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+          // Swipe down to dismiss
+          Animated.timing(panAnim, {
+            toValue: 400,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            onClose();
+            panAnim.setValue(0);
+          });
+        } else {
+          // Snap back to original position
+          Animated.spring(panAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleOptionSelect = (option) => {
+    setSelectedOption(option);
+    setIsGetStartedEnabled(true);
+  };
+
+  const handleGetStarted = () => {
+    if (isGetStartedEnabled) {
+      onGetStarted(selectedOption);
+    }
+  };
+
+  const getDescriptionText = () => {
+    if (selectedOption === 'buy') {
+      return "Buy anything from anyone with complete trust and protection.";
+    } else if (selectedOption === 'sell') {
+      return "Sell your items safely with our secure payment system.";
+    }
+    return "Couri takes the hassle out of peer-to-peer buying and selling.";
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.overlay}>
+        <TouchableOpacity 
+          style={modalStyles.overlayTouchable} 
+          onPress={onClose}
+          activeOpacity={1}
+        />
+        <Animated.View 
+          style={[
+            modalStyles.modalContainer,
+            {
+              transform: [{ translateY: panAnim }]
+            }
+          ]}
+          {...panResponder.panHandlers}
+        >
+          {/* Drag Handle */}
+          <View style={modalStyles.dragHandle} />
+          
+          {/* Header */}
+          <View style={modalStyles.headerContainer}>
+            <Text style={modalStyles.headerLine1}>
+              How will you
+            </Text>
+            <Text style={modalStyles.headerLine2}>
+              use Couri today?
+            </Text>
+          </View>
+
+          {/* Choice Buttons */}
+          <View style={modalStyles.choiceContainer}>
+                         <TouchableOpacity
+               style={[
+                 modalStyles.choiceButton,
+                 selectedOption === 'buy' && modalStyles.choiceButtonActive
+               ]}
+               onPress={() => handleOptionSelect('buy')}
+             >
+               <View style={modalStyles.choiceIconContainer}>
+                                   <Image 
+                    source={require('../assets/shoppingcart.png')}
+                    style={[
+                      modalStyles.choiceIcon,
+                      selectedOption === 'buy' ? modalStyles.choiceIconActive : modalStyles.choiceIconInactive
+                    ]}
+                    resizeMode="contain"
+                  />
+               </View>
+               <Text style={[
+                 modalStyles.choiceText,
+                 selectedOption === 'buy' ? modalStyles.choiceTextActive : modalStyles.choiceTextInactive
+               ]}>
+                 Buy
+               </Text>
+             </TouchableOpacity>
+
+                         <TouchableOpacity
+               style={[
+                 modalStyles.choiceButton,
+                 selectedOption === 'sell' && modalStyles.choiceButtonActive
+               ]}
+               onPress={() => handleOptionSelect('sell')}
+             >
+               <View style={modalStyles.choiceIconContainer}>
+                 <Image 
+                   source={require('../assets/sell.png')}
+                   style={[
+                     modalStyles.choiceIcon,
+                     selectedOption === 'sell' ? modalStyles.choiceIconActive : modalStyles.choiceIconInactive
+                   ]}
+                   resizeMode="contain"
+                 />
+               </View>
+               <Text style={[
+                 modalStyles.choiceText,
+                 selectedOption === 'sell' ? modalStyles.choiceTextActive : modalStyles.choiceTextInactive
+               ]}>
+                 Sell
+               </Text>
+             </TouchableOpacity>
+          </View>
+
+          {/* Description Text */}
+          <Text style={modalStyles.description}>
+            {getDescriptionText()}
+          </Text>
+
+          {/* Get Started Button */}
+          <TouchableOpacity
+            style={[
+              modalStyles.getStartedButton,
+              isGetStartedEnabled && modalStyles.getStartedButtonActive
+            ]}
+            onPress={handleGetStarted}
+            disabled={!isGetStartedEnabled}
+          >
+            <Text style={[
+              modalStyles.getStartedText,
+              isGetStartedEnabled && modalStyles.getStartedTextActive
+            ]}>
+              Get Started
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+    );
+};
 
 export default function Welcomepage({ route, navigation }) {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [justCompletedAccountCreation, setJustCompletedAccountCreation] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const { user, customUser, setCustomUser } = useUser();
   const waveAnim = useRef(new Animated.Value(0)).current;
   const [profileImageKey, setProfileImageKey] = useState(0);
@@ -642,7 +823,10 @@ export default function Welcomepage({ route, navigation }) {
             </Text>
             <View style={styles.placeholderBox} />
             {userProfile ? (
-              <TouchableOpacity style={styles.beginButton}>
+              <TouchableOpacity 
+                style={styles.beginButton}
+                onPress={() => setModalVisible(true)}
+              >
                 <Text style={styles.beginButtonText}>+ Begin a Transaction</Text>
               </TouchableOpacity>
             ) : (
@@ -710,6 +894,25 @@ export default function Welcomepage({ route, navigation }) {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Couri Modal */}
+        <CouriModal
+          key={modalVisible ? 'open' : 'closed'}
+          visible={modalVisible}
+          onClose={() => {
+            setModalVisible(false);
+            // Reset modal state when closing
+            setTimeout(() => {
+              // Reset after animation completes
+            }, 300);
+          }}
+          onGetStarted={(option) => {
+            console.log('User selected:', option);
+            setModalVisible(false);
+            // Navigate to URL screen with the selected option
+            navigation.navigate('URL', { type: option });
+          }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -820,5 +1023,136 @@ const styles = StyleSheet.create({
   },
   deleteAccountButtonDisabled: {
     opacity: 0.7,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  overlayTouchable: {
+    flex: 1,
+  },
+  modalContainer: {
+    backgroundColor: '#fafafa',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 32,
+    paddingTop: 24,
+    width: '100%',
+    minHeight: 500,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#d1d5db',
+    borderRadius: 2,
+    marginBottom: 32,
+  },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  headerLine1: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#000',
+    lineHeight: 36,
+    marginBottom: 4,
+  },
+  headerLine2: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#000',
+    lineHeight: 36,
+  },
+  choiceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 32,
+    gap: 16,
+  },
+  choiceButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  choiceButtonActive: {
+    borderColor: '#10b981',
+    backgroundColor: '#fff',
+  },
+  choiceIconContainer: {
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  choiceIcon: {
+    width: 36,
+    height: 36,
+    marginBottom: 12,
+  },
+  choiceIconActive: {
+    opacity: 1,
+  },
+  choiceIconInactive: {
+    opacity: 0.6,
+  },
+  choiceText: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  choiceTextActive: {
+    color: '#000',
+  },
+  choiceTextInactive: {
+    color: '#000',
+  },
+  description: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+    paddingHorizontal: 8,
+  },
+  getStartedButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#000',
+    width: '100%',
+  },
+  getStartedButtonActive: {
+    backgroundColor: '#000',
+    borderColor: '#000',
+  },
+  getStartedText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  getStartedTextActive: {
+    color: '#fff',
   },
 });

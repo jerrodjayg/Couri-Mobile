@@ -63,3 +63,6 @@ The navigation issue is fixed! Now you can:
 
 The app should now properly take users through the expected screen path when they press "Create Account"! 🎉
 
+
+
+

@@ -178,3 +178,6 @@ if (result.session) {
 
 The CreateAccountScreen now properly saves user data to the database before allowing users to proceed, ensuring data persistence and a complete user journey!
 
+
+
+

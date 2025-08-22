@@ -135,3 +135,6 @@ If the flow still skips screens, check:
 3. **Route params** - Check that user data is properly passed
 4. **Console logs** - Look for navigation debugging information
 
+
+
+

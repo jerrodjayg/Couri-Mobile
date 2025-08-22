@@ -459,12 +459,18 @@ const saveRegularUserToDatabase = async () => {
       email: String(userFromParams.email).toLowerCase(),
       firstName: userFromParams.firstName ?? null,
       lastName: userFromParams.lastName ?? null,
+      name: `${userFromParams.firstName ?? ''} ${userFromParams.lastName ?? ''}`.trim(),
+      full_name: `${userFromParams.firstName ?? ''} ${userFromParams.lastName ?? ''}`.trim(),
       phone: userFromParams.phone ?? null,
       address1: userFromParams.address1 ?? null,
       address2: userFromParams.address2 ?? null,
       city: userFromParams.city ?? null,
       state: userFromParams.state ?? null,
       zip: userFromParams.zip ?? null,
+      // Also include database format for consistency
+      address_line_1: userFromParams.address1 ?? null,
+      address_line_2: userFromParams.address2 ?? null,
+      zip_code: userFromParams.zip ?? null,
       avatar_url: '',
       isGoogleAuth: false,
     };
@@ -648,10 +654,22 @@ const saveRegularUserToDatabase = async () => {
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataToStore));
       await AsyncStorage.setItem('userProfileData', JSON.stringify({
         id: userDataToStore.id,
+        firstName: userDataToStore.firstName,
+        lastName: userDataToStore.lastName,
         name: userDataToStore.firstName,
         full_name: `${userDataToStore.firstName} ${userDataToStore.lastName}`.trim(),
         avatar_url: userDataToStore.avatar_url,
-        email: userDataToStore.email
+        email: userDataToStore.email,
+        phone: userDataToStore.phone,
+        address1: userDataToStore.address1,
+        address2: userDataToStore.address2,
+        city: userDataToStore.city,
+        state: userDataToStore.state,
+        zip: userDataToStore.zip,
+        // Also include database format for consistency
+        address_line_1: userDataToStore.address1,
+        address_line_2: userDataToStore.address2,
+        zip_code: userDataToStore.zip
       }));
       
       console.log('✅ User data stored in AsyncStorage');
