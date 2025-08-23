@@ -115,7 +115,10 @@ export default function ProductScreen({ navigation, route }) {
       {/* Navigation Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Image 
+            source={require('../assets/backarrow.png')} 
+            style={styles.backButtonImage}
+          />
         </TouchableOpacity>
         
         <TouchableOpacity onPress={handleProfilePress} style={styles.profileContainer}>
@@ -232,10 +235,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
+  backButtonImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   profileContainer: {
     width: 40,

@@ -17,6 +17,7 @@ import { supabase } from '../screens/supabaseClient';
 export default function ConfirmAddress({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [userAddress, setUserAddress] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const { user, customUser, setCustomUser } = useUser();
   
@@ -99,43 +100,96 @@ export default function ConfirmAddress({ navigation, route }) {
 
   const loadUserAddress = async () => {
     try {
-      // Try to get address from AsyncStorage first
+      setLoading(true);
+      
+      // First try to get address from AsyncStorage
       const addressData = await AsyncStorage.getItem('userAddress');
       if (addressData) {
-        setUserAddress(JSON.parse(addressData));
-        console.log('✅ Address loaded from AsyncStorage:', JSON.parse(addressData));
-      } else {
-        // If no address in AsyncStorage, try to get from user profile
-        const profileData = await AsyncStorage.getItem('userProfile');
-        if (profileData) {
-          const profile = JSON.parse(profileData);
-          if (profile.address) {
-            setUserAddress(profile.address);
-            console.log('✅ Address loaded from user profile:', profile.address);
-          } else {
-            // Set default address if none exists
-            const defaultAddress = {
-              street: '1234 Address Street',
-              city: 'Richmond',
-              state: 'VA',
-              zipCode: '23220'
-            };
-            setUserAddress(defaultAddress);
-            console.log('✅ Default address set:', defaultAddress);
-          }
+        const parsedAddress = JSON.parse(addressData);
+        setUserAddress(parsedAddress);
+        console.log('✅ Address loaded from AsyncStorage:', parsedAddress);
+        setLoading(false);
+        return;
+      }
+
+      // If no address in AsyncStorage, try to get from user profile
+      const profileData = await AsyncStorage.getItem('userProfileData');
+      if (profileData) {
+        const profile = JSON.parse(profileData);
+        if (profile.address1 || profile.address_line_1) {
+          const address = {
+            street: profile.address1 || profile.address_line_1 || '',
+            city: profile.city || '',
+            state: profile.state || '',
+            zipCode: profile.zip || profile.zip_code || ''
+          };
+          setUserAddress(address);
+          console.log('✅ Address loaded from user profile:', address);
+          setLoading(false);
+          return;
         }
       }
-    } catch (error) {
-      console.error('Error loading user address:', error);
-      // Set default address on error
-      const defaultAddress = {
+
+      // If still no address, try to fetch from database using user email
+      let userEmail = null;
+      if (user?.email) {
+        userEmail = user.email;
+      } else if (userProfile?.email) {
+        userEmail = userProfile.email;
+      } else if (route?.params?.userData?.email) {
+        userEmail = route.params.userData.email;
+      }
+
+      if (userEmail) {
+        console.log('🔍 Fetching address from database for email:', userEmail);
+        const { data: dbUser, error } = await supabase
+          .from('users')
+          .select('address_line_1, city, state, zip_code')
+          .eq('email', userEmail.toLowerCase())
+          .maybeSingle();
+
+        if (error) {
+          console.error('❌ Error fetching user address from database:', error);
+        } else if (dbUser && (dbUser.address_line_1 || dbUser.city)) {
+          const address = {
+            street: dbUser.address_line_1 || '',
+            city: dbUser.city || '',
+            state: dbUser.state || '',
+            zipCode: dbUser.zip_code || ''
+          };
+          setUserAddress(address);
+          console.log('✅ Address loaded from database:', address);
+          
+          // Cache the address for future use
+          await AsyncStorage.setItem('userAddress', JSON.stringify(address));
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If all else fails, set a placeholder address
+      const placeholderAddress = {
         street: '1234 Address Street',
         city: 'Richmond',
         state: 'VA',
         zipCode: '23220'
       };
-      setUserAddress(defaultAddress);
-      console.log('✅ Default address set due to error:', defaultAddress);
+      setUserAddress(placeholderAddress);
+      console.log('⚠️ No address found, using placeholder:', placeholderAddress);
+      
+    } catch (error) {
+      console.error('❌ Error loading user address:', error);
+      // Set placeholder address on error
+      const placeholderAddress = {
+        street: '1234 Address Street',
+        city: 'Richmond',
+        state: 'VA',
+        zipCode: '23220'
+      };
+      setUserAddress(placeholderAddress);
+      console.log('⚠️ Error occurred, using placeholder address:', placeholderAddress);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -187,8 +241,6 @@ export default function ConfirmAddress({ navigation, route }) {
     }
   };
 
-
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -199,7 +251,10 @@ export default function ConfirmAddress({ navigation, route }) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Image 
+            source={require('../assets/backarrow.png')} 
+            style={styles.backButtonImage}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleProfilePress} style={styles.profileContainer}>
@@ -245,7 +300,7 @@ export default function ConfirmAddress({ navigation, route }) {
         </Text>
 
         {/* Address Display */}
-        {userAddress && (
+        {!loading && userAddress && (
           <View style={styles.addressContainer}>
             <Text style={styles.addressText}>{userAddress.street}</Text>
             <Text style={styles.addressText}>
@@ -266,8 +321,6 @@ export default function ConfirmAddress({ navigation, route }) {
       <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
         <Text style={styles.confirmButtonText}>Confirm</Text>
       </TouchableOpacity>
-
-
     </SafeAreaView>
   );
 }
@@ -291,10 +344,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
+  backButtonImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   profileContainer: {
     width: 40,
@@ -357,98 +410,97 @@ const styles = StyleSheet.create({
   stepInactive: {
     backgroundColor: '#E5E7EB',
   },
-     stepText: {
-     fontSize: 14,
-     fontWeight: '500',
-     textAlign: 'center',
-     color: '#9CA3AF',
-   },
-   stepTextFirst: {
-     position: 'absolute',
-     left: '0%',
-     color: '#000000',
-   },
-   stepTextSecond: {
-     position: 'absolute',
-     left: '25%',
-     color: '#000000',
-   },
-   stepTextThird: {
-     position: 'absolute',
-     left: '50%',
-   },
-   stepTextFourth: {
-     position: 'absolute',
-     left: '75%',
-   },
-     mainContent: {
-     flex: 1,
-     paddingHorizontal: 24,
-     alignItems: 'center',
-     justifyContent: 'flex-start',
-     paddingTop: 20,
-   },
-   mainTitle: {
-     fontSize: 24,
-     fontWeight: 'bold',
-     color: '#000',
-     textAlign: 'center',
-     marginBottom: 16,
-   },
-   subtitle: {
-     fontSize: 16,
-     color: '#000',
-     textAlign: 'center',
-     marginBottom: 32,
-     lineHeight: 22,
-   },
-     addressContainer: {
-     backgroundColor: '#F3F4F6',
-     borderRadius: 12,
-     padding: 20,
-     marginBottom: 24,
-     width: '100%',
-     alignItems: 'center',
-     borderWidth: 1,
-     borderColor: '#E5E7EB',
-   },
-   addressText: {
-     fontSize: 16,
-     color: '#000',
-     fontWeight: '500',
-     marginBottom: 4,
-     textAlign: 'center',
-   },
-     differentAddressLink: {
-     fontSize: 16,
-     color: '#000',
-     textDecorationLine: 'underline',
-     fontWeight: '500',
-     textAlign: 'center',
-   },
-     confirmButton: {
-     backgroundColor: '#000',
-     borderRadius: 12,
-     paddingVertical: 16,
-     paddingHorizontal: 32,
-     marginHorizontal: 24,
-     marginBottom: 24,
-     alignItems: 'center',
-     borderWidth: 1,
-     borderColor: '#fff',
-     shadowColor: '#000',
-     shadowOffset: {
-       width: 0,
-       height: 2,
-     },
-     shadowOpacity: 0.1,
-     shadowRadius: 4,
-     elevation: 3,
-   },
-     confirmButtonText: {
-     color: '#fff',
-     fontSize: 16,
-     fontWeight: '600',
-   },
-   
- });
+  stepText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: '#9CA3AF',
+  },
+  stepTextFirst: {
+    position: 'absolute',
+    left: '0%',
+    color: '#000000',
+  },
+  stepTextSecond: {
+    position: 'absolute',
+    left: '25%',
+    color: '#000000',
+  },
+  stepTextThird: {
+    position: 'absolute',
+    left: '50%',
+  },
+  stepTextFourth: {
+    position: 'absolute',
+    left: '75%',
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+  },
+  mainTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  addressContainer: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  addressText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  differentAddressLink: {
+    fontSize: 16,
+    color: '#000',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  confirmButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

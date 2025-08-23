@@ -791,7 +791,10 @@ const saveRegularUserToDatabase = async () => {
       {/* Nav Bar */}
       <View style={styles.navBar}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
+          <Image 
+            source={require('../assets/backarrow.png')} 
+            style={styles.backArrowImage}
+          />
         </TouchableOpacity>
         <Image source={require('../assets/Logo_Dark.png')} style={styles.logo} resizeMode="contain" />
         <View style={styles.placeholder} />
@@ -823,7 +826,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20,
   },
-  backArrow: { fontSize: 24, color: '#000', fontWeight: 'bold' },
+  backArrowImage: { width: 24, height: 24, resizeMode: 'contain' },
   logo: { width: 80, height: 40 },
   placeholder: { width: 24 },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },

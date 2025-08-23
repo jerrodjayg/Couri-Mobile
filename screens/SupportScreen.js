@@ -6,6 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  Image,
 } from 'react-native';
 
 const SupportScreen = ({ navigation }) => {
@@ -30,7 +31,10 @@ const SupportScreen = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-          <Text style={styles.backArrow}>←</Text>
+          <Image 
+            source={require('../assets/backarrow.png')} 
+            style={styles.backArrowImage}
+          />
         </TouchableOpacity>
         <Text style={styles.title}>SUPPORT</Text>
         <View style={styles.placeholder} />
@@ -83,10 +87,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
+  backArrowImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   title: {
     fontSize: 18,

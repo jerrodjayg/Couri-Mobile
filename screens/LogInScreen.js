@@ -541,7 +541,10 @@ export default function LogInScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>←</Text>
+              <Image 
+                source={require('../assets/backarrow.png')} 
+                style={styles.backArrowImage}
+              />
             </Pressable>
             <Text style={styles.headerTitle}>LOG IN</Text>
             <View style={{ width: 24 }} />
@@ -642,9 +645,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 66
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#000'
+  backArrowImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain'
   },
   headerTitle: {
     fontSize: 16,

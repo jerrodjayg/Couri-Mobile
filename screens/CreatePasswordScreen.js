@@ -11,6 +11,7 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from './supabaseClient';
@@ -513,7 +514,10 @@ export default function CreatePasswordScreen({ navigation, route }) {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>←</Text>
+              <Image 
+                source={require('../assets/backarrow.png')} 
+                style={styles.backArrowImage}
+              />
             </Pressable>
             <Text style={styles.headerTitle}>CREATE PASSWORD</Text>
             <View style={{ width: 24 }} />
@@ -620,9 +624,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 66,
   },
-  backArrow: {
-    fontSize: 24,
-    color: '#000',
+  backArrowImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
   headerTitle: {
     fontSize: 16,

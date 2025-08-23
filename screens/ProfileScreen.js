@@ -966,7 +966,10 @@ export default function ProfileScreen({ navigation, route }) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backArrow}>←</Text>
+            <Image 
+              source={require('../assets/backarrow.png')} 
+              style={styles.backArrowImage}
+            />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>PROFILE</Text>
           <View style={{ width: 24 }} />
@@ -1095,9 +1098,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
     backgroundColor: '#fff',
   },
-  backArrow: {
-    fontSize: Math.min(24, 22),
-    color: '#000',
+  backArrowImage: {
+    width: Math.min(24, 22),
+    height: Math.min(24, 22),
+    resizeMode: 'contain',
   },
   headerTitle: {
     fontSize: Math.min(18, 16),
