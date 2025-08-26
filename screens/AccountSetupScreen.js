@@ -242,8 +242,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   backArrowImage: {
-    width: 24,
-    height: 24,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   headerTitle: {

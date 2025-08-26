@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 66,
   },
-  backArrowImage: { width: 24, height: 24, resizeMode: 'contain' },
+  backArrowImage: { width: 36, height: 36, resizeMode: 'contain' },
   headerTitle: { fontSize: 16, color: '#000', fontWeight: '600' },
 
   // inputs

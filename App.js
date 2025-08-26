@@ -36,6 +36,11 @@ import Legal from './screens/Legal';
 import URL from './screens2/URL';
 import ProductPrice from './screens2/ProductPrice';
 import ConfirmAddress from './screens2/ConfirmAddress';
+import PickupAddress from './screens2/PickupAddress';
+import Payment from './screens2/Payment';
+import PlaidConnect from './screens2/PlaidConnect';
+import Share from './screens2/Share';
+import ProductDetails from './screens2/ProductDetails';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -150,8 +155,13 @@ export default function App() {
  <Stack.Screen name="Notification" component={Notification} />
  <Stack.Screen name="Legal" component={Legal} />
          <Stack.Screen name="URL" component={URL} />
+        <Stack.Screen name="ProductDetails" component={ProductDetails} />
         <Stack.Screen name="ProductPrice" component={ProductPrice} />
+        <Stack.Screen name="PickupAddress" component={PickupAddress} />
         <Stack.Screen name="ConfirmAddress" component={ConfirmAddress} />
+        <Stack.Screen name="Payment" component={Payment} />
+        <Stack.Screen name="PlaidConnect" component={PlaidConnect} />
+        <Stack.Screen name="Share" component={Share} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>

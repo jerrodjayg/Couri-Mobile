@@ -26,7 +26,7 @@ const SupportScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F8F8" />
+              <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -74,7 +74,7 @@ const SupportScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   backArrowImage: {
-    width: 24,
-    height: 24,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   title: {

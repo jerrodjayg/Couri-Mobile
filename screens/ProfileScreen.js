@@ -1099,8 +1099,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   backArrowImage: {
-    width: Math.min(24, 22),
-    height: Math.min(24, 22),
+    width: Math.min(36, 32),
+    height: Math.min(36, 32),
     resizeMode: 'contain',
   },
   headerTitle: {

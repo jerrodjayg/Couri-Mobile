@@ -381,8 +381,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   backArrowImage: {
-    width: 24,
-    height: 24,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   headerTitle: {

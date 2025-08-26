@@ -188,10 +188,10 @@ export default function ProductScreen({ navigation, route }) {
             
             // Validate URL before navigating
             if (urlInput.startsWith('https://')) {
-              console.log('✅ Valid HTTPS URL, navigating to ConfirmAddress');
-              navigation.navigate('ConfirmAddress', { 
+              console.log('✅ Valid HTTPS URL, navigating to ProductDetails');
+              navigation.navigate('ProductDetails', { 
                 productUrl: urlInput,
-                productPrice: '' // No price set yet
+                userAddress: userProfile
               });
             } else {
               console.log('❌ Invalid URL - does not start with https://');
@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButtonImage: {
-    width: 24,
-    height: 24,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   profileContainer: {

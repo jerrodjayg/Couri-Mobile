@@ -18,6 +18,7 @@ export default function ConfirmAddress({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [userAddress, setUserAddress] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasDefaultPickupAddress, setHasDefaultPickupAddress] = useState(false);
 
   const { user, customUser, setCustomUser } = useUser();
   
@@ -27,10 +28,35 @@ export default function ConfirmAddress({ navigation, route }) {
     console.log('🔄 ConfirmAddress useEffect triggered');
     console.log('🔗 Product URL from route params:', productUrl);
     console.log('💰 Product Price from route params:', productPrice);
+    console.log('📍 Pickup Address from route params:', route.params?.pickupAddress);
     
     loadUserProfile();
     loadUserAddress();
-  }, []);
+    checkDefaultPickupAddress();
+  }, [route.params?.pickupAddress]);
+
+  const checkDefaultPickupAddress = async () => {
+    try {
+      // Check if there's a default pickup address and no current pickup address
+      if (!route.params?.pickupAddress) {
+        const defaultAddress = await AsyncStorage.getItem('defaultPickupAddress');
+        if (defaultAddress) {
+          const parsed = JSON.parse(defaultAddress);
+          console.log('📍 Found default pickup address:', parsed);
+          setHasDefaultPickupAddress(true);
+          // You could optionally auto-set this as the current pickup address
+          // navigation.setParams({ pickupAddress: parsed });
+        } else {
+          setHasDefaultPickupAddress(false);
+        }
+      } else {
+        setHasDefaultPickupAddress(false);
+      }
+    } catch (error) {
+      console.log('⚠️ Error checking default pickup address:', error);
+      setHasDefaultPickupAddress(false);
+    }
+  };
 
   const loadUserProfile = async () => {
     try {
@@ -216,15 +242,30 @@ export default function ConfirmAddress({ navigation, route }) {
   };
 
   const handleConfirm = () => {
-    console.log('✅ Address confirmed, navigating to next step');
-    // Navigate to next step (Payment screen)
-    // navigation.navigate('Payment', { productUrl, productPrice, userAddress });
+    console.log('✅ Pickup address confirmed, navigating to next step');
+    
+    // Get the address to use (pickup address if available, otherwise user's main address)
+    const addressToUse = route.params?.pickupAddress || userAddress;
+    
+    console.log('📍 Address being used for pickup:', addressToUse);
+    
+    // Navigate to Payment screen with the pickup address
+    navigation.navigate('Payment', { 
+      productUrl, 
+      productPrice, 
+      userAddress,
+      pickupAddress: addressToUse 
+    });
   };
 
   const handleUseDifferentAddress = () => {
-    console.log('🔄 User wants to use different address');
-    // Navigate to address input screen
-    // navigation.navigate('AddressInput', { productUrl, productPrice });
+    console.log('🔄 User wants to use different pickup address');
+    // Navigate to PickupAddress screen
+    navigation.navigate('PickupAddress', { 
+      productUrl, 
+      productPrice, 
+      userAddress 
+    });
   };
 
   const handleProfilePress = () => {
@@ -294,27 +335,73 @@ export default function ConfirmAddress({ navigation, route }) {
 
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <Text style={styles.mainTitle}>Confirm your delivery address</Text>
+        <Text style={styles.mainTitle}>Confirm your pickup address</Text>
         <Text style={styles.subtitle}>
-          Once the product is picked up, is this where it should be delivered?
+          Is this the address where the product should be picked up from?
         </Text>
 
         {/* Address Display */}
-        {!loading && userAddress && (
+        {!loading && (route.params?.pickupAddress || userAddress) && (
           <View style={styles.addressContainer}>
-            <Text style={styles.addressText}>{userAddress.street}</Text>
-            <Text style={styles.addressText}>
-              {userAddress.city}, {userAddress.state} {userAddress.zipCode}
+            {route.params?.pickupAddress ? (
+              <>
+                <Text style={styles.addressLabel}>Pickup Address:</Text>
+                <Text style={styles.addressText}>{route.params.pickupAddress.street}</Text>
+                {route.params.pickupAddress.address2 && (
+                  <Text style={styles.addressText}>{route.params.pickupAddress.address2}</Text>
+                )}
+                <Text style={styles.addressText}>
+                  {route.params.pickupAddress.city}, {route.params.pickupAddress.state} {route.params.pickupAddress.zipCode}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.addressLabel}>Delivery Address:</Text>
+                <Text style={styles.addressText}>{userAddress.street}</Text>
+                <Text style={styles.addressText}>
+                  {userAddress.city}, {userAddress.state} {userAddress.zipCode}
+                </Text>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Default Pickup Address Hint */}
+        {!route.params?.pickupAddress && hasDefaultPickupAddress && (
+          <View style={styles.defaultAddressHint}>
+            <Text style={styles.defaultAddressHintText}>
+              💡 You have a saved pickup address. Tap "Use a different pickup address" to use it.
             </Text>
           </View>
         )}
 
-        {/* Use Different Address Link */}
-        <TouchableOpacity onPress={handleUseDifferentAddress}>
-          <Text style={styles.differentAddressLink}>
-            Use a different delivery address
-          </Text>
-        </TouchableOpacity>
+        {/* Address Options */}
+        {route.params?.pickupAddress ? (
+          <View style={styles.addressOptionsContainer}>
+            <TouchableOpacity onPress={handleUseDifferentAddress}>
+              <Text style={styles.differentAddressLink}>
+                Use a different pickup address
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.mainAddressLink}
+              onPress={() => {
+                // Clear pickup address and use main address
+                navigation.setParams({ pickupAddress: undefined });
+              }}
+            >
+              <Text style={styles.mainAddressLinkText}>
+                Use main address instead
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={handleUseDifferentAddress}>
+            <Text style={styles.differentAddressLink}>
+              Use a different pickup address
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Confirm Button */}
@@ -345,8 +432,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButtonImage: {
-    width: 24,
-    height: 24,
+    width: 36,
+    height: 36,
     resizeMode: 'contain',
   },
   profileContainer: {
@@ -465,6 +552,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  addressLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginBottom: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
   addressText: {
     fontSize: 16,
     color: '#000',
@@ -472,12 +567,43 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: 'center',
   },
+  addressOptionsContainer: {
+    alignItems: 'center',
+    gap: 16,
+  },
   differentAddressLink: {
     fontSize: 16,
     color: '#000',
     textDecorationLine: 'underline',
     fontWeight: '500',
     textAlign: 'center',
+  },
+  mainAddressLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  mainAddressLinkText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  defaultAddressHint: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  defaultAddressHintText: {
+    fontSize: 14,
+    color: '#1E40AF',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   confirmButton: {
     backgroundColor: '#000',
