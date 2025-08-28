@@ -15,7 +15,32 @@ import { Clipboard } from 'react-native';
 
 export default function Share({ navigation, route }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const { productUrl, productPrice, userAddress, pickupAddress } = route.params || {};
+  const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
+  
+  const getUserInitials = (profile) => {
+    if (profile?.full_name) {
+      const names = profile.full_name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    if (profile?.name) {
+      const names = profile.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    return 'U';
+  };
+  
+  // Get the transaction type from route params - SWAPPED LOGIC
+  const isSelling = transactionType === 'buy'; // Changed from 'sell' to 'buy'
 
   const handleCopyMessage = async () => {
     const message = "Please confirm our transaction in the Couri app for seamless pickup, delivery, and secure payment. Join me here: https://shorturl.at/msBLS646";
@@ -47,7 +72,7 @@ export default function Share({ navigation, route }) {
   };
 
   const handleProfilePress = () => {
-    navigation.navigate('MyAccount');
+    navigation.navigate('MyAccount', { userData: userProfile });
   };
 
   return (
@@ -67,9 +92,18 @@ export default function Share({ navigation, route }) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleProfilePress} style={styles.profileContainer}>
-          <View style={styles.profilePlaceholder}>
-            <Text style={styles.profileInitials}>U</Text>
-          </View>
+          {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+            <Image 
+              source={{ uri: userProfile.avatar_url }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileInitials}>
+                {userProfile ? getUserInitials(userProfile) : 'U'}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -103,7 +137,9 @@ export default function Share({ navigation, route }) {
           </View>
 
           {/* Main Title */}
-          <Text style={styles.mainTitle}>Invite buyer to begin</Text>
+          <Text style={styles.mainTitle}>
+            {isSelling ? 'Invite seller to begin' : 'Invite buyer to begin'}
+          </Text>
 
           {/* Instructions */}
           <View style={styles.instructionsContainer}>
@@ -113,9 +149,14 @@ export default function Share({ navigation, route }) {
                 <Text style={styles.stepNumberText}>1</Text>
               </View>
               <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Invite the buyer.</Text>
+                <Text style={styles.stepTitle}>
+                  {isSelling ? 'Share the link:' : 'Invite the buyer.'}
+                </Text>
                 <Text style={styles.stepDescription}>
-                  Copy the invite link & message below and send it to the buyer:
+                  {isSelling 
+                    ? 'Copy and send this message to the seller:'
+                    : 'Copy the invite link & message below and send it to the buyer:'
+                  }
                 </Text>
                 
                 {/* Message Box */}
@@ -142,7 +183,9 @@ export default function Share({ navigation, route }) {
                 <Text style={styles.stepNumberText}>2</Text>
               </View>
               <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Seller confirms:</Text>
+                <Text style={styles.stepTitle}>
+                  {isSelling ? 'Seller confirms:' : 'Buyer confirms:'}
+                </Text>
                 <Text style={styles.stepDescription}>
                   They'll review and confirm the transaction details.
                 </Text>
@@ -194,7 +237,10 @@ export default function Share({ navigation, route }) {
 
             {/* Modal Message */}
             <Text style={styles.modalMessage}>
-              As soon as the buyer confirms the transaction details, we'll notify you and we'll begin pickup.
+              {isSelling 
+                ? 'As soon as the seller confirms the transaction details, we\'ll notify you and we\'ll begin pickup.'
+                : 'As soon as the buyer confirms the transaction details, we\'ll notify you and we\'ll begin pickup.'
+              }
             </Text>
 
             {/* Got It Button */}
@@ -241,6 +287,12 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: 'cover',
   },
   profilePlaceholder: {
     width: 40,

@@ -18,6 +18,7 @@ import {
   FlatList,
 } from 'react-native';
 import base64 from 'react-native-base64';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function PersonalInfoScreen({ navigation, route }) {
@@ -266,14 +267,50 @@ export default function PersonalInfoScreen({ navigation, route }) {
       state: form.state,
       zip: form.zip
     });
+
+    // CRITICAL FIX: Save form data to AsyncStorage before navigating
+    try {
+      const userDataToStore = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        address1: form.address1,
+        address2: form.address2,
+        city: form.city,
+        state: form.state,
+        zip: form.zip,
+        // Also include database format for consistency
+        address_line_1: form.address1,
+        address_line_2: form.address2,
+        zip_code: form.zip,
+        // Include Google auth info if applicable
+        isGoogleAuth: route.params?.isGoogleAuth || false,
+        googleUserData: route.params?.googleUserData || null,
+        // Create a name field for consistency
+        name: `${form.firstName} ${form.lastName}`.trim(),
+        full_name: `${form.firstName} ${form.lastName}`.trim()
+      };
+
+      // Store in both AsyncStorage keys for consistency across the app
+      await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataToStore));
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(userDataToStore));
+      
+      console.log('✅ PersonalInfoScreen - User data saved to AsyncStorage before navigation');
+      console.log('🔍 PersonalInfoScreen DEBUG - Data saved to AsyncStorage:', userDataToStore);
+      
+    } catch (storageError) {
+      console.error('❌ PersonalInfoScreen - Error saving to AsyncStorage:', storageError);
+      // Don't block navigation if storage fails
+    }
+
     console.log('🔍 PersonalInfoScreen DEBUG - Navigating with data:', {
       userInfo: form,
       isGoogleAuth: route.params?.isGoogleAuth || false,
       googleUserData: route.params?.googleUserData || null
     });
 
-    // Don't save to database here - just navigate with form data
-    // The user will be created in the onboarding flow when they reach PushNotiScreen
+    // Navigate to CreatePassword with form data
     navigation.navigate('CreatePassword', { 
       userInfo: form,
       savedUser: null, // No saved user yet
@@ -338,16 +375,8 @@ export default function PersonalInfoScreen({ navigation, route }) {
         >
           <Text style={styles.sectionTitle}>Personal Info</Text>
           
-          {/* Debug Button */}
-          <TouchableOpacity 
-            style={styles.debugButton} 
-            onPress={() => {
-              console.log('🔍 PersonalInfoScreen DEBUG - Current form state:', form);
-              Alert.alert('Debug Info', 'Check console for current form state');
-            }}
-          >
-            <Text style={styles.debugButtonText}>Show Form State (Debug)</Text>
-          </TouchableOpacity>
+
+          
           
           <TextInput placeholder="First Name*" value={form.firstName} onChangeText={(text) => handleChange('firstName', text)} style={styles.input} />
           <TextInput placeholder="Last Name*" value={form.lastName} onChangeText={(text) => handleChange('lastName', text)} style={styles.input} />
@@ -383,8 +412,8 @@ export default function PersonalInfoScreen({ navigation, route }) {
               <Text style={styles.loadingText}>Loading suggestions...</Text>
             </View>
           )}
-          
-          {suggestions.length > 0 && (
+
+{suggestions.length > 0 && (
             <View style={styles.suggestionsContainer}>
               <View style={styles.suggestionsList}>
                 {suggestions.map((item, index) => (

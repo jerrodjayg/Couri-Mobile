@@ -121,46 +121,14 @@ export default function ProfileScreen({ navigation, route }) {
             zip: mergedUserData.zip,
             zip_code: mergedUserData.zip_code
           });
-          // Try to auto-populate with your actual data if missing
-          if (!mergedUserData.phone || !mergedUserData.address1 || !mergedUserData.city || !mergedUserData.state || !mergedUserData.zip) {
-            console.log('🔧 Profile - Attempting to auto-populate missing data with your actual information...');
-            
-            const actualUserData = {
-              phone: '(703) 362-6743',
-              address1: '5262 Glen Meadow Dr',
-              address2: '',
-              city: 'Centreville',
-              state: 'VA',
-              zip: '20120'
-            };
-            
-            // Merge with existing data
-            mergedUserData = { ...mergedUserData, ...actualUserData };
-            
-            // Update AsyncStorage with the complete data
-            await AsyncStorage.setItem('tempUserData', JSON.stringify(mergedUserData));
-            await AsyncStorage.setItem('userProfileData', JSON.stringify(mergedUserData));
-            
-            console.log('✅ Profile - Auto-populated missing data and updated AsyncStorage');
-            
-            // Now set the address data with the populated information
-            addressData = {
-              street: mergedUserData.address1,
-              city: mergedUserData.city,
-              state: mergedUserData.state,
-              zipCode: mergedUserData.zip
-            };
-            
-            console.log('✅ Profile - Address data now populated:', addressData);
-          } else {
-            addressData = {
-              street: '1234 Address Street',
-              city: 'Richmond',
-              state: 'VA',
-              zipCode: '23220'
-            };
-            console.log('✅ Profile - Default address set:', addressData);
-          }
+          // Don't auto-populate with hardcoded data - just show "Not provided"
+          addressData = {
+            street: '',
+            city: '',
+            state: '',
+            zipCode: ''
+          };
+          console.log('✅ Profile - No address data available, will show "Not provided"');
         }
         
         // Update profile data with comprehensive user information including address
@@ -291,43 +259,43 @@ export default function ProfileScreen({ navigation, route }) {
                 console.log('🔍 Profile - mergedUserData.state:', mergedUserData.state);
                 console.log('🔍 Profile - mergedUserData.zip:', mergedUserData.zip);
                 
-                // Check if address data is stored in the same format as PersonalInfoScreen (this should be the primary source)
-                if (mergedUserData.address1 && mergedUserData.city && mergedUserData.state && mergedUserData.zip) {
-                  addressData = {
-                    street: mergedUserData.address1,
-                    city: mergedUserData.city,
-                    state: mergedUserData.state,
-                    zipCode: mergedUserData.zip
-                  };
-                  console.log('✅ Profile - Address loaded from PersonalInfoScreen format:', addressData);
-                } else if (mergedUserData.address_line_1 && mergedUserData.city && mergedUserData.state && mergedUserData.zip_code) {
-                  // Check for database format (address_line_1, zip_code)
-                  addressData = {
-                    street: mergedUserData.address_line_1,
-                    city: mergedUserData.city,
-                    state: mergedUserData.state,
-                    zipCode: mergedUserData.zip_code
-                  };
-                  console.log('✅ Profile - Address loaded from database format:', addressData);
-                } else {
-                  // Only set default address if we have NO address data at all
-                  console.log('⚠️ Profile - No address data found anywhere, setting default');
-                  console.log('🔍 Profile - Available data in mergedUserData:', {
-                    address1: mergedUserData.address1,
-                    address_line_1: mergedUserData.address_line_1,
-                    city: mergedUserData.city,
-                    state: mergedUserData.state,
-                    zip: mergedUserData.zip,
-                    zip_code: mergedUserData.zip_code
-                  });
-                  addressData = {
-                    street: '1234 Address Street',
-                    city: 'Richmond',
-                    state: 'VA',
-                    zipCode: '23220'
-                  };
-                  console.log('✅ Profile - Default address set:', addressData);
-                }
+                          // Check if address data is stored in the same format as PersonalInfoScreen (this should be the primary source)
+          if (mergedUserData.address1 && mergedUserData.city && mergedUserData.state && mergedUserData.zip) {
+            addressData = {
+              street: mergedUserData.address1,
+              city: mergedUserData.city,
+              state: mergedUserData.state,
+              zipCode: mergedUserData.zip
+            };
+            console.log('✅ Profile - Address loaded from PersonalInfoScreen format:', addressData);
+          } else if (mergedUserData.address_line_1 && mergedUserData.city && mergedUserData.state && mergedUserData.zip_code) {
+            // Check for database format (address_line_1, zip_code)
+            addressData = {
+              street: mergedUserData.address_line_1,
+              city: mergedUserData.city,
+              state: mergedUserData.state,
+              zipCode: mergedUserData.zip_code
+            };
+            console.log('✅ Profile - Address loaded from database format:', addressData);
+          } else {
+            // Only set default address if we have NO address data at all
+            console.log('⚠️ Profile - No address data found anywhere, setting default');
+            console.log('🔍 Profile - Available data in mergedUserData:', {
+              address1: mergedUserData.address1,
+              address_line_1: mergedUserData.address_line_1,
+              city: mergedUserData.city,
+              state: mergedUserData.state,
+              zip: mergedUserData.zip,
+              zip_code: mergedUserData.zip_code
+            });
+            addressData = {
+              street: '',
+              city: '',
+              state: '',
+              zipCode: ''
+            };
+            console.log('✅ Profile - No address data available, will show "Not provided"');
+          }
                 
                 // Update profile data with comprehensive user information including address
                 setProfileData({
@@ -341,7 +309,9 @@ export default function ProfileScreen({ navigation, route }) {
                   city: addressData.city || '',
                   state: addressData.state || '',
                   zip: addressData.zipCode || '',
-                  fullAddress: `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`,
+                  fullAddress: addressData.street && addressData.city && addressData.state && addressData.zipCode 
+                    ? `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`
+                    : 'Not provided',
                 });
                 
                 // Update userProfile with profile picture if available
@@ -481,9 +451,9 @@ export default function ProfileScreen({ navigation, route }) {
       // Create test user data with phone and address
       const testUserData = {
         id: 156,
-        first_name: 'JL',
-        last_name: 'Folly',
-        email: 'jeanlucfolly@gmail.com',
+        first_name: 'Test',
+        last_name: 'User',
+        email: 'test@example.com',
         phone: '(555) 123-4567', // Test phone number
         address_line_1: '123 Test Street', // Test address
         address_line_2: '',
@@ -491,30 +461,30 @@ export default function ProfileScreen({ navigation, route }) {
         state: 'CA',
         zip_code: '90210',
         created_at: new Date().toISOString(),
-        password_hash: 'Hiphop57!',
+        password_hash: 'TestPassword123!',
         updated_at: new Date().toISOString(),
-        avatar_url: 'https://lh3.googleusercontent.com/a/ACg8ocKxVax9rOOejTS-HHeCfc4JFn_Kpwmb6r8rI5lYRwMKXlR_boNy=s96-c',
+        avatar_url: '',
         avatar_path: null,
-        auth_user_id: '71b7e1b6-9983-4e74-a5eb-f9b6b220dc6f',
-        firstName: 'JL',
-        lastName: 'Folly',
+        auth_user_id: 'test-uuid-123',
+        firstName: 'Test',
+        lastName: 'User',
         address1: '123 Test Street', // PersonalInfoScreen format
         address2: '',
         zip: '90210',
-        name: 'JL',
-        full_name: 'JL Folly',
-        profileImageUri: 'https://lh3.googleusercontent.com/a/ACg8ocKxVax9rOOejTS-HHeCfc4JFn_Kpwmb6r8rI5lYRwMKXlR_boNy=s96-c',
+        name: 'Test User',
+        full_name: 'Test User',
+        profileImageUri: '',
         isGoogleAuth: false
       };
 
       // Also create a minimal userProfileData version to test the merge logic
       const testUserProfileData = {
         id: 156,
-        firstName: 'JL',
-        lastName: 'Folly',
-        name: 'JL',
-        full_name: 'JL Folly',
-        email: 'jeanlucfolly@gmail.com',
+        firstName: 'Test',
+        lastName: 'User',
+        name: 'Test User',
+        full_name: 'Test User',
+        email: 'test@example.com',
         phone: '(555) 123-4567',
         address1: '123 Test Street',
         address2: '',
@@ -524,34 +494,13 @@ export default function ProfileScreen({ navigation, route }) {
         address_line_1: '123 Test Street',
         address_line_2: '',
         zip_code: '90210',
-        avatar_url: 'https://lh3.googleusercontent.com/a/ACg8ocKxVax9rOOejTS-HHeCfc4JFn_Kpwmb6r8rI5lYRwMKXlR_boNy=s96-c',
+        avatar_url: '',
         isGoogleAuth: false
       };
 
-      // Create data with your actual information from PersonalInfoScreen
-      const actualUserData = {
-        id: '71b7e1b6-9983-4e74-a5eb-f9b6b220dc6f',
-        firstName: 'JL',
-        lastName: 'Folly',
-        name: 'JL Folly',
-        full_name: 'JL Folly',
-        email: 'jeanlucfolly@gmail.com',
-        phone: '(703) 362-6743',
-        address1: '5262 Glen Meadow Dr',
-        address2: '',
-        city: 'Centreville',
-        state: 'VA',
-        zip: '20120',
-        address_line_1: '5262 Glen Meadow Dr',
-        address_line_2: '',
-        zip_code: '20120',
-        avatar_url: 'https://lh3.googleusercontent.com/a/ACg8ocKxVax9rOOejTS-HHeCfc4JFn_Kpwmb6r8rI5lYRwMKXlR_boNy=s96-c',
-        isGoogleAuth: true
-      };
-
-      // Update both AsyncStorage keys with your actual data
-      await AsyncStorage.setItem('tempUserData', JSON.stringify(actualUserData));
-      await AsyncStorage.setItem('userProfileData', JSON.stringify(actualUserData));
+      // Update both AsyncStorage keys with test data
+      await AsyncStorage.setItem('tempUserData', JSON.stringify(testUserData));
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(testUserProfileData));
       
       console.log('✅ Debug: AsyncStorage updated with test data');
       Alert.alert('Debug Update', 'AsyncStorage has been updated with test data. Please refresh the screen.');
@@ -569,7 +518,7 @@ export default function ProfileScreen({ navigation, route }) {
           const userProfileData = await AsyncStorage.getItem('userProfileData');
           const userAddress = await AsyncStorage.getItem('userAddress');
           
-          console.log('🔍 Profile - Raw AsyncStorage data:');
+          console.log('🔍 Profile - Raw AsyncStorage data after population:');
           console.log('🔍 Profile - tempUserData:', tempUserData);
           console.log('🔍 Profile - userProfileData:', userProfileData);
           console.log('🔍 Profile - userAddress:', userAddress);
@@ -586,9 +535,6 @@ export default function ProfileScreen({ navigation, route }) {
           if (tempUserData) {
             const parsedData = JSON.parse(tempUserData);
             console.log('✅ Profile - Found temp user data in AsyncStorage:', parsedData);
-            if (parsedData.userInitials && !userInitials) {
-              setUserInitials(parsedData.userInitials);
-            }
             
             // Merge tempUserData with existing merged data
             mergedUserData = { ...mergedUserData, ...parsedData };
@@ -627,12 +573,6 @@ export default function ProfileScreen({ navigation, route }) {
               zipCode: mergedUserData.zip_code
             };
             console.log('✅ Profile - Address loaded from database format:', addressData);
-          } else if (userAddress) {
-            addressData = JSON.parse(userAddress);
-            console.log('✅ Profile - Address loaded from AsyncStorage userAddress:', addressData);
-          } else if (mergedUserData.address) {
-            addressData = mergedUserData.address;
-            console.log('✅ Profile - Address loaded from user profile address:', addressData);
           } else {
             // Only set default address if we have NO address data at all
             console.log('⚠️ Profile - No address data found anywhere, setting default');
@@ -645,12 +585,12 @@ export default function ProfileScreen({ navigation, route }) {
               zip_code: mergedUserData.zip_code
             });
             addressData = {
-              street: '1234 Address Street',
-              city: 'Richmond',
-              state: 'VA',
-              zipCode: '23220'
+              street: '',
+              city: '',
+              state: '',
+              zipCode: ''
             };
-            console.log('✅ Profile - Default address set:', addressData);
+            console.log('✅ Profile - No address data available, will show "Not provided"');
           }
           
           // Update profile data with comprehensive user information including address
@@ -665,11 +605,12 @@ export default function ProfileScreen({ navigation, route }) {
             city: addressData.city || '',
             state: addressData.state || '',
             zip: addressData.zipCode || '',
-            fullAddress: `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`,
+            fullAddress: addressData.street && addressData.city && addressData.state && addressData.zipCode 
+              ? `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`
+              : 'Not provided',
           });
           
           // Update userProfile with profile picture if available
-          // BUT only if user didn't skip photo upload
           if (!mergedUserData.hasSkippedPhoto && (mergedUserData.avatar_url || mergedUserData.profileImageUri)) {
             setUserProfile(prev => ({
               ...prev,
@@ -691,31 +632,10 @@ export default function ProfileScreen({ navigation, route }) {
             }));
           }
           
-          // Fallback to user context if no AsyncStorage data
-          if (user && !tempUserData && !userProfileData) {
-            setUserProfile({
-              id: user.id,
-              name: user.user_metadata?.name || user.user_metadata?.full_name,
-              full_name: user.user_metadata?.full_name,
-              avatar_url: user.user_metadata?.avatar_url,
-              email: user.email
-            });
-            
-            setProfileData(prev => ({
-              ...prev,
-              name: user.user_metadata?.full_name || user.user_metadata?.name || prev.name,
-              email: user.email || prev.email,
-            }));
-          }
-          
           console.log('🔍 Profile - Final merged user data:', mergedUserData);
           console.log('🔍 Profile - Final profile data:', profileData);
           console.log('🔍 Profile - Address data:', addressData);
           console.log('🔍 Profile - Phone number loaded:', phoneNumber);
-          console.log('🔍 Profile - Address1 from mergedUserData:', mergedUserData.address1);
-          console.log('🔍 Profile - City from mergedUserData:', mergedUserData.city);
-          console.log('🔍 Profile - State from mergedUserData:', mergedUserData.state);
-          console.log('🔍 Profile - Zip from mergedUserData:', mergedUserData.zip);
           
         } catch (error) {
           console.log('⚠️ Error fetching user profile in ProfileScreen:', error);
@@ -781,38 +701,38 @@ export default function ProfileScreen({ navigation, route }) {
     }
   };
 
-  // Function to manually populate AsyncStorage with your actual data
-  const handlePopulateWithActualData = async () => {
+  // Function to manually populate AsyncStorage with test data
+  const handlePopulateWithTestData = async () => {
     try {
-      console.log('🔧 Populating AsyncStorage with your actual data...');
+      console.log('🔧 Populating AsyncStorage with test data...');
       
-      // Your actual data from PersonalInfoScreen
-      const actualUserData = {
-        id: '71b7e1b6-9983-4e74-a5eb-f9b6b220dc6f',
-        firstName: 'JL',
-        lastName: 'Folly',
-        name: 'JL Folly',
-        full_name: 'JL Folly',
-        email: 'jeanlucfolly@gmail.com',
-        phone: '(703) 362-6743',
-        address1: '5262 Glen Meadow Dr',
+      // Test data for demonstration
+      const testUserData = {
+        id: 'test-uuid-123',
+        firstName: 'Test',
+        lastName: 'User',
+        name: 'Test User',
+        full_name: 'Test User',
+        email: 'test@example.com',
+        phone: '(555) 123-4567',
+        address1: '123 Test Street',
         address2: '',
-        city: 'Centreville',
-        state: 'VA',
-        zip: '20120',
-        address_line_1: '5262 Glen Meadow Dr',
+        city: 'Test City',
+        state: 'CA',
+        zip: '90210',
+        address_line_1: '123 Test Street',
         address_line_2: '',
-        zip_code: '20120',
-        avatar_url: 'https://lh3.googleusercontent.com/a/ACg8ocKxVax9rOOejTS-HHeCfc4JFn_Kpwmb6r8rI5lYRwMKXlR_boNy=s96-c',
-        isGoogleAuth: true
+        zip_code: '90210',
+        avatar_url: '',
+        isGoogleAuth: false
       };
 
       // Store in both AsyncStorage keys
-      await AsyncStorage.setItem('tempUserData', JSON.stringify(actualUserData));
-      await AsyncStorage.setItem('userProfileData', JSON.stringify(actualUserData));
+      await AsyncStorage.setItem('tempUserData', JSON.stringify(testUserData));
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(testUserData));
       
-      console.log('✅ AsyncStorage populated with your actual data:', actualUserData);
-      Alert.alert('Success', 'AsyncStorage has been populated with your actual data. Please refresh the screen.');
+      console.log('✅ AsyncStorage populated with test data:', testUserData);
+      Alert.alert('Success', 'AsyncStorage has been populated with test data. Please refresh the screen.');
       
       // Refresh the profile data
       const fetchUserProfile = async () => {
@@ -915,7 +835,9 @@ export default function ProfileScreen({ navigation, route }) {
             city: addressData.city || '',
             state: addressData.state || '',
             zip: addressData.zipCode || '',
-            fullAddress: `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`,
+            fullAddress: addressData.street && addressData.city && addressData.state && addressData.zipCode 
+              ? `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`
+              : 'Not provided',
           });
           
           // Update userProfile with profile picture if available

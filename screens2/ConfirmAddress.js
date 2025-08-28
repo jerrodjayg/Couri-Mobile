@@ -9,6 +9,10 @@ import {
   Image,
   ScrollView,
   Alert,
+  Modal,
+  TextInput,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
@@ -19,10 +23,13 @@ export default function ConfirmAddress({ navigation, route }) {
   const [userAddress, setUserAddress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasDefaultPickupAddress, setHasDefaultPickupAddress] = useState(false);
+  const [showDropOffModal, setShowDropOffModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [dropOffInstructions, setDropOffInstructions] = useState('');
 
   const { user, customUser, setCustomUser } = useUser();
   
-  const { productUrl, productPrice } = route.params || {};
+  const { productUrl, productPrice, userAddress: routeUserAddress, pickupAddress, transactionType } = route.params || {};
 
   useEffect(() => {
     console.log('🔄 ConfirmAddress useEffect triggered');
@@ -128,32 +135,38 @@ export default function ConfirmAddress({ navigation, route }) {
     try {
       setLoading(true);
       
-      // First try to get address from AsyncStorage
-      const addressData = await AsyncStorage.getItem('userAddress');
-      if (addressData) {
-        const parsedAddress = JSON.parse(addressData);
-        setUserAddress(parsedAddress);
-        console.log('✅ Address loaded from AsyncStorage:', parsedAddress);
-        setLoading(false);
-        return;
-      }
-
-      // If no address in AsyncStorage, try to get from user profile
+      // Clear any potentially corrupted address data first
+      await AsyncStorage.removeItem('userAddress');
+      
+      // First try to get address from user profile data (most recent)
       const profileData = await AsyncStorage.getItem('userProfileData');
       if (profileData) {
         const profile = JSON.parse(profileData);
-        if (profile.address1 || profile.address_line_1) {
+        console.log('🔍 Profile data found:', profile);
+        if (profile.address1 || profile.address_line_1 || profile.street) {
           const address = {
-            street: profile.address1 || profile.address_line_1 || '',
+            street: profile.address1 || profile.address_line_1 || profile.street || '',
             city: profile.city || '',
             state: profile.state || '',
-            zipCode: profile.zip || profile.zip_code || ''
+            zipCode: profile.zip || profile.zip_code || profile.zipCode || ''
           };
-          setUserAddress(address);
-          console.log('✅ Address loaded from user profile:', address);
-          setLoading(false);
-          return;
+          console.log('📍 Address extracted from profile:', address);
+          // Only set if we have meaningful address data
+          if (address.street && address.city && address.state && address.zipCode) {
+            setUserAddress(address);
+            console.log('✅ Address loaded from user profile:', address);
+            // Cache the address for future use
+            await AsyncStorage.setItem('userAddress', JSON.stringify(address));
+            setLoading(false);
+            return;
+          } else {
+            console.log('⚠️ Profile address data incomplete:', address);
+          }
+        } else {
+          console.log('⚠️ No address fields found in profile data');
         }
+      } else {
+        console.log('⚠️ No userProfileData found in AsyncStorage');
       }
 
       // If still no address, try to fetch from database using user email
@@ -183,37 +196,35 @@ export default function ConfirmAddress({ navigation, route }) {
             state: dbUser.state || '',
             zipCode: dbUser.zip_code || ''
           };
-          setUserAddress(address);
-          console.log('✅ Address loaded from database:', address);
-          
-          // Cache the address for future use
-          await AsyncStorage.setItem('userAddress', JSON.stringify(address));
-          setLoading(false);
-          return;
+          console.log('📍 Address extracted from database:', address);
+          // Only set if we have meaningful address data
+          if (address.street && address.city && address.state && address.zipCode) {
+            setUserAddress(address);
+            console.log('✅ Address loaded from database:', address);
+            
+            // Cache the address for future use
+            await AsyncStorage.setItem('userAddress', JSON.stringify(address));
+            setLoading(false);
+            return;
+          } else {
+            console.log('⚠️ Database address data incomplete:', address);
+          }
+        } else {
+          console.log('⚠️ No user found in database or no address data');
         }
+      } else {
+        console.log('⚠️ No user email available for database lookup');
       }
 
-      // If all else fails, set a placeholder address
-      const placeholderAddress = {
-        street: '1234 Address Street',
-        city: 'Richmond',
-        state: 'VA',
-        zipCode: '23220'
-      };
-      setUserAddress(placeholderAddress);
-      console.log('⚠️ No address found, using placeholder:', placeholderAddress);
+      // If no address found in any source, don't set a placeholder
+      // Instead, set userAddress to null so the address container won't show
+      setUserAddress(null);
+      console.log('⚠️ No valid address found in user data');
       
     } catch (error) {
       console.error('❌ Error loading user address:', error);
-      // Set placeholder address on error
-      const placeholderAddress = {
-        street: '1234 Address Street',
-        city: 'Richmond',
-        state: 'VA',
-        zipCode: '23220'
-      };
-      setUserAddress(placeholderAddress);
-      console.log('⚠️ Error occurred, using placeholder address:', placeholderAddress);
+      // Don't set placeholder address on error, let user enter their own
+      setUserAddress(null);
     } finally {
       setLoading(false);
     }
@@ -244,18 +255,60 @@ export default function ConfirmAddress({ navigation, route }) {
   const handleConfirm = () => {
     console.log('✅ Pickup address confirmed, navigating to next step');
     
+    // Check if this is a buyer flow - show warning modal first
+    if (transactionType === 'buy') {
+      console.log('🛒 Buyer flow detected, showing warning modal');
+      setShowWarningModal(true);
+      return;
+    }
+    
+    // For sellers, proceed directly to next step
+    console.log('📦 Seller flow detected, proceeding directly');
+    proceedToNextStep();
+  };
+
+  const proceedToNextStep = () => {
     // Get the address to use (pickup address if available, otherwise user's main address)
     const addressToUse = route.params?.pickupAddress || userAddress;
     
     console.log('📍 Address being used for pickup:', addressToUse);
     
-    // Navigate to Payment screen with the pickup address
+    // Navigate to Payment screen with the pickup address and user profile
     navigation.navigate('Payment', { 
       productUrl, 
       productPrice, 
-      userAddress,
-      pickupAddress: addressToUse 
+      userAddress: routeUserAddress,
+      pickupAddress: addressToUse,
+      transactionType: transactionType,
+      userProfile: userProfile
     });
+  };
+
+  const handleDropOffSubmit = () => {
+    console.log('✅ User submitted drop-off instructions:', dropOffInstructions);
+    setShowDropOffModal(false);
+    // Navigate directly to Payment screen
+    proceedToNextStep();
+  };
+
+  const handleNoInstructions = () => {
+    console.log('✅ User chose no instructions');
+    setShowDropOffModal(false);
+    // Navigate directly to Payment screen
+    proceedToNextStep();
+  };
+
+  const handleIUnderstand = () => {
+    console.log('✅ User acknowledged delivery modal');
+    setShowWarningModal(false);
+    // Show the drop-off instructions modal next
+    setShowDropOffModal(true);
+  };
+
+  const handleCancelTransaction = () => {
+    console.log('❌ User cancelled transaction');
+    setShowWarningModal(false);
+    navigation.navigate('Welcomepage');
   };
 
   const handleUseDifferentAddress = () => {
@@ -264,7 +317,8 @@ export default function ConfirmAddress({ navigation, route }) {
     navigation.navigate('PickupAddress', { 
       productUrl, 
       productPrice, 
-      userAddress 
+      userAddress: routeUserAddress,
+      transactionType
     });
   };
 
@@ -337,7 +391,10 @@ export default function ConfirmAddress({ navigation, route }) {
       <View style={styles.mainContent}>
         <Text style={styles.mainTitle}>Confirm your pickup address</Text>
         <Text style={styles.subtitle}>
-          Is this the address where the product should be picked up from?
+          {transactionType === 'buy' 
+            ? "Once the product is picked up, is this where it should be delivered?"
+            : "Once we're ready for pickup, is this where you're located?"
+          }
         </Text>
 
         {/* Address Display */}
@@ -383,6 +440,12 @@ export default function ConfirmAddress({ navigation, route }) {
                 Use a different pickup address
               </Text>
             </TouchableOpacity>
+            
+            {/* Confirm Button */}
+            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
+            
             <TouchableOpacity 
               style={styles.mainAddressLink}
               onPress={() => {
@@ -396,18 +459,108 @@ export default function ConfirmAddress({ navigation, route }) {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity onPress={handleUseDifferentAddress}>
-            <Text style={styles.differentAddressLink}>
-              Use a different pickup address
-            </Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity onPress={handleUseDifferentAddress}>
+              <Text style={styles.differentAddressLink}>
+                Use a different pickup address
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Confirm Button */}
+            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
 
-      {/* Confirm Button */}
-      <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-        <Text style={styles.confirmButtonText}>Confirm</Text>
-      </TouchableOpacity>
+            {/* Drop-off Instructions Modal for Buyers */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showDropOffModal}
+        onRequestClose={() => setShowDropOffModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.dropOffModalContent}>
+              {/* Close Button */}
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowDropOffModal(false)}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+
+              {/* Title */}
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>Drop-off instructions (optional)</Text>
+              </View>
+
+              {/* Text Input Field */}
+              <TextInput
+                style={styles.instructionsInput}
+                value={dropOffInstructions}
+                onChangeText={setDropOffInstructions}
+                placeholder="Add drop-off instructions in case you aren't at home at the time of delivery. I.e. Leave package at my side entrance"
+                placeholderTextColor="#9CA3AF"
+                multiline={true}
+                textAlignVertical="top"
+              />
+
+              {/* Submit Button */}
+              <TouchableOpacity 
+                style={[
+                  styles.submitButton, 
+                  !dropOffInstructions.trim() && styles.submitButtonDisabled
+                ]} 
+                onPress={handleDropOffSubmit}
+                disabled={!dropOffInstructions.trim()}
+              >
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </TouchableOpacity>
+              
+              {/* No Instructions Link */}
+              <TouchableOpacity style={styles.noInstructionsLink} onPress={handleNoInstructions}>
+                <Text style={styles.noInstructionsText}>No instructions to add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Warning Modal for Buyers */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showWarningModal}
+        onRequestClose={() => setShowWarningModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Warning Icon */}
+            <View style={styles.warningIconContainer}>
+              <View style={styles.warningIcon}>
+                <Text style={styles.exclamationMark}>⚠</Text>
+              </View>
+            </View>
+
+            {/* Modal Message */}
+            <Text style={styles.modalMessage}>
+              Once your item is picked up, delivery will begin immediately and you'll be able to track your driver in real-time. If you're not home, your order will be safely left at your doorstep.
+            </Text>
+
+            {/* Action Buttons */}
+            <TouchableOpacity style={styles.understandButton} onPress={handleIUnderstand}>
+              <Text style={styles.understandButtonText}>I understand</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.cancelTransactionLink} onPress={handleCancelTransaction}>
+              <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -611,7 +764,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     marginHorizontal: 24,
+    marginTop: 21,
     marginBottom: 24,
+    width: '100%',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#fff',
@@ -628,5 +783,162 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 320,
+    width: '100%',
+  },
+  warningIconContainer: {
+    marginBottom: 24,
+  },
+  warningIcon: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#ffd1dc',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exclamationMark: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
+    // Create triangle using text symbol
+    transform: [{ rotate: '0deg' }],
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  understandButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  understandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelTransactionLink: {
+    alignItems: 'center',
+  },
+  cancelTransactionText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  // Drop-off Instructions Modal Styles
+  dropOffModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 320,
+    width: '100%',
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: '#6B7280',
+    fontWeight: 'bold',
+  },
+  modalTitleContainer: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+  },
+  instructionsInput: {
+    width: '100%',
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 24,
+    textAlignVertical: 'top',
+  },
+  submitButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    borderColor: '#9CA3AF',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  noInstructionsLink: {
+    alignItems: 'center',
+  },
+  noInstructionsText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

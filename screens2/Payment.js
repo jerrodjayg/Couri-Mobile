@@ -11,7 +11,29 @@ import {
 } from 'react-native';
 
 export default function Payment({ navigation, route }) {
-  const { productUrl, productPrice, userAddress, pickupAddress } = route.params || {};
+  const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
+
+  const getUserInitials = (profile) => {
+    if (profile?.full_name) {
+      const names = profile.full_name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    if (profile?.name) {
+      const names = profile.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    return 'U';
+  };
 
   const handleLinkPayment = () => {
     console.log('💳 User wants to link payment method');
@@ -20,7 +42,9 @@ export default function Payment({ navigation, route }) {
       productUrl,
       productPrice,
       userAddress,
-      pickupAddress
+      pickupAddress,
+      transactionType,
+      userProfile
     });
   };
 
@@ -31,8 +55,8 @@ export default function Payment({ navigation, route }) {
   };
 
   const handleProfilePress = () => {
-    // Navigate to profile/account screen
-    navigation.navigate('MyAccount');
+    // Navigate to profile/account screen with user data
+    navigation.navigate('MyAccount', { userData: userProfile });
   };
 
   return (
@@ -52,9 +76,18 @@ export default function Payment({ navigation, route }) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleProfilePress} style={styles.profileContainer}>
-          <View style={styles.profilePlaceholder}>
-            <Text style={styles.profileInitials}>U</Text>
-          </View>
+          {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+            <Image 
+              source={{ uri: userProfile.avatar_url }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileInitials}>
+                {userProfile ? getUserInitials(userProfile) : 'U'}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -143,6 +176,12 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: 'cover',
   },
   profilePlaceholder: {
     width: 40,

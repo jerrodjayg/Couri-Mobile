@@ -18,6 +18,10 @@ export default function ProductScreen({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [urlInput, setUrlInput] = useState('');
   const { user, customUser, setCustomUser } = useUser();
+  
+  // Get the transaction type from route params
+  const { type } = route.params || {};
+  const isSelling = type === 'sell';
 
   const handleBack = () => {
     navigation.goBack();
@@ -96,12 +100,8 @@ export default function ProductScreen({ navigation, route }) {
 
   const handleProfilePress = () => {
     if (userProfile) {
-      // Pass user data including initials to MyAccount screen
-      const userDataToPass = {
-        ...route?.params?.userData,
-        userInitials: getUserInitials(),
-      };
-      navigation.navigate('MyAccount', { userData: userDataToPass });
+      // Pass user profile data to MyAccount screen
+      navigation.navigate('MyAccount', { userData: userProfile });
     } else {
       // If not signed in, go to login
       navigation.navigate('Login');
@@ -156,7 +156,9 @@ export default function ProductScreen({ navigation, route }) {
         </View>
         
         {/* Title underneath the progress bar */}
-        <Text style={styles.title}>What are you buying?</Text>
+        <Text style={styles.title}>
+          {isSelling ? 'What are you selling?' : 'What are you buying?'}
+        </Text>
       </View>
 
       {/* Main Content */}
@@ -188,10 +190,20 @@ export default function ProductScreen({ navigation, route }) {
             
             // Validate URL before navigating
             if (urlInput.startsWith('https://')) {
-              console.log('✅ Valid HTTPS URL, navigating to ProductDetails');
+              console.log('✅ Valid HTTPS URL, navigating directly to ProductDetails');
               navigation.navigate('ProductDetails', { 
                 productUrl: urlInput,
-                userAddress: userProfile
+                userAddress: userProfile,
+                transactionType: type, // Pass along the transaction type
+                userProfile: userProfile
+              });
+            } else if (urlInput.trim() === '') {
+              console.log('✅ No URL provided, navigating to ProductDetails for manual input');
+              navigation.navigate('ProductDetails', { 
+                productUrl: '',
+                userAddress: userProfile,
+                transactionType: type, // Pass along the transaction type
+                userProfile: userProfile
               });
             } else {
               console.log('❌ Invalid URL - does not start with https://');

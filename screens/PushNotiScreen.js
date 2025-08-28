@@ -498,6 +498,45 @@ const saveRegularUserToDatabase = async () => {
         return;
       }
 
+      // CRITICAL FIX: First check AsyncStorage for personal info data from PersonalInfoScreen
+      let personalInfoData = null;
+      try {
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        if (tempUserData) {
+          personalInfoData = JSON.parse(tempUserData);
+          console.log('✅ PushNotiScreen - Found personal info data in AsyncStorage:', personalInfoData);
+        } else if (userProfileData) {
+          personalInfoData = JSON.parse(userProfileData);
+          console.log('✅ PushNotiScreen - Found personal info data in userProfileData:', personalInfoData);
+        }
+      } catch (storageError) {
+        console.log('⚠️ PushNotiScreen - Error reading AsyncStorage:', storageError);
+      }
+
+      // Merge personal info data with userFromParams, prioritizing personal info data
+      const mergedUserData = {
+        ...userFromParams,
+        ...personalInfoData, // Personal info takes precedence
+        // Ensure we have the most complete data
+        firstName: personalInfoData?.firstName || userFromParams.firstName || '',
+        lastName: personalInfoData?.lastName || userFromParams.lastName || '',
+        email: personalInfoData?.email || userFromParams.email || '',
+        phone: personalInfoData?.phone || userFromParams.phone || '',
+        address1: personalInfoData?.address1 || userFromParams.address1 || '',
+        address2: personalInfoData?.address2 || userFromParams.address2 || '',
+        city: personalInfoData?.city || userFromParams.city || '',
+        state: personalInfoData?.state || userFromParams.state || '',
+        zip: personalInfoData?.zip || userFromParams.zip || '',
+        // Also include database format for consistency
+        address_line_1: personalInfoData?.address1 || userFromParams.address1 || '',
+        address_line_2: personalInfoData?.address2 || userFromParams.address2 || '',
+        zip_code: personalInfoData?.zip || userFromParams.zip || ''
+      };
+
+      console.log('✅ PushNotiScreen - Merged user data with personal info:', mergedUserData);
+
       // Try to get user ID from multiple sources
       let userId = user?.id;
       console.log('🔍 Google user ID resolution attempt 1 - from context:', userId);
@@ -530,28 +569,28 @@ const saveRegularUserToDatabase = async () => {
         console.log('✅ Valid Google user ID found:', userId);
       }
 
-      // Prepare user data for database
+      // Prepare user data for database using merged data
       const userDataForDatabase = {
         id: userId || 'temp_user',
-        email: userFromParams.email,
-        first_name: userFromParams.firstName,
-        last_name: userFromParams.lastName,
-        full_name: `${userFromParams.firstName} ${userFromParams.lastName}`.trim(),
-        phone: userFromParams.phone,
-        address_line_1: userFromParams.address1,
-        address_line_2: userFromParams.address2,
-        city: userFromParams.city,
-        state: userFromParams.state,
-        zip_code: userFromParams.zip,
+        email: mergedUserData.email,
+        first_name: mergedUserData.firstName,
+        last_name: mergedUserData.lastName,
+        full_name: `${mergedUserData.firstName} ${mergedUserData.lastName}`.trim(),
+        phone: mergedUserData.phone,
+        address_line_1: mergedUserData.address1,
+        address_line_2: mergedUserData.address2,
+        city: mergedUserData.city,
+        state: mergedUserData.state,
+        zip_code: mergedUserData.zip,
         avatar_url: '', // Don't use Google avatar by default
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
       console.log('🔍 Google user database schema mapping:');
-      console.log('  address1 -> address_line_1:', userFromParams.address1);
-      console.log('  address2 -> address_line_2:', userFromParams.address2);
-      console.log('  zip -> zip_code:', userFromParams.zip);
+      console.log('  address1 -> address_line_1:', mergedUserData.address1);
+      console.log('  address2 -> address_line_2:', mergedUserData.address2);
+      console.log('  zip -> zip_code:', mergedUserData.zip);
 
       console.log('📋 User data prepared for database:', userDataForDatabase);
       
@@ -571,7 +610,7 @@ const saveRegularUserToDatabase = async () => {
         return;
       }
       
-            console.log('✅ User data validation passed');
+      console.log('✅ User data validation passed');
 
       // ALSO save to users table for authentication
       console.log('🔄 Saving Google user data to Supabase users table...');
@@ -579,15 +618,15 @@ const saveRegularUserToDatabase = async () => {
         // Don't include 'id' field - let database auto-generate it
         // Store the Supabase Auth UUID in auth_user_id field for reference
         auth_user_id: userId || null,
-        email: userFromParams.email,
-        first_name: userFromParams.firstName,
-        last_name: userFromParams.lastName,
-        phone: userFromParams.phone,
-        address_line_1: userFromParams.address1,
-        address_line_2: userFromParams.address2,
-        city: userFromParams.city,
-        state: userFromParams.state,
-        zip_code: userFromParams.zip,
+        email: mergedUserData.email,
+        first_name: mergedUserData.firstName,
+        last_name: mergedUserData.lastName,
+        phone: mergedUserData.phone,
+        address_line_1: mergedUserData.address1,
+        address_line_2: mergedUserData.address2,
+        city: mergedUserData.city,
+        state: mergedUserData.state,
+        zip_code: mergedUserData.zip,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -634,20 +673,27 @@ const saveRegularUserToDatabase = async () => {
         console.log('✅ Google user data successfully saved to users table:', usersData);
       }
 
-      // Store user data in AsyncStorage for the welcome screen
+      // CRITICAL FIX: Store complete user data in AsyncStorage for the welcome screen
       const userDataToStore = {
         id: userId || 'temp_user',
-        email: userFromParams.email,
-        firstName: userFromParams.firstName,
-        lastName: userFromParams.lastName,
-        phone: userFromParams.phone,
-        address1: userFromParams.address1,
-        address2: userFromParams.address2,
-        city: userFromParams.city,
-        state: userFromParams.state,
-        zip: userFromParams.zip,
+        email: mergedUserData.email,
+        firstName: mergedUserData.firstName,
+        lastName: mergedUserData.lastName,
+        phone: mergedUserData.phone,
+        address1: mergedUserData.address1,
+        address2: mergedUserData.address2,
+        city: mergedUserData.city,
+        state: mergedUserData.state,
+        zip: mergedUserData.zip,
+        // Also include database format for consistency
+        address_line_1: mergedUserData.address1,
+        address_line_2: mergedUserData.address2,
+        zip_code: mergedUserData.zip,
         avatar_url: '', // No avatar - will show initials
-        isGoogleAuth: true
+        isGoogleAuth: true,
+        // Create name fields for consistency
+        name: `${mergedUserData.firstName} ${mergedUserData.lastName}`.trim(),
+        full_name: `${mergedUserData.firstName} ${mergedUserData.lastName}`.trim()
       };
 
       // Store in both AsyncStorage keys for consistency

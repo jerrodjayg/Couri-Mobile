@@ -204,8 +204,9 @@ export default function ProductPrice({ navigation, route }) {
         </View>
       </View>
 
-             {/* Debug Button */}
-       <TouchableOpacity style={styles.debugButton} onPress={() => validateAndNavigate(url)}>
+             {/* Debug Button (SEE WHAT THIS BUTTON DOES!)*/}
+             
+      <TouchableOpacity style={styles.debugButton} onPress={() => validateAndNavigate(url)}>
          <Text style={styles.debugButtonText}>Debug: Validate URL</Text>
        </TouchableOpacity>
 

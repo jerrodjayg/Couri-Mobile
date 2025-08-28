@@ -8,11 +8,12 @@ WebBrowser.maybeCompleteAuthSession();
 export function useFacebookAuth() {
   const [loading, setLoading] = useState(false);
 
+  // Create redirect URI for Expo Go compatibility
+  const redirectTo = 'com.anonymous.jerrod://';
+
   const signIn = async () => {
     try {
       setLoading(true);
-
-      const redirectTo = "com.anonymous.jerroddd://"; // Match your app deep link
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: { redirectTo },

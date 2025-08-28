@@ -106,6 +106,7 @@ export default function CreatePasswordScreen({ navigation, route }) {
       maxLength: pwd.length <= 80,
       upper: /[A-Z]/.test(pwd),
       lower: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
       symbol: /[!%&@#$^*?_~]/.test(pwd),
       noEmoji: /^[\u0000-\u007F]*$/.test(pwd),
     };
@@ -208,20 +209,20 @@ export default function CreatePasswordScreen({ navigation, route }) {
               });
             }
             
-            // Create formatted user object with password
+            // CRITICAL FIX: Create formatted user object with complete personal info from userInfo
             const formattedGoogleUser = {
               ...existingGoogleUser,
               password_hash: password,
               id: updateData[0].id,
-              firstName: updateData[0].first_name,
-              lastName: updateData[0].last_name,
-              email: updateData[0].email,
-              phone: updateData[0].phone || '',
-              address1: updateData[0].address_line_1 || '',
-              address2: updateData[0].address_line_2 || '',
-              city: updateData[0].city || '',
-              state: updateData[0].state || '',
-              zip: updateData[0].zip_code || '',
+              firstName: userInfo.firstName || existingGoogleUser.first_name || '',
+              lastName: userInfo.lastName || existingGoogleUser.last_name || '',
+              email: userInfo.email || existingGoogleUser.email || '',
+              phone: userInfo.phone || existingGoogleUser.phone || '',
+              address1: userInfo.address1 || existingGoogleUser.address_line_1 || '',
+              address2: userInfo.address2 || existingGoogleUser.address_line_2 || '',
+              city: userInfo.city || existingGoogleUser.city || '',
+              state: userInfo.state || existingGoogleUser.state || '',
+              zip: userInfo.zip || existingGoogleUser.zip_code || '',
               created_at: updateData[0].created_at,
               updated_at: updateData[0].updated_at
             };
@@ -267,19 +268,19 @@ export default function CreatePasswordScreen({ navigation, route }) {
             
             console.log('✅ New Google user with password created successfully:', newUser);
             
-            // Create formatted user object
+            // CRITICAL FIX: Create formatted user object with complete personal info from userInfo
             const formattedNewGoogleUser = {
               ...newUser[0],
               id: newUser[0].id,
-              firstName: newUser[0].first_name,
-              lastName: newUser[0].last_name,
-              email: newUser[0].email,
-              phone: newUser[0].phone || '',
-              address1: newUser[0].address_line_1 || '',
-              address2: newUser[0].address_line_2 || '',
-              city: newUser[0].city || '',
-              state: newUser[0].state || '',
-              zip: newUser[0].zip_code || '',
+              firstName: userInfo.firstName || newUser[0].first_name || '',
+              lastName: userInfo.lastName || newUser[0].last_name || '',
+              email: userInfo.email || newUser[0].email || '',
+              phone: userInfo.phone || newUser[0].phone || '',
+              address1: userInfo.address1 || newUser[0].address_line_1 || '',
+              address2: userInfo.address2 || newUser[0].address_line_2 || '',
+              city: userInfo.city || newUser[0].city || '',
+              state: userInfo.state || newUser[0].state || '',
+              zip: userInfo.zip || newUser[0].zip_code || '',
               created_at: newUser[0].created_at,
               updated_at: newUser[0].updated_at
             };
@@ -544,6 +545,7 @@ export default function CreatePasswordScreen({ navigation, route }) {
             <RuleItem rule="Must include uppercase letter" valid={isValid.upper} show={password.length > 0} />
             <RuleItem rule="Must include lowercase letter" valid={isValid.lower} show={password.length > 0} />
             <RuleItem rule="Must include a symbol (!%&@#$^*?_~)" valid={isValid.symbol} show={password.length > 0} />
+            <RuleItem rule="Must include a number" valid={isValid.number} show={password.length > 0} />
             <RuleItem rule="Can't include emojis" valid={isValid.noEmoji} show={password.length > 0} />
             <RuleItem
               rule="Passwords match"

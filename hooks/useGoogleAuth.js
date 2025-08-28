@@ -9,6 +9,9 @@ WebBrowser.maybeCompleteAuthSession();
 export function useGoogleAuth() {
   const [loading, setLoading] = useState(false);
 
+  // Create redirect URI for Expo Go compatibility
+  const redirectTo = 'com.anonymous.jerrod://';
+
   const signIn = async () => {
     if (loading) return;
     setLoading(true);
@@ -16,12 +19,12 @@ export function useGoogleAuth() {
     try {
       console.log('🔄 Starting Supabase Google OAuth...');
       console.log('📱 Platform:', Platform.OS);
-      console.log('🔗 Redirect URL:', 'com.anonymous.jerrod://');
+      console.log('🔗 Redirect URL:', redirectTo);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'com.anonymous.jerrod://',
+          redirectTo: redirectTo,
           scopes: 'email profile',
           queryParams: {
             access_type: 'offline',
@@ -52,10 +55,22 @@ export function useGoogleAuth() {
             console.log('📱 WebBrowser warm-up failed:', warmUpError.message);
           }
 
-          result = await WebBrowser.openAuthSessionAsync(data.url, 'com.anonymous.jerrod://');
+          // Add timeout handling for Android
+          result = await Promise.race([
+            WebBrowser.openAuthSessionAsync(data.url, redirectTo),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Sign-in timeout')), 105000) // 105 second timeout (60 + 45)
+            )
+          ]);
         } else {
           console.log('📱 iOS detected - using WebBrowser...');
-          result = await WebBrowser.openAuthSessionAsync(data.url, 'com.anonymous.jerrod://');
+          // Add timeout handling for iOS
+          result = await Promise.race([
+            WebBrowser.openAuthSessionAsync(data.url, redirectTo),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Sign-in timeout')), 105000) // 105 second timeout (60 + 45)
+            )
+          ]);
         }
 
         console.log('📱 OAuth result:', result);
@@ -160,6 +175,8 @@ export function useGoogleAuth() {
         userMessage = 'Sign-in was cancelled.';
       } else if (err.message?.includes('timeout')) {
         userMessage = 'Sign-in timed out. Please try again.';
+      } else if (err.message?.includes('Sign-in timeout')) {
+        userMessage = 'Sign-in is taking too long. Please check your internet connection and try again.';
       }
       
       return { type: 'error', message: userMessage, originalError: err };

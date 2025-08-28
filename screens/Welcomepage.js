@@ -742,12 +742,8 @@ export default function Welcomepage({ route, navigation }) {
 
   const handleProfilePress = () => {
     if (userProfile) {
-      // Pass user data including initials to MyAccount screen
-      const userDataToPass = {
-        ...route?.params?.userData,
-        userInitials: getUserInitials(),
-      };
-      navigation.navigate('MyAccount', { userData: userDataToPass });
+      // Pass user profile data to MyAccount screen
+      navigation.navigate('MyAccount', { userData: userProfile });
     } else {
       // If not signed in, go to login
       navigation.navigate('Login');
@@ -762,7 +758,7 @@ export default function Welcomepage({ route, navigation }) {
       Animated.timing(waveAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
   }, []);
-
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -909,8 +905,11 @@ export default function Welcomepage({ route, navigation }) {
           onGetStarted={(option) => {
             console.log('User selected:', option);
             setModalVisible(false);
-            // Navigate to URL screen with the selected option
-            navigation.navigate('URL', { type: option });
+            // Navigate to URL screen with the selected option and user profile
+            navigation.navigate('URL', { 
+              type: option,
+              userProfile: userProfile
+            });
           }}
         />
       </View>

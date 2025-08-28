@@ -14,15 +14,43 @@ export default function ProductDetails({ navigation, route }) {
   useEffect(() => {
     console.log('🔄 Loading state changed to:', loading);
   }, [loading]);
+  
+  // Get the transaction type from route params
+  const { transactionType } = route.params || {};
+  const isSelling = transactionType === 'sell';
+  
   const [extractedData, setExtractedData] = useState({
     productName: '',
-    price: '',
+    price: '$', // Keep $ prefix but remove initial price
     description: '',
     imageUrl: ''
   });
   const [isScraping, setIsScraping] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   
-  const { productUrl, userAddress } = route.params || {};
+  const { productUrl, userAddress, userProfile } = route.params || {};
+
+  const getUserInitials = (profile) => {
+    if (profile?.full_name) {
+      const names = profile.full_name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    if (profile?.name) {
+      const names = profile.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    return 'U';
+  };
 
   // Create products table if it doesn't exist
   const createProductsTable = async () => {
@@ -184,9 +212,23 @@ export default function ProductDetails({ navigation, route }) {
       
       // If we found some data, return it
       if (productName || price || description) {
+        // Ensure price is in valid format
+        let formattedPrice = '$';
+        if (price) {
+          try {
+            const cleanPrice = price.replace(/[$,]/g, '').trim();
+            const parsedPrice = parseFloat(cleanPrice);
+            if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+              formattedPrice = `$${parsedPrice.toFixed(2)}`;
+            }
+          } catch (e) {
+            console.log('⚠️ Price formatting error in URL extraction:', e);
+          }
+        }
+        
         const extractedData = {
           productName: productName || 'Facebook Product',
-          price: price || '0.00',
+          price: formattedPrice,
           description: description || 'Product information extracted from URL parameters',
           imageUrl: 'https://via.placeholder.com/150?text=URL+Extracted'
         };
@@ -204,13 +246,13 @@ export default function ProductDetails({ navigation, route }) {
           const postId = pathParts[postIdIndex + 1];
           console.log('🔍 Found post ID in URL:', postId);
           
-          // Return basic info based on post ID
-          return {
-            productName: `Facebook Product (ID: ${postId})`,
-            price: '0.00',
-            description: `Product from Facebook post ${postId}. Please enter details manually.`,
-            imageUrl: 'https://via.placeholder.com/150?text=Post+ID+Found'
-          };
+                  // Return basic info based on post ID
+        return {
+          productName: `Facebook Product (ID: ${postId})`,
+          price: '$', // Keep $ prefix but remove initial price
+          description: `Product from Facebook post ${postId}. Please enter details manually.`,
+          imageUrl: 'https://via.placeholder.com/150?text=Post+ID+Found'
+        };
         }
       }
       
@@ -500,16 +542,36 @@ export default function ProductDetails({ navigation, route }) {
         }
       }
         
-              // Set defaults if data is missing
+      // Set defaults if data is missing
       if (!productName) {
         productName = 'Facebook Marketplace Product';
         console.log('⚠️ Product name not found, using default');
       }
       
-             if (!price) {
-         price = '$0.00';
-         console.log('⚠️ Price not found, using default');
-       }
+      // CRITICAL FIX: Ensure price is always a valid format
+      if (!price || price === '$0.00' || price === '0.00') {
+        price = '$';
+        console.log('⚠️ Price not found or invalid, using default');
+      } else {
+        // Clean up the price to ensure it's in a parseable format
+        try {
+          // Remove dollar signs and commas, then validate
+          const cleanPrice = price.replace(/[$,]/g, '').trim();
+          const parsedPrice = parseFloat(cleanPrice);
+          
+          if (isNaN(parsedPrice) || parsedPrice < 0) {
+            console.log('⚠️ Invalid price format detected, using default:', price);
+            price = '0.00';
+          } else {
+            // Format the price consistently
+            price = parsedPrice.toFixed(2);
+            console.log('✅ Price cleaned and formatted:', price);
+          }
+        } catch (priceError) {
+          console.log('⚠️ Price cleaning error, using default:', priceError);
+          price = '0.00';
+        }
+      }
       
       if (!description) {
         description = 'Product description not available. Please edit manually.';
@@ -525,14 +587,16 @@ export default function ProductDetails({ navigation, route }) {
       if (productName) {
         productName = productName.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
         
-                 // Check if product name contains a price and extract it
-         const priceInName = productName.match(/\$(\d+(?:\.\d{2})?)/i);
-         if (priceInName && priceInName[1] && (!price || price === '$0.00')) {
-           // Format the price with dollar sign and proper formatting
-           const extractedPrice = parseFloat(priceInName[1]);
-           price = `$${extractedPrice.toFixed(2)}`;
-           console.log('✅ Price extracted from product name:', price);
-         }
+        // Check if product name contains a price and extract it
+        const priceInName = productName.match(/\$(\d+(?:\.\d{2})?)/i);
+        if (priceInName && priceInName[1] && (price === '0.00' || price === '$0.00')) {
+          // Format the price with proper decimal formatting
+          const extractedPrice = parseFloat(priceInName[1]);
+          if (!isNaN(extractedPrice) && extractedPrice > 0) {
+            price = extractedPrice.toFixed(2);
+            console.log('✅ Price extracted from product name:', price);
+          }
+        }
         
         // Clean up product name - remove price info and make it shorter
         productName = productName
@@ -849,7 +913,6 @@ export default function ProductDetails({ navigation, route }) {
              console.log('🔍 DEBUG - Price:', extractedData.price);
              console.log('🔍 DEBUG - Image URL:', extractedData.imageUrl);
              setExtractedData(extractedData);
-             Alert.alert('Success', 'Product data extracted from Facebook successfully!');
              await saveToSupabase(extractedData);
              return;
            } else {
@@ -927,7 +990,6 @@ export default function ProductDetails({ navigation, route }) {
                    console.log('🔍 DEBUG - Price:', extractedData.price);
                    console.log('🔍 DEBUG - Image URL:', extractedData.imageUrl);
                    setExtractedData(extractedData);
-                   Alert.alert('Success', 'Product data extracted from Facebook Marketplace!');
                    await saveToSupabase(extractedData);
                    return;
                  }
@@ -995,12 +1057,26 @@ export default function ProductDetails({ navigation, route }) {
             }
             
             if (foundProductName || foundPrice) {
-              extractedData = {
-                productName: foundProductName || 'Product Found in Text',
-                price: foundPrice || '0.00',
-                description: 'Product information extracted from page text content.',
-                imageUrl: 'https://via.placeholder.com/150?text=Text+Extracted'
-              };
+                      // Ensure price is in valid format
+        let formattedPrice = '$';
+        if (foundPrice) {
+          try {
+            const cleanPrice = foundPrice.replace(/[$,]/g, '').trim();
+            const parsedPrice = parseFloat(cleanPrice);
+            if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+              formattedPrice = `$${parsedPrice.toFixed(2)}`;
+            }
+          } catch (e) {
+            console.log('⚠️ Price formatting error in text extraction:', e);
+          }
+        }
+        
+        extractedData = {
+          productName: foundProductName || 'Product Found in Text',
+          price: formattedPrice,
+          description: 'Product information extracted from page text content.',
+          imageUrl: 'https://via.placeholder.com/150?text=Text+Extracted'
+        };
               console.log('✅ Extracted data from text content:', extractedData);
             }
           }
@@ -1015,26 +1091,20 @@ export default function ProductDetails({ navigation, route }) {
         
         // Try to give the user some hints about what might be on the page
         const hintData = {
-          productName: 'Product Information (Please Edit)',
-          price: '0.00',
-          description: 'The app attempted to scrape Facebook but could not automatically extract the product details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the product information manually.',
+          productName: isSelling ? 'Item Information (Please Edit)' : 'Product Information (Please Edit)',
+          price: '$', // Keep $ prefix but remove initial price
+          description: isSelling
+            ? 'The app attempted to scrape Facebook but could not automatically extract the item details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the item information manually to create an attractive listing.'
+            : 'The app attempted to scrape Facebook but could not automatically extract the product details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the product information manually.',
           imageUrl: 'https://via.placeholder.com/150?text=Manual+Input+Required'
         };
         
         setExtractedData(hintData);
-        Alert.alert(
-          'Manual Input Required', 
-          'Facebook data could not be automatically extracted. This is common due to Facebook\'s security measures.\n\nPlease open the URL in your browser and copy the product information manually.',
-          [{ text: 'OK' }]
-        );
+        // Removed alert to avoid popup when navigating
       } else {
         // We found some data, show it to the user
         setExtractedData(extractedData);
-        Alert.alert(
-          'Data Extracted', 
-          'Some product information was found. Please review and edit as needed.',
-          [{ text: 'OK' }]
-        );
+        // Removed alert to avoid popup when navigating
       }
       
     } catch (error) {
@@ -1042,18 +1112,16 @@ export default function ProductDetails({ navigation, route }) {
       
       // Show error but still let user input manually
       const errorData = {
-        productName: 'Product Information (Error Occurred)',
-        price: '0.00',
-        description: 'An error occurred during scraping: ' + error.message + '\n\nPlease enter the product details manually below.',
+        productName: isSelling ? 'Item Information (Error Occurred)' : 'Product Information (Error Occurred)',
+        price: '$', // Keep $ prefix but remove initial price
+        description: isSelling
+          ? 'An error occurred during scraping: ' + error.message + '\n\nPlease enter your item details manually below to create a listing.'
+          : 'An error occurred during scraping: ' + error.message + '\n\nPlease enter the product details manually below.',
         imageUrl: 'https://via.placeholder.com/150?text=Error+Occurred'
       };
       
       setExtractedData(errorData);
-      Alert.alert(
-        'Scraping Error', 
-        'An error occurred during scraping: ' + error.message + '\n\nPlease enter the product information manually.',
-        [{ text: 'OK' }]
-      );
+      // Removed alert to avoid popup when navigating
       
     } finally {
       setIsScraping(false);
@@ -1086,12 +1154,31 @@ export default function ProductDetails({ navigation, route }) {
       const userId = userResponse.data.user?.id;
       console.log('👤 User ID:', userId);
       
+      // CRITICAL FIX: Ensure price is always a valid number
+      let parsedPrice = 0.00;
+      try {
+        // Clean the price string by removing dollar signs, commas, and extra spaces
+        const cleanPrice = data.price.toString().replace(/[$,]/g, '').trim();
+        parsedPrice = parseFloat(cleanPrice);
+        
+        // Validate that we got a valid number
+        if (isNaN(parsedPrice) || parsedPrice < 0 || data.price === '$') {
+          console.log('⚠️ Invalid price detected, using default:', data.price);
+          parsedPrice = 0.00;
+        }
+        
+        console.log('💰 Price parsing - Original:', data.price, 'Cleaned:', cleanPrice, 'Parsed:', parsedPrice);
+      } catch (priceError) {
+        console.log('⚠️ Price parsing error, using default:', priceError);
+        parsedPrice = 0.00;
+      }
+      
       const insertData = {
         url: productUrl,
-        name: data.productName,
-        price: parseFloat(data.price),
-        description: data.description,
-        image_url: data.imageUrl,
+        name: data.productName || 'Unknown Product',
+        price: parsedPrice, // Use the validated price
+        description: data.description || 'No description available',
+        image_url: data.imageUrl || null,
         user_id: userId,
         created_at: new Date().toISOString()
       };
@@ -1155,6 +1242,16 @@ export default function ProductDetails({ navigation, route }) {
               { text: 'OK' }
             ]
           );
+        } else if (error.code === '23502') {
+          // NOT NULL constraint violation
+          console.log('❌ NOT NULL constraint violation:', error.message);
+          Alert.alert(
+            'Data Validation Error', 
+            'Some required product information is missing. Please check that all fields are filled correctly.',
+            [
+              { text: 'OK' }
+            ]
+          );
         } else {
           throw error;
         }
@@ -1162,7 +1259,6 @@ export default function ProductDetails({ navigation, route }) {
       }
       
       console.log('✅ Product saved to Supabase:', result);
-      Alert.alert('Success', 'Product information extracted and saved!');
       
     } catch (error) {
       console.error('🚨 Supabase save error:', error);
@@ -1189,27 +1285,77 @@ export default function ProductDetails({ navigation, route }) {
   };
 
   const handleManualEdit = (field, value) => {
-    setExtractedData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    if (field === 'price') {
+      // Handle price field specially - ensure it always has a $ prefix
+      let cleanValue = value;
+      if (value && !value.startsWith('$')) {
+        cleanValue = '$' + value;
+      }
+      // If the value is empty, just keep the $ prefix
+      if (!value || value.trim() === '') {
+        cleanValue = '$';
+      }
+      setExtractedData(prev => ({
+        ...prev,
+        [field]: cleanValue
+      }));
+    } else {
+      setExtractedData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
   };
 
   const handleSubmit = () => {
-    if (!extractedData.productName || !extractedData.price) {
+    if (!extractedData.productName || !extractedData.price || extractedData.price === '$') {
       Alert.alert('Error', 'Please ensure product name and price are filled');
       return;
     }
 
-    // Navigate to next screen with extracted data
+    // Only show the modal for sellers
+    if (isSelling) {
+      setShowModal(true);
+    } else {
+      // For buyers, navigate directly to ConfirmAddress
+      navigation.navigate('ConfirmAddress', {
+        productUrl,
+        productPrice: extractedData.price,
+        userAddress,
+        productName: extractedData.productName,
+        productDescription: extractedData.description,
+        productImage: extractedData.imageUrl,
+        transactionType,
+        userProfile
+      });
+    }
+  };
+
+  // Handle modal actions
+  const handleIUnderstand = () => {
+    setShowModal(false);
+    // Check if price is valid before navigating
+    if (extractedData.price === '$') {
+      Alert.alert('Error', 'Please enter a valid price before continuing');
+      return;
+    }
+    // Navigate to ConfirmAddress page
     navigation.navigate('ConfirmAddress', {
       productUrl,
       productPrice: extractedData.price,
       userAddress,
       productName: extractedData.productName,
       productDescription: extractedData.description,
-      productImage: extractedData.imageUrl
+      productImage: extractedData.imageUrl,
+      transactionType, // Pass along the transaction type
+      userProfile
     });
+  };
+
+  const handleCancelTransaction = () => {
+    setShowModal(false);
+    // Return to welcome page without saving data
+    navigation.navigate('Welcomepage');
   };
 
   const handleRetakeScreenshot = () => {
@@ -1224,7 +1370,7 @@ export default function ProductDetails({ navigation, route }) {
   };
 
   const handleProfilePress = () => {
-    navigation.navigate('MyAccount');
+    navigation.navigate('MyAccount', { userData: userProfile });
   };
 
 
@@ -1264,9 +1410,18 @@ export default function ProductDetails({ navigation, route }) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleProfilePress} style={styles.profileContainer}>
-          <View style={styles.profilePlaceholder}>
-            <Text style={styles.profileInitials}>U</Text>
-          </View>
+          {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+            <Image 
+              source={{ uri: userProfile.avatar_url }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileInitials}>
+                {userProfile ? getUserInitials(userProfile) : 'U'}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -1295,15 +1450,21 @@ export default function ProductDetails({ navigation, route }) {
           
                     {!extractedData.productName ? (
             <View style={styles.webViewContainer}>
-              <Text style={styles.sectionTitle}>Facebook Marketplace Scraper</Text>
+              <Text style={styles.sectionTitle}>
+                {isSelling ? 'Facebook Marketplace Seller' : 'Facebook Marketplace Scraper'}
+              </Text>
               <Text style={styles.sectionSubtitle}>
-                Automatically extracting product information from: {productUrl}
+                {isSelling 
+                  ? 'Automatically extracting product information for listing: ' + productUrl
+                  : 'Automatically extracting product information from: ' + productUrl
+                }
               </Text>
               
               {/* Helpful note about Facebook scraping */}
               <View style={styles.helpNoteContainer}>
                 <Text style={styles.helpNoteText}>
                   💡 <Text style={styles.helpNoteBold}>Note:</Text> Facebook has security measures that may prevent automatic data extraction. If scraping fails, you can enter the product details manually below.
+                  {isSelling && ' We\'ll help you create an attractive listing for potential buyers.'}
                 </Text>
               </View>
               
@@ -1311,7 +1472,10 @@ export default function ProductDetails({ navigation, route }) {
               <View style={styles.loadingStateContainer}>
                 <ActivityIndicator size="large" color="#10B981" />
                 <Text style={styles.loadingStateText}>
-                  {isScraping ? '🔄 Scraping Facebook Marketplace...' : '⏳ Preparing to scrape...'}
+                  {isScraping 
+                    ? (isSelling ? '🔄 Scraping Facebook Marketplace for listing...' : '🔄 Scraping Facebook Marketplace...')
+                    : (isSelling ? '⏳ Preparing to scrape for listing...' : '⏳ Preparing to scrape...')
+                  }
                 </Text>
                 <Text style={styles.loadingStateSubtext}>
                   This may take a few moments
@@ -1333,22 +1497,7 @@ export default function ProductDetails({ navigation, route }) {
                 <Text style={styles.openInBrowserButtonText}>Open in Browser</Text>
               </TouchableOpacity>
               
-                             {/* Skip Scraping Button - Go straight to manual input */}
-               <TouchableOpacity 
-                 style={[styles.captureButton, { backgroundColor: '#10B981', marginTop: 12 }]} 
-                 onPress={() => {
-                   console.log('⏭️ User chose to skip scraping and go to manual input');
-                   const manualData = {
-                     productName: 'Facebook Product (Manual Input)',
-                     price: '0.00',
-                     description: 'Please enter the product details manually below.',
-                     imageUrl: 'https://via.placeholder.com/150?text=Manual+Input'
-                   };
-                   setExtractedData(manualData);
-                 }}
-               >
-                 <Text style={styles.captureButtonText}>⏭️ Skip Scraping & Enter Manually</Text>
-               </TouchableOpacity>
+               
                
                                {/* Debug button to test extraction without screenshot */}
                 <TouchableOpacity 
@@ -1391,12 +1540,12 @@ export default function ProductDetails({ navigation, route }) {
                           }));
                         } else {
                           console.log('❌ No image found');
-                          Alert.alert('No Image Found', 'Could not find any image on the page');
+                          // Removed alert to avoid popup
                         }
                       }
                     } catch (error) {
                       console.log('❌ Image search failed:', error.message);
-                      Alert.alert('Error', 'Failed to search for images');
+                      // Removed alert to avoid popup
                     }
                   }}
                 >
@@ -1410,18 +1559,10 @@ export default function ProductDetails({ navigation, route }) {
                    console.log('🔧 Manual: Attempting to create products table...');
                    try {
                      await createProductsTable();
-                     Alert.alert(
-                       'Table Creation', 
-                       'Products table creation attempted. Check console for results.',
-                       [{ text: 'OK' }]
-                     );
+                     // Removed alert to avoid popup
                    } catch (error) {
                      console.error('❌ Manual table creation failed:', error);
-                     Alert.alert(
-                       'Table Creation Failed', 
-                       'Could not create products table. Please contact support.',
-                       [{ text: 'OK' }]
-                     );
+                     // Removed alert to avoid popup
                    }
                  }}
                >
@@ -1434,9 +1575,14 @@ export default function ProductDetails({ navigation, route }) {
               
               {/* Extracted Data Section */}
               <View style={styles.extractedDataContainer}>
-              <Text style={styles.sectionTitle}>Extracted Product Information</Text>
+              <Text style={styles.sectionTitle}>
+                {isSelling ? 'Extracted Listing Information' : 'Extracted Product Information'}
+              </Text>
               <Text style={styles.sectionSubtitle}>
-                Review and edit the extracted information below
+                {isSelling 
+                  ? 'Review and edit your listing information below'
+                  : 'Review and edit the extracted information below'
+                }
               </Text>
               
                                              {/* Product Image */}
@@ -1475,7 +1621,9 @@ export default function ProductDetails({ navigation, route }) {
               
               {/* Product Name */}
               <View style={styles.inputContainer}>
-                <Text style={styles.fieldLabel}>PRODUCT NAME</Text>
+                <Text style={styles.fieldLabel}>
+                  {isSelling ? 'ITEM NAME' : 'PRODUCT NAME'}
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   value={extractedData.productName}
@@ -1487,19 +1635,26 @@ export default function ProductDetails({ navigation, route }) {
               
               {/* Price */}
               <View style={styles.inputContainer}>
-                <Text style={styles.fieldLabel}>PRODUCT PRICE</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={extractedData.price}
-                  onChangeText={(text) => handleManualEdit('price', text)}
-                  placeholder="Enter price"
-                  keyboardType="numeric"
-                />
+                <Text style={styles.fieldLabel}>
+                  {isSelling ? 'SELLING PRICE' : 'PRODUCT PRICE'}
+                </Text>
+                <View style={styles.priceInputContainer}>
+                  <Text style={styles.pricePrefix}>$</Text>
+                  <TextInput
+                    style={styles.priceTextInput}
+                    value={extractedData.price === '$' ? '' : extractedData.price.replace('$', '')}
+                    onChangeText={(text) => handleManualEdit('price', text)}
+                    placeholder=""
+                    keyboardType="numeric"
+                  />
+                </View>
               </View>
               
               {/* Description */}
               <View style={styles.inputContainer}>
-                <Text style={styles.fieldLabel}>DESCRIPTION</Text>
+                <Text style={styles.fieldLabel}>
+                  {isSelling ? 'ITEM DESCRIPTION' : 'DESCRIPTION'}
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   value={extractedData.description}
@@ -1516,52 +1671,65 @@ export default function ProductDetails({ navigation, route }) {
                     style={styles.retakeButton} 
                     onPress={handleRetakeScreenshot}
                   >
-                    <Text style={styles.retakeButtonText}>Retry Scraping</Text>
+                                         <Text style={styles.retakeButtonText}>
+                       Retry Scraping
+                     </Text>
                   </TouchableOpacity>
                  
                  <TouchableOpacity 
                    style={styles.submitButton} 
                    onPress={handleSubmit}
                  >
-                   <Text style={styles.submitButtonText}>Submit</Text>
+                                                                               <Text style={styles.submitButtonText}>
+                       Submit
+                     </Text>
                  </TouchableOpacity>
                </View>
-               
-               {/* Skip Database Save Option */}
-               <TouchableOpacity 
-                 style={[styles.skipButton]} 
-                 onPress={() => {
-                   Alert.alert(
-                     'Skip Database Save',
-                     'This will skip saving to the database but allow you to continue with the transaction. Continue?',
-                     [
-                       { text: 'Cancel', style: 'cancel' },
-                       { 
-                         text: 'Continue', 
-                         onPress: () => {
-                           console.log('⏭️ User chose to skip database save');
-                                                     navigation.navigate('ConfirmAddress', {
-                            productUrl,
-                            productPrice: extractedData.price,
-                            userAddress,
-                            productName: extractedData.productName,
-                            productDescription: extractedData.description,
-                            productImage: extractedData.imageUrl
-                          });
-                         }
-                       }
-                     ]
-                   );
-                 }}
-               >
-                 <Text style={styles.skipButtonText}>⏭️ Skip Database Save & Continue</Text>
-               </TouchableOpacity>
+        
             </View>
             </>
           )}
           
         </View>
       </ScrollView>
+
+      {/* Modal Popup */}
+      {showModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Icon */}
+            <View style={styles.modalIconContainer}>
+              <View style={styles.modalIconOuter}>
+                <View style={styles.modalIconInner}>
+                  <Text style={styles.modalIconText}>CO</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.modalTitle}>Help Keep Couri Safe and Trusted</Text>
+
+            {/* Body Text */}
+            <Text style={styles.modalBodyText}>
+              To protect our community, buyers have a 4-hour return window in case an item is fake, damaged, or misrepresented. Seller payouts are held until this window closes.
+            </Text>
+            
+            <Text style={styles.modalBodyText}>
+              Please ensure your listings are authentic and accurately described. <Text style={styles.modalBoldText}>Repeated violations will lead to account suspension.</Text>
+            </Text>
+
+            {/* Primary Button */}
+            <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleIUnderstand}>
+              <Text style={styles.modalPrimaryButtonText}>I understand</Text>
+            </TouchableOpacity>
+
+            {/* Secondary Button */}
+            <TouchableOpacity style={styles.modalSecondaryButton} onPress={handleCancelTransaction}>
+              <Text style={styles.modalSecondaryButtonText}>Cancel transaction</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1599,6 +1767,12 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: 'cover',
   },
   profilePlaceholder: {
     width: 40,
@@ -1905,10 +2079,134 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
-     skipButtonText: {
-     color: '#fff',
-     fontSize: 16,
-     fontWeight: '600',
-   },
+       skipButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Price input styles
+  priceInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    minHeight: 48,
+  },
+  pricePrefix: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  priceTextInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000',
+    paddingVertical: 16,
+    paddingRight: 16,
+    minHeight: 48,
+  },
+
+  // Modal styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalIconContainer: {
+    marginBottom: 20,
+  },
+  modalIconOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalIconInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  modalIconText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 28,
+  },
+  modalBodyText: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 24,
+  },
+  modalBoldText: {
+    fontWeight: 'bold',
+  },
+  modalPrimaryButton: {
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalPrimaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalSecondaryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  modalSecondaryButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
    
  });

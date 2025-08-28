@@ -204,7 +204,7 @@ const handleGoogleSignIn = async () => {
   
   // Add timeout to prevent hanging
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Google sign-in timeout after 30 seconds')), 30000);
+    setTimeout(() => reject(new Error('Google sign-in timeout after 105 seconds')), 105000);
   });
   
   try {
@@ -243,7 +243,7 @@ const handleGoogleSignIn = async () => {
             email: userData.email,
             firstName: userData.user_metadata?.first_name || userData.user_metadata?.name?.split(' ')[0] || '',
             lastName: userData.user_metadata?.last_name || userData.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
-          });
+          }); 
           console.log('✅ User data saved to database successfully');
         } catch (dbError) {
           console.error('❌ Failed to save user to database:', dbError);
@@ -330,7 +330,7 @@ const handleGoogleSignIn = async () => {
   } catch (error) {
     console.error('❌ Google sign-in error:', error);
     
-    if (error.message === 'Google sign-in timeout after 30 seconds') {
+            if (error.message === 'Google sign-in timeout after 105 seconds') {
       Alert.alert(
         'Sign-in Timeout',
         'Google sign-in is taking too long. Please check your internet connection and try again.',

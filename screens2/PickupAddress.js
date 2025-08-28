@@ -24,7 +24,7 @@ export default function PickupAddress({ navigation, route }) {
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { productUrl, productPrice, userAddress } = route.params || {};
+  const { productUrl, productPrice, userAddress, transactionType } = route.params || {};
 
   // Pre-populate form with user's current address or default pickup address if available
   useEffect(() => {
@@ -121,7 +121,9 @@ export default function PickupAddress({ navigation, route }) {
         productUrl,
         productPrice,
         userAddress,
-        pickupAddress
+        pickupAddress,
+        transactionType,
+        userProfile: userAddress // Pass the user profile data
       });
       
     } catch (error) {

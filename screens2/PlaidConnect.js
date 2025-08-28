@@ -11,7 +11,29 @@ import {
 } from 'react-native';
 
 export default function PlaidConnect({ navigation, route }) {
-  const { productUrl, productPrice, userAddress, pickupAddress } = route.params || {};
+  const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
+
+  const getUserInitials = (profile) => {
+    if (profile?.full_name) {
+      const names = profile.full_name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    if (profile?.name) {
+      const names = profile.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      } else if (names.length === 1) {
+        return names[0].charAt(0).toUpperCase();
+      }
+    }
+    
+    return 'U';
+  };
 
   const handleContinue = () => {
     console.log('🔗 User wants to continue with Plaid connection');
@@ -21,7 +43,9 @@ export default function PlaidConnect({ navigation, route }) {
       productUrl,
       productPrice,
       userAddress,
-      pickupAddress
+      pickupAddress,
+      transactionType,
+      userProfile
     });
   };
 
@@ -56,7 +80,21 @@ export default function PlaidConnect({ navigation, route }) {
           <Text style={styles.plaidText}>PLAID</Text>
         </View>
         
-        <View style={styles.headerSpacer} />
+        {/* Profile Section */}
+        <TouchableOpacity onPress={() => navigation.navigate('MyAccount', { userData: userProfile })} style={styles.profileContainer}>
+          {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+            <Image 
+              source={{ uri: userProfile.avatar_url }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileInitials}>
+                {userProfile ? getUserInitials(userProfile) : 'U'}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Main Content */}
@@ -384,5 +422,35 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Profile Styles
+  profileContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    resizeMode: 'cover',
+  },
+  profilePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E5E5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitials: {
+    color: '#444444',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

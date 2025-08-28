@@ -7,10 +7,12 @@ WebBrowser.maybeCompleteAuthSession();
 export function useAppleAuth() {
   const [loading, setLoading] = useState(false);
 
+  // Create redirect URI for Expo Go compatibility
+  const redirectTo = 'com.anonymous.jerrod://';
+
   const signIn = async () => {
     setLoading(true);
     try {
-      const redirectTo = 'com.anonymous.jerroddd://'; // <-- same as in Google & FB
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: { redirectTo },
