@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, StatusBar,
   TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator,
-  TextInput
+  TextInput, FlatList
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../screens/supabaseClient';
@@ -21,12 +21,21 @@ export default function ProductDetails({ navigation, route }) {
   
   const [extractedData, setExtractedData] = useState({
     productName: '',
-    price: '$', // Keep $ prefix but remove initial price
+    price: '$', // Start with just $ sign
     description: '',
-    imageUrl: ''
+    imageUrl: '', // Keep for backward compatibility
+    images: [] // New array for multiple images
   });
   const [isScraping, setIsScraping] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // For photo swiper
+  const [imagesLoaded, setImagesLoaded] = useState(false); // Track if images are preloaded
+  const [preloadingImages, setPreloadingImages] = useState(false); // Track preloading state
+  
+  // New state for animated checkmarks
+  const [checkmarkStates, setCheckmarkStates] = useState([false, false, false, false]);
+  const [currentCheckmarkIndex, setCurrentCheckmarkIndex] = useState(0);
   
   const { productUrl, userAddress, userProfile } = route.params || {};
 
@@ -50,6 +59,39 @@ export default function ProductDetails({ navigation, route }) {
     }
     
     return 'U';
+  };
+
+  // Image preloading function for instant display
+  const preloadImages = async (imageUrls) => {
+    if (!imageUrls || imageUrls.length === 0) return;
+    
+    console.log('🚀 Starting image preloading for instant display...');
+    setPreloadingImages(true);
+    
+    try {
+      const preloadPromises = imageUrls.map(async (url, index) => {
+        try {
+          console.log(`🖼️ Preloading image ${index + 1}: ${url.substring(0, 50)}...`);
+          await Image.prefetch(url);
+          console.log(`✅ Image ${index + 1} preloaded successfully`);
+          return true;
+        } catch (error) {
+          console.log(`❌ Failed to preload image ${index + 1}:`, error);
+          return false;
+        }
+      });
+      
+      const results = await Promise.all(preloadPromises);
+      const successCount = results.filter(Boolean).length;
+      
+      console.log(`🎉 Image preloading complete: ${successCount}/${imageUrls.length} images preloaded`);
+      setImagesLoaded(true);
+      setPreloadingImages(false);
+      
+    } catch (error) {
+      console.log('❌ Error during image preloading:', error);
+      setPreloadingImages(false);
+    }
   };
 
   // Create products table if it doesn't exist
@@ -102,6 +144,58 @@ export default function ProductDetails({ navigation, route }) {
       console.log('⚠️ Error checking/creating products table:', error);
     }
   };
+
+  // Animated checkmarks effect
+  useEffect(() => {
+    let checkmarkTimer;
+    let completionTimer;
+    
+    if (isScraping && !extractedData.productName) {
+      // Reset checkmarks when starting
+      setCheckmarkStates([false, false, false, false]);
+      setCurrentCheckmarkIndex(0);
+      
+      // Start checking marks one by one after a delay
+      checkmarkTimer = setTimeout(() => {
+        const checkNextMark = (index) => {
+          if (index < 4) {
+            setCheckmarkStates(prev => {
+              const newStates = [...prev];
+              newStates[index] = true;
+              return newStates;
+            });
+            
+            // If this is the last checkmark, wait longer to show it before completing
+            if (index === 3) {
+              // Wait 2 seconds after the last checkmark to ensure user sees it
+              completionTimer = setTimeout(() => {
+                // Now complete the process and move to product details
+                setExtractedData(prev => ({
+                  ...prev,
+                  productName: prev.productName || 'Product Information (Please Edit)',
+                  description: prev.description || 'Product information extracted. Please review and edit the details below.',
+                  imageUrl: prev.imageUrl || 'https://via.placeholder.com/150?text=Manual+Input+Required',
+                  images: prev.images && prev.images.length > 0 ? prev.images : ['https://via.placeholder.com/150?text=Manual+Input+Required']
+                }));
+                setIsScraping(false);
+              }, 2000); // Wait 2 seconds after last checkmark to ensure visibility
+            } else {
+              // Check next mark after 2 seconds
+              setTimeout(() => checkNextMark(index + 1), 2000);
+            }
+          }
+        };
+        
+        // Start with first checkmark after 1 second
+        checkNextMark(0);
+      }, 1000);
+    }
+    
+    return () => {
+      if (checkmarkTimer) clearTimeout(checkmarkTimer);
+      if (completionTimer) clearTimeout(completionTimer);
+    };
+  }, [isScraping, extractedData.productName]);
 
   useEffect(() => {
     if (!productUrl) {
@@ -226,12 +320,13 @@ export default function ProductDetails({ navigation, route }) {
           }
         }
         
-        const extractedData = {
-          productName: productName || 'Facebook Product',
-          price: formattedPrice,
-          description: description || 'Product information extracted from URL parameters',
-          imageUrl: 'https://via.placeholder.com/150?text=URL+Extracted'
-        };
+                 const extractedData = {
+           productName: productName || 'Facebook Product',
+           price: '$', // Start with just $ sign
+           description: description || 'Product information extracted from URL parameters',
+           imageUrl: 'https://via.placeholder.com/150?text=URL+Extracted',
+           images: ['https://via.placeholder.com/150?text=URL+Extracted']
+         };
         
         console.log('✅ Data extracted from URL parameters:', extractedData);
         return extractedData;
@@ -247,12 +342,13 @@ export default function ProductDetails({ navigation, route }) {
           console.log('🔍 Found post ID in URL:', postId);
           
                   // Return basic info based on post ID
-        return {
-          productName: `Facebook Product (ID: ${postId})`,
-          price: '$', // Keep $ prefix but remove initial price
-          description: `Product from Facebook post ${postId}. Please enter details manually.`,
-          imageUrl: 'https://via.placeholder.com/150?text=Post+ID+Found'
-        };
+                 return {
+           productName: `Facebook Product (ID: ${postId})`,
+           price: '$', // Start with just $ sign
+           description: `Product from Facebook post ${postId}. Please enter details manually.`,
+           imageUrl: 'https://via.placeholder.com/150?text=Post+ID+Found',
+           images: ['https://via.placeholder.com/150?text=Post+ID+Found']
+         };
         }
       }
       
@@ -289,97 +385,96 @@ export default function ProductDetails({ navigation, route }) {
              // 2. QUICK PRICE: Look for dollar amounts with better logic
        console.log('🔍 Searching for prices in HTML content...');
        
-       // Method 1: Look for Open Graph price meta tags first
-       const ogPriceMatch = htmlContent.match(/<meta[^>]*property="og:price:amount"[^>]*content="([^"]+)"/i);
-       if (ogPriceMatch && ogPriceMatch[1]) {
-         const ogPrice = ogPriceMatch[1].trim();
-         if (ogPrice && !isNaN(parseFloat(ogPrice))) {
-           price = `$${parseFloat(ogPrice).toFixed(2)}`;
-           console.log('✅ Open Graph price found:', price);
-         }
-       }
+               // Method 1: Look for Open Graph price meta tags first
+        const ogPriceMatch = htmlContent.match(/<meta[^>]*property="og:price:amount"[^>]*content="([^"]+)"/i);
+        if (ogPriceMatch && ogPriceMatch[1]) {
+          const ogPrice = ogPriceMatch[1].trim();
+          if (ogPrice && !isNaN(parseFloat(ogPrice))) {
+            // Don't set price automatically - let user enter it
+            console.log('✅ Open Graph price found but not setting automatically:', ogPrice);
+          }
+        }
        
-       // Method 2: Look for structured data (JSON-LD) price
-       if (!price) {
-         const jsonLdMatches = htmlContent.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
-         if (jsonLdMatches) {
-           for (const jsonLd of jsonLdMatches) {
-             try {
-               const jsonContent = jsonLd.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
-               const parsed = JSON.parse(jsonContent);
-               
-               // Look for price in various structured data formats
-               if (parsed.offers && parsed.offers.price) {
-                 const foundPrice = parsed.offers.price;
-                 if (foundPrice && !isNaN(parseFloat(foundPrice))) {
-                   price = `$${parseFloat(foundPrice).toFixed(2)}`;
-                   console.log('✅ Structured data price found:', price);
-                   break;
-                 }
-               } else if (parsed.price && !isNaN(parseFloat(parsed.price))) {
-                 price = `$${parseFloat(parsed.price).toFixed(2)}`;
-                 console.log('✅ Direct structured data price found:', price);
-                 break;
-               }
-             } catch (e) {
-               // Continue to next JSON-LD block
-             }
-           }
-         }
-       }
+               // Method 2: Look for structured data (JSON-LD) price
+        if (!price) {
+          const jsonLdMatches = htmlContent.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
+          if (jsonLdMatches) {
+            for (const jsonLd of jsonLdMatches) {
+              try {
+                const jsonContent = jsonLd.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
+                const parsed = JSON.parse(jsonContent);
+                
+                // Look for price in various structured data formats
+                if (parsed.offers && parsed.offers.price) {
+                  const foundPrice = parsed.offers.price;
+                  if (foundPrice && !isNaN(parseFloat(foundPrice))) {
+                    // Don't set price automatically - let user enter it
+                    console.log('✅ Structured data price found but not setting automatically:', foundPrice);
+                    break;
+                  }
+                } else if (parsed.price && !isNaN(parseFloat(parsed.price))) {
+                  // Don't set price automatically - let user enter it
+                  console.log('✅ Direct structured data price found but not setting automatically:', parsed.price);
+                  break;
+                }
+              } catch (e) {
+                // Continue to next JSON-LD block
+              }
+            }
+          }
+        }
        
-       // Method 3: Look for Facebook-specific price patterns
-       if (!price) {
-         // Facebook often uses specific data attributes for prices
-         const fbPriceMatches = htmlContent.match(/data-price="([^"]+)"/gi);
-         if (fbPriceMatches && fbPriceMatches.length > 0) {
-           const validPrices = fbPriceMatches
-             .map(p => p.match(/data-price="([^"]+)"/i)?.[1])
-             .filter(p => p && !isNaN(parseFloat(p)))
-             .map(p => parseFloat(p))
-             .filter(p => p >= 1 && p <= 10000);
-           
-           if (validPrices.length > 0) {
-             price = `$${Math.max(...validPrices).toFixed(2)}`;
-             console.log('✅ Facebook data-price attribute found:', price);
-           }
-         }
-       }
+               // Method 3: Look for Facebook-specific price patterns
+        if (!price) {
+          // Facebook often uses specific data attributes for prices
+          const fbPriceMatches = htmlContent.match(/data-price="([^"]+)"/gi);
+          if (fbPriceMatches && fbPriceMatches.length > 0) {
+            const validPrices = fbPriceMatches
+              .map(p => p.match(/data-price="([^"]+)"/i)?.[1])
+              .filter(p => p && !isNaN(parseFloat(p)))
+              .map(p => parseFloat(p))
+              .filter(p => p >= 1 && p <= 10000);
+            
+            if (validPrices.length > 0) {
+              // Don't set price automatically - let user enter it
+              console.log('✅ Facebook data-price attribute found but not setting automatically:', Math.max(...validPrices));
+            }
+          }
+        }
        
-       // Method 4: Look for aria-label with price
-       if (!price) {
-         const ariaPriceMatches = htmlContent.match(/aria-label="[^"]*\$(\d+(?:\.\d{2})?)[^"]*"/gi);
-         if (ariaPriceMatches && ariaPriceMatches.length > 0) {
-           const validPrices = ariaPriceMatches
-             .map(p => p.match(/\$(\d+(?:\.\d{2})?)/i)?.[1])
-             .filter(p => p && !isNaN(parseFloat(p)))
-             .map(p => parseFloat(p))
-             .filter(p => p >= 1 && p <= 10000);
-           
-           if (validPrices.length > 0) {
-             price = `$${Math.max(...validPrices).toFixed(2)}`;
-             console.log('✅ Aria-label price found:', price);
-           }
-         }
-       }
+               // Method 4: Look for aria-label with price
+        if (!price) {
+          const ariaPriceMatches = htmlContent.match(/aria-label="[^"]*\$(\d+(?:\.\d{2})?)[^"]*"/gi);
+          if (ariaPriceMatches && ariaPriceMatches.length > 0) {
+            const validPrices = ariaPriceMatches
+              .map(p => p.match(/\$(\d+(?:\.\d{2})?)/i)?.[1])
+              .filter(p => p && !isNaN(parseFloat(p)))
+              .map(p => parseFloat(p))
+              .filter(p => p >= 1 && p <= 10000);
+            
+            if (validPrices.length > 0) {
+              // Don't set price automatically - let user enter it
+              console.log('✅ Aria-label price found but not setting automatically:', Math.max(...validPrices));
+            }
+          }
+        }
        
-       // Method 5: Look for any dollar amounts in the HTML (fallback)
-       if (!price) {
-         const priceMatches = htmlContent.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/gi);
-         if (priceMatches && priceMatches.length > 0) {
-           // Filter out very low and very high prices
-           const validPrices = priceMatches
-             .map(p => parseFloat(p.replace('$', '').replace(',', '')))
-             .filter(p => p >= 1 && p <= 1000); // Lowered max to avoid high numbers like 8500
-           
-           if (validPrices.length > 0) {
-             // Take the LOWEST reasonable price (usually the main product price)
-             const minPrice = Math.min(...validPrices);
-             price = `$${minPrice.toFixed(2)}`;
-             console.log('✅ Fallback price found (filtered, lowest):', price);
-           }
-         }
-       }
+               // Method 5: Look for any dollar amounts in the HTML (fallback)
+        if (!price) {
+          const priceMatches = htmlContent.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/gi);
+          if (priceMatches && priceMatches.length > 0) {
+            // Filter out very low and very high prices
+            const validPrices = priceMatches
+              .map(p => parseFloat(p.replace('$', '').replace(',', '')))
+              .filter(p => p >= 1 && p <= 1000); // Lowered max to avoid high numbers like 8500
+            
+            if (validPrices.length > 0) {
+              // Don't set price automatically - let user enter it
+              const minPrice = Math.min(...validPrices);
+              console.log('✅ Fallback price found but not setting automatically:', minPrice);
+            }
+          }
+        }
       
       // 3. QUICK DESCRIPTION: Look for Open Graph description
       const ogDescMatch = htmlContent.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i);
@@ -388,52 +483,92 @@ export default function ProductDetails({ navigation, route }) {
         console.log('✅ Fast description found (og:description):', description);
       }
       
-      // 4. QUICK IMAGE: Look for ANY image aggressively
-      console.log('🔍 Searching for ANY image on the page...');
+      // 4. QUICK IMAGE: Look for MULTIPLE images aggressively
+      console.log('🔍 Searching for MULTIPLE images on the page...');
+      
+      let allImages = [];
       
       // First try Open Graph image
       const ogImageMatch = htmlContent.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i);
       if (ogImageMatch && ogImageMatch[1]) {
-        imageUrl = ogImageMatch[1].trim();
-        console.log('✅ Open Graph image found:', imageUrl);
+        const ogImage = ogImageMatch[1].trim();
+        allImages.push(ogImage);
+        imageUrl = ogImage; // Keep for backward compatibility
+        console.log('✅ Open Graph image found:', ogImage);
       }
       
-      // If no Open Graph, try ANY Facebook CDN image
-      if (!imageUrl) {
-        console.log('🔍 Looking for Facebook CDN images...');
-        const fbImageMatches = htmlContent.match(/(https:\/\/scontent[^"]*\.fbcdn\.net[^"]*)/gi);
-        if (fbImageMatches && fbImageMatches.length > 0) {
-          imageUrl = fbImageMatches[0];
-          console.log('✅ Facebook CDN image found:', imageUrl);
+      // Look for Facebook CDN images (most common)
+      const fbImageMatches = htmlContent.match(/(https:\/\/scontent[^"]*\.fbcdn\.net[^"]*)/gi);
+      if (fbImageMatches && fbImageMatches.length > 0) {
+        // Filter and add unique Facebook CDN images
+        fbImageMatches.forEach(match => {
+          const cleanUrl = match.trim();
+          if (!allImages.includes(cleanUrl) && cleanUrl.includes('http')) {
+            allImages.push(cleanUrl);
+          }
+        });
+        if (!imageUrl) {
+          imageUrl = allImages[0]; // Keep for backward compatibility
         }
+        console.log('✅ Facebook CDN images found:', fbImageMatches.length);
       }
       
-      // If still no image, try ANY image URL
-      if (!imageUrl) {
-        console.log('🔍 Looking for ANY image URL...');
-        const anyImageMatches = htmlContent.match(/(https:\/\/[^"]*\.(?:jpg|jpeg|png|webp|gif))/gi);
-        if (anyImageMatches && anyImageMatches.length > 0) {
-          imageUrl = anyImageMatches[0];
-          console.log('✅ Any image URL found:', imageUrl);
+      // Look for ANY image URL
+      const anyImageMatches = htmlContent.match(/(https:\/\/[^"]*\.(?:jpg|jpeg|png|webp|gif))/gi);
+      if (anyImageMatches && anyImageMatches.length > 0) {
+        // Filter and add unique image URLs
+        anyImageMatches.forEach(match => {
+          const cleanUrl = match.trim();
+          if (!allImages.includes(cleanUrl) && cleanUrl.includes('http')) {
+            allImages.push(cleanUrl);
+          }
+        });
+        if (!imageUrl) {
+          imageUrl = allImages[0]; // Keep for backward compatibility
         }
+        console.log('✅ Any image URLs found:', anyImageMatches.length);
       }
       
-      // If still no image, try relative image paths
-      if (!imageUrl) {
-        console.log('🔍 Looking for relative image paths...');
-        const relativeImageMatches = htmlContent.match(/(\/[^"]*\.(?:jpg|jpeg|png|webp|gif))/gi);
-        if (relativeImageMatches && relativeImageMatches.length > 0) {
-          // Convert relative path to absolute
-          const baseUrl = new URL(url).origin;
-          imageUrl = baseUrl + relativeImageMatches[0];
-          console.log('✅ Relative image path converted to:', imageUrl);
+      // Look for relative image paths
+      const relativeImageMatches = htmlContent.match(/(\/[^"]*\.(?:jpg|jpeg|png|webp|gif))/gi);
+      if (relativeImageMatches && relativeImageMatches.length > 0) {
+        // Convert relative paths to absolute
+        const baseUrl = new URL(url).origin;
+        relativeImageMatches.forEach(match => {
+          const absoluteUrl = baseUrl + match.trim();
+          if (!allImages.includes(absoluteUrl)) {
+            allImages.push(absoluteUrl);
+          }
+        });
+        if (!imageUrl) {
+          imageUrl = allImages[0]; // Keep for backward compatibility
         }
+        console.log('✅ Relative image paths converted:', relativeImageMatches.length);
+      }
+      
+      // Filter out invalid images and remove duplicates
+      allImages = allImages.filter(img => 
+        img && 
+        img.startsWith('http') && 
+        !img.includes('data:') && 
+        !img.includes('placeholder') &&
+        !img.includes('avatar') &&
+        !img.includes('profile') &&
+        !img.includes('icon')
+      );
+      
+      // Remove duplicates while preserving order
+      allImages = [...new Set(allImages)];
+      
+      console.log('🖼️ Total unique images found:', allImages.length);
+      if (allImages.length > 0) {
+        console.log('🖼️ First image (for backward compatibility):', allImages[0]);
       }
       
       // If we got most data quickly, return it
       if (productName && price && description) {
         console.log('⚡ Fast extraction successful!');
-        return { productName, price, description, imageUrl };
+        return { productName, price, description, imageUrl, images: allImages };
       }
       
       // FALLBACK: Only do deeper search if we're missing key data
@@ -452,55 +587,54 @@ export default function ProductDetails({ navigation, route }) {
        if (!price) {
          console.log('🔄 Fallback: Searching for prices with enhanced methods...');
          
-         // Try Facebook-specific price patterns first
-         const fbPriceMatches = htmlContent.match(/data-price="([^"]+)"/gi);
-         if (fbPriceMatches && fbPriceMatches.length > 0) {
-           const validPrices = fbPriceMatches
-             .map(p => p.match(/data-price="([^"]+)"/i)?.[1])
-             .filter(p => p && !isNaN(parseFloat(p)))
-             .map(p => parseFloat(p))
-             .filter(p => p >= 1 && p <= 10000);
-           
-           if (validPrices.length > 0) {
-             price = `$${Math.max(...validPrices).toFixed(2)}`;
-             console.log('✅ Fallback Facebook data-price attribute found:', price);
-           }
-         }
+                   // Try Facebook-specific price patterns first
+          const fbPriceMatches = htmlContent.match(/data-price="([^"]+)"/gi);
+          if (fbPriceMatches && fbPriceMatches.length > 0) {
+            const validPrices = fbPriceMatches
+              .map(p => p.match(/data-price="([^"]+)"/i)?.[1])
+              .filter(p => p && !isNaN(parseFloat(p)))
+              .map(p => parseFloat(p))
+              .filter(p => p >= 1 && p <= 10000);
+            
+            if (validPrices.length > 0) {
+              // Don't set price automatically - let user enter it
+              console.log('✅ Fallback Facebook data-price attribute found but not setting automatically:', Math.max(...validPrices));
+            }
+          }
          
-         // Try aria-label with price
-         if (!price) {
-           const ariaPriceMatches = htmlContent.match(/aria-label="[^"]*\$(\d+(?:\.\d{2})?)[^"]*"/gi);
-           if (ariaPriceMatches && ariaPriceMatches.length > 0) {
-             const validPrices = ariaPriceMatches
-               .map(p => p.match(/\$(\d+(?:\.\d{2})?)/i)?.[1])
-               .filter(p => p && !isNaN(parseFloat(p)))
-               .map(p => parseFloat(p))
-               .filter(p => p >= 1 && p <= 10000);
-             
-             if (validPrices.length > 0) {
-               price = `$${Math.max(...validPrices).toFixed(2)}`;
-               console.log('✅ Fallback aria-label price found:', price);
-             }
-           }
-         }
+                   // Try aria-label with price
+          if (!price) {
+            const ariaPriceMatches = htmlContent.match(/aria-label="[^"]*\$(\d+(?:\.\d{2})?)[^"]*"/gi);
+            if (ariaPriceMatches && ariaPriceMatches.length > 0) {
+              const validPrices = ariaPriceMatches
+                .map(p => p.match(/\$(\d+(?:\.\d{2})?)/i)?.[1])
+                .filter(p => p && !isNaN(parseFloat(p)))
+                .map(p => parseFloat(p))
+                .filter(p => p >= 1 && p <= 10000);
+              
+              if (validPrices.length > 0) {
+                // Don't set price automatically - let user enter it
+                console.log('✅ Fallback aria-label price found but not setting automatically:', Math.max(...validPrices));
+              }
+            }
+          }
          
-         // Try any dollar amounts in the HTML (final fallback)
-         if (!price) {
-           const allPrices = htmlContent.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/gi);
-           if (allPrices && allPrices.length > 0) {
-             // Filter and find the most likely main product price
-             const validPrices = allPrices
-               .map(p => parseFloat(p.replace('$', '').replace(',', '')))
-               .filter(p => p >= 1 && p <= 1000); // Lowered max to avoid high numbers like 8500
-             
-             if (validPrices.length > 0) {
-               // Take the LOWEST reasonable price (usually the main product price)
-               const minPrice = Math.min(...validPrices);
-               price = `$${minPrice.toFixed(2)}`;
-               console.log('✅ Final fallback price found (filtered, lowest):', price);
-             }
-           }
-         }
+                   // Try any dollar amounts in the HTML (final fallback)
+          if (!price) {
+            const allPrices = htmlContent.match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/gi);
+            if (allPrices && allPrices.length > 0) {
+              // Filter and find the most likely main product price
+              const validPrices = allPrices
+                .map(p => parseFloat(p.replace('$', '').replace(',', '')))
+                .filter(p => p >= 1 && p <= 1000); // Lowered max to avoid high numbers like 8500
+              
+              if (validPrices.length > 0) {
+                // Don't set price automatically - let user enter it
+                const minPrice = Math.min(...validPrices);
+                console.log('✅ Final fallback price found but not setting automatically:', minPrice);
+              }
+            }
+          }
        }
       
       // Description fallback - look for any meta description
@@ -548,30 +682,15 @@ export default function ProductDetails({ navigation, route }) {
         console.log('⚠️ Product name not found, using default');
       }
       
-      // CRITICAL FIX: Ensure price is always a valid format
-      if (!price || price === '$0.00' || price === '0.00') {
-        price = '$';
-        console.log('⚠️ Price not found or invalid, using default');
-      } else {
-        // Clean up the price to ensure it's in a parseable format
-        try {
-          // Remove dollar signs and commas, then validate
-          const cleanPrice = price.replace(/[$,]/g, '').trim();
-          const parsedPrice = parseFloat(cleanPrice);
-          
-          if (isNaN(parsedPrice) || parsedPrice < 0) {
-            console.log('⚠️ Invalid price format detected, using default:', price);
-            price = '0.00';
-          } else {
-            // Format the price consistently
-            price = parsedPrice.toFixed(2);
-            console.log('✅ Price cleaned and formatted:', price);
-          }
-        } catch (priceError) {
-          console.log('⚠️ Price cleaning error, using default:', priceError);
-          price = '0.00';
+              // CRITICAL FIX: Ensure price always starts with just $ sign
+        if (!price || price === '$0.00' || price === '0.00') {
+          price = '$';
+          console.log('⚠️ Price not found or invalid, using default $ sign');
+        } else {
+          // Always start with just $ sign, don't auto-fill price
+          price = '$';
+          console.log('✅ Price set to default $ sign (user must enter amount)');
         }
-      }
       
       if (!description) {
         description = 'Product description not available. Please edit manually.';
@@ -587,16 +706,8 @@ export default function ProductDetails({ navigation, route }) {
       if (productName) {
         productName = productName.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
         
-        // Check if product name contains a price and extract it
-        const priceInName = productName.match(/\$(\d+(?:\.\d{2})?)/i);
-        if (priceInName && priceInName[1] && (price === '0.00' || price === '$0.00')) {
-          // Format the price with proper decimal formatting
-          const extractedPrice = parseFloat(priceInName[1]);
-          if (!isNaN(extractedPrice) && extractedPrice > 0) {
-            price = extractedPrice.toFixed(2);
-            console.log('✅ Price extracted from product name:', price);
-          }
-        }
+        // Don't extract price from product name - let user enter it manually
+        console.log('✅ Price will be entered manually by user');
         
         // Clean up product name - remove price info and make it shorter
         productName = productName
@@ -621,7 +732,8 @@ export default function ProductDetails({ navigation, route }) {
         productName,
         price,
         description,
-        imageUrl
+        imageUrl,
+        images: allImages
       };
       
       console.log('📝 Final extracted data:', extractedData);
@@ -762,66 +874,95 @@ export default function ProductDetails({ navigation, route }) {
    const findAnyImage = async (htmlContent, url) => {
     console.log('🖼️ IMAGE SEARCH: Looking for ANY image on the page...');
     
-    let foundImage = null;
+    let allImages = [];
     
     // Method 1: Open Graph images
     const ogImageMatch = htmlContent.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i);
     if (ogImageMatch && ogImageMatch[1]) {
-      foundImage = ogImageMatch[1].trim();
-      console.log('🖼️ Method 1 - Open Graph image:', foundImage);
-      return foundImage;
+      const ogImage = ogImageMatch[1].trim();
+      allImages.push(ogImage);
+      console.log('🖼️ Method 1 - Open Graph image:', ogImage);
     }
     
     // Method 2: Facebook CDN images (most common)
     const fbImageMatches = htmlContent.match(/(https:\/\/scontent[^"]*\.fbcdn\.net[^"]*)/gi);
     if (fbImageMatches && fbImageMatches.length > 0) {
-      foundImage = fbImageMatches[0];
-      console.log('🖼️ Method 2 - Facebook CDN image:', foundImage);
-      return foundImage;
+      fbImageMatches.forEach(match => {
+        const cleanUrl = match.trim();
+        if (!allImages.includes(cleanUrl) && cleanUrl.includes('http')) {
+          allImages.push(cleanUrl);
+        }
+      });
+      console.log('🖼️ Method 2 - Facebook CDN images found:', fbImageMatches.length);
     }
     
     // Method 3: Any image tag
     const imgTagMatches = htmlContent.match(/<img[^>]*src="([^"]+)"/gi);
     if (imgTagMatches && imgTagMatches.length > 0) {
-      // Filter for actual image URLs
-      for (const match of imgTagMatches) {
+      imgTagMatches.forEach(match => {
         const srcMatch = match.match(/src="([^"]+)"/i);
-        if (srcMatch && srcMatch[1].includes('http')) {
-          foundImage = srcMatch[1];
-          console.log('🖼️ Method 3 - Image tag found:', foundImage);
-          return foundImage;
+        if (srcMatch && srcMatch[1].includes('http') && !allImages.includes(srcMatch[1])) {
+          allImages.push(srcMatch[1]);
         }
-      }
+      });
+      console.log('🖼️ Method 3 - Image tags found:', imgTagMatches.length);
     }
     
     // Method 4: Any URL ending with image extension
     const anyImageMatches = htmlContent.match(/(https:\/\/[^"]*\.(?:jpg|jpeg|png|webp|gif))/gi);
     if (anyImageMatches && anyImageMatches.length > 0) {
-      foundImage = anyImageMatches[0];
-      console.log('🖼️ Method 4 - Any image URL:', foundImage);
-      return foundImage;
+      anyImageMatches.forEach(match => {
+        const cleanUrl = match.trim();
+        if (!allImages.includes(cleanUrl)) {
+          allImages.push(cleanUrl);
+        }
+      });
+      console.log('🖼️ Method 4 - Any image URLs found:', anyImageMatches.length);
     }
     
     // Method 5: Relative image paths
     const relativeImageMatches = htmlContent.match(/(\/[^"]*\.(?:jpg|jpeg|png|webp|gif))/gi);
     if (relativeImageMatches && relativeImageMatches.length > 0) {
       const baseUrl = new URL(url).origin;
-      foundImage = baseUrl + relativeImageMatches[0];
-      console.log('🖼️ Method 5 - Relative image path:', foundImage);
-      return foundImage;
+      relativeImageMatches.forEach(match => {
+        const absoluteUrl = baseUrl + match.trim();
+        if (!allImages.includes(absoluteUrl)) {
+          allImages.push(absoluteUrl);
+        }
+      });
+      console.log('🖼️ Method 5 - Relative image paths found:', relativeImageMatches.length);
     }
     
     // Method 6: Background images
     const bgImageMatches = htmlContent.match(/background-image:\s*url\(['"]?([^'")\s]+)['"]?\)/gi);
     if (bgImageMatches && bgImageMatches.length > 0) {
-      for (const match of bgImageMatches) {
+      bgImageMatches.forEach(match => {
         const urlMatch = match.match(/url\(['"]?([^'")\s]+)['"]?\)/i);
-        if (urlMatch && urlMatch[1].includes('http')) {
-          foundImage = urlMatch[1];
-          console.log('🖼️ Method 6 - Background image:', foundImage);
-          return foundImage;
+        if (urlMatch && urlMatch[1].includes('http') && !allImages.includes(urlMatch[1])) {
+          allImages.push(urlMatch[1]);
         }
-      }
+      });
+      console.log('🖼️ Method 6 - Background images found:', bgImageMatches.length);
+    }
+    
+    // Filter out invalid images and remove duplicates
+    allImages = allImages.filter(img => 
+      img && 
+      img.startsWith('http') && 
+      !img.includes('data:') && 
+      !img.includes('placeholder') &&
+      !img.includes('avatar') &&
+      !img.includes('profile') &&
+      !img.includes('icon')
+    );
+    
+    // Remove duplicates while preserving order
+    allImages = [...new Set(allImages)];
+    
+    console.log('🖼️ Total unique images found:', allImages.length);
+    
+    if (allImages.length > 0) {
+      return allImages[0]; // Return first image for backward compatibility
     }
     
     console.log('❌ No image found with any method');
@@ -895,6 +1036,75 @@ export default function ProductDetails({ navigation, route }) {
                console.log('🖼️ Image found by dedicated finder:', foundImage);
              }
            }
+           
+                       // Ensure we have the images array populated
+            if (extractedData.images && extractedData.images.length > 0) {
+              console.log('🖼️ Multiple images found:', extractedData.images.length);
+            } else if (extractedData.imageUrl && extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image') {
+              // If we only have imageUrl, create images array with it
+              extractedData.images = [extractedData.imageUrl];
+              console.log('🖼️ Single image converted to array');
+            }
+            
+            // CRITICAL FIX: Filter out invalid images and limit to reasonable number
+            if (extractedData.images && extractedData.images.length > 0) {
+              // Filter out invalid images
+              extractedData.images = extractedData.images.filter(img => 
+                img && 
+                img.startsWith('http') && 
+                !img.includes('data:') && 
+                !img.includes('placeholder') &&
+                !img.includes('avatar') &&
+                !img.includes('profile') &&
+                !img.includes('icon') &&
+                !img.includes('fbcdn.net') // Filter out Facebook CDN images that might be duplicates
+              );
+              
+              // Limit to first 10 images to avoid overwhelming the UI
+              if (extractedData.images.length > 10) {
+                extractedData.images = extractedData.images.slice(0, 10);
+                console.log('🖼️ Limited images to first 10 to avoid UI issues');
+              }
+              
+              console.log('🖼️ Filtered images array length:', extractedData.images.length);
+            }
+            
+            // CRITICAL FIX: If images array is empty but we have a valid imageUrl, populate it
+            console.log('🖼️ DEBUG: Checking if we need to populate images array');
+            console.log('🖼️ DEBUG: extractedData.images:', extractedData.images);
+            console.log('🖼️ DEBUG: extractedData.imageUrl:', extractedData.imageUrl);
+            console.log('🖼️ DEBUG: images length:', extractedData.images ? extractedData.images.length : 'undefined');
+            console.log('🖼️ DEBUG: imageUrl includes fbcdn.net:', extractedData.imageUrl ? extractedData.imageUrl.includes('fbcdn.net') : 'no imageUrl');
+            
+            if ((!extractedData.images || extractedData.images.length === 0) && 
+                extractedData.imageUrl && 
+                extractedData.imageUrl.includes('fbcdn.net')) {
+              // Decode HTML entities in the image URL before adding to images array
+              const decodedImageUrl = extractedData.imageUrl
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#x27;/g, "'");
+              
+              extractedData.images = [decodedImageUrl];
+              console.log('🖼️ CRITICAL FIX: Populated images array with decoded imageUrl:', extractedData.images);
+            } else {
+              console.log('🖼️ DEBUG: Not populating images array - conditions not met');
+            }
+            
+            // Debug: Log the final images array
+            console.log('🖼️ Final images array:', extractedData.images);
+            console.log('🖼️ Images array length:', extractedData.images ? extractedData.images.length : 'undefined');
+            
+            // Start preloading images for instant display
+            if (extractedData.images && extractedData.images.length > 0) {
+              console.log('🚀 Starting image preloading for instant display...');
+              preloadImages(extractedData.images);
+            } else if (extractedData.imageUrl && extractedData.imageUrl.includes('fbcdn.net')) {
+              console.log('🚀 Starting single image preloading for instant display...');
+              preloadImages([extractedData.imageUrl]);
+            }
           
                      if (extractedData && extractedData.productName && extractedData.productName !== 'Facebook Marketplace Product') {
              console.log('✅ Successfully extracted data from HTML:', extractedData);
@@ -963,15 +1173,80 @@ export default function ProductDetails({ navigation, route }) {
                    }
                  }
                  
-                 // If we didn't get an image, try the dedicated image finder
-                 if (!extractedData.imageUrl || extractedData.imageUrl === 'https://via.placeholder.com/150?text=No+Image') {
-                   console.log('🖼️ No image found in marketplace parsing, trying dedicated image finder...');
-                   const foundImage = await findAnyImage(htmlContent, marketplaceUrl);
-                   if (foundImage) {
-                     extractedData.imageUrl = foundImage;
-                     console.log('🖼️ Image found by dedicated finder in marketplace:', foundImage);
+                                   // If we didn't get an image, try the dedicated image finder
+                  if (!extractedData.imageUrl || extractedData.imageUrl === 'https://via.placeholder.com/150?text=No+Image') {
+                    console.log('🖼️ No image found in marketplace parsing, trying dedicated image finder...');
+                    const foundImage = await findAnyImage(htmlContent, marketplaceUrl);
+                    if (foundImage) {
+                      extractedData.imageUrl = foundImage;
+                      console.log('🖼️ Image found by dedicated finder in marketplace:', foundImage);
+                    }
+                  }
+                  
+                                     // Ensure we have the images array populated for marketplace approach
+                   if (extractedData.images && extractedData.images.length > 0) {
+                     console.log('🖼️ Multiple images found in marketplace:', extractedData.images.length);
+                   } else if (extractedData.imageUrl && extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image') {
+                     // If we only have imageUrl, create images array with it
+                     extractedData.images = [extractedData.imageUrl];
+                     console.log('🖼️ Single image converted to array in marketplace');
                    }
-                 }
+                   
+                   // CRITICAL FIX: Filter out invalid images and limit to reasonable number for marketplace
+                   if (extractedData.images && extractedData.images.length > 0) {
+                     // Filter out invalid images
+                     extractedData.images = extractedData.images.filter(img => 
+                       img && 
+                       img.startsWith('http') && 
+                       !img.includes('data:') && 
+                       !img.includes('placeholder') &&
+                       !img.includes('avatar') &&
+                       !img.includes('profile') &&
+                       !img.includes('icon') &&
+                       !img.includes('fbcdn.net') // Filter out Facebook CDN images that might be duplicates
+                     );
+                     
+                     // Limit to first 10 images to avoid overwhelming the UI
+                     if (extractedData.images.length > 10) {
+                       extractedData.images = extractedData.images.slice(0, 10);
+                       console.log('🖼️ Limited marketplace images to first 10 to avoid UI issues');
+                     }
+                     
+                     console.log('🖼️ Filtered marketplace images array length:', extractedData.images.length);
+                   }
+                   
+                   // CRITICAL FIX: If images array is empty but we have a valid imageUrl, populate it
+                   console.log('🖼️ DEBUG MARKETPLACE: Checking if we need to populate images array');
+                   console.log('🖼️ DEBUG MARKETPLACE: extractedData.images:', extractedData.images);
+                   console.log('🖼️ DEBUG MARKETPLACE: extractedData.imageUrl:', extractedData.imageUrl);
+                   console.log('🖼️ DEBUG MARKETPLACE: images length:', extractedData.images ? extractedData.images.length : 'undefined');
+                   console.log('🖼️ DEBUG MARKETPLACE: imageUrl includes fbcdn.net:', extractedData.imageUrl ? extractedData.imageUrl.includes('fbcdn.net') : 'no imageUrl');
+                   
+                   if ((!extractedData.images || extractedData.images.length === 0) && 
+                       extractedData.imageUrl && 
+                       extractedData.imageUrl.includes('fbcdn.net')) {
+                     // Decode HTML entities in the image URL before adding to images array
+                     const decodedImageUrl = extractedData.imageUrl
+                       .replace(/&amp;/g, '&')
+                       .replace(/&lt;/g, '<')
+                       .replace(/&gt;/g, '>')
+                       .replace(/&quot;/g, '"')
+                       .replace(/&#x27;/g, "'");
+                     
+                     extractedData.images = [decodedImageUrl];
+                     console.log('🖼️ CRITICAL FIX: Populated marketplace images array with decoded imageUrl:', extractedData.images);
+                   } else {
+                     console.log('🖼️ DEBUG MARKETPLACE: Not populating images array - conditions not met');
+                   }
+                   
+                   // Start preloading images for instant display (marketplace section)
+                   if (extractedData.images && extractedData.images.length > 0) {
+                     console.log('🚀 Starting marketplace image preloading for instant display...');
+                     preloadImages(extractedData.images);
+                   } else if (extractedData.imageUrl && extractedData.imageUrl.includes('fbcdn.net')) {
+                     console.log('🚀 Starting marketplace single image preloading for instant display...');
+                     preloadImages([extractedData.imageUrl]);
+                   }
                 
                                  if (extractedData && extractedData.productName && extractedData.productName !== 'Facebook Marketplace Product') {
                    console.log('✅ Successfully extracted data from marketplace URL:', extractedData);
@@ -1056,56 +1331,79 @@ export default function ProductDetails({ navigation, route }) {
               }
             }
             
-            if (foundProductName || foundPrice) {
-                      // Ensure price is in valid format
-        let formattedPrice = '$';
-        if (foundPrice) {
-          try {
-            const cleanPrice = foundPrice.replace(/[$,]/g, '').trim();
-            const parsedPrice = parseFloat(cleanPrice);
-            if (!isNaN(parsedPrice) && parsedPrice >= 0) {
-              formattedPrice = `$${parsedPrice.toFixed(2)}`;
-            }
-          } catch (e) {
-            console.log('⚠️ Price formatting error in text extraction:', e);
-          }
-        }
-        
-        extractedData = {
-          productName: foundProductName || 'Product Found in Text',
-          price: formattedPrice,
-          description: 'Product information extracted from page text content.',
-          imageUrl: 'https://via.placeholder.com/150?text=Text+Extracted'
-        };
-              console.log('✅ Extracted data from text content:', extractedData);
-            }
+                         if (foundProductName || foundPrice) {
+               // Don't set price automatically - let user enter it
+               extractedData = {
+                 productName: foundProductName || 'Product Found in Text',
+                 price: '$', // Start with just $ sign
+                 description: 'Product information extracted from page text content.',
+                 imageUrl: 'https://via.placeholder.com/150?text=Text+Extracted'
+               };
+               console.log('✅ Extracted data from text content (price not auto-set):', extractedData);
+             }
           }
         } catch (error) {
           console.log('⚠️ Text content extraction failed:', error.message);
         }
       }
       
-      // If we still don't have data, show what we found and let user edit
-      if (!extractedData || !extractedData.productName || extractedData.productName === 'Facebook Marketplace Product') {
-        console.log('⚠️ All scraping approaches exhausted, showing manual input with hints...');
-        
-        // Try to give the user some hints about what might be on the page
-        const hintData = {
-          productName: isSelling ? 'Item Information (Please Edit)' : 'Product Information (Please Edit)',
-          price: '$', // Keep $ prefix but remove initial price
-          description: isSelling
-            ? 'The app attempted to scrape Facebook but could not automatically extract the item details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the item information manually to create an attractive listing.'
-            : 'The app attempted to scrape Facebook but could not automatically extract the product details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the product information manually.',
-          imageUrl: 'https://via.placeholder.com/150?text=Manual+Input+Required'
-        };
-        
-        setExtractedData(hintData);
-        // Removed alert to avoid popup when navigating
-      } else {
-        // We found some data, show it to the user
-        setExtractedData(extractedData);
-        // Removed alert to avoid popup when navigating
-      }
+             // If we still don't have data, show what we found and let user edit
+       if (!extractedData || !extractedData.productName || extractedData.productName === 'Facebook Marketplace Product') {
+         console.log('⚠️ All scraping approaches exhausted, showing manual input with hints...');
+         
+         // Try to give the user some hints about what might be on the page
+         const hintData = {
+           productName: isSelling ? 'Item Information (Please Edit)' : 'Product Information (Please Edit)',
+           price: '$', // Keep $ prefix but remove initial price
+           description: isSelling
+             ? 'The app attempted to scrape Facebook but could not automatically extract the item details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the item information manually to create an attractive listing.'
+             : 'The app attempted to scrape Facebook but could not automatically extract the product details. This is common due to Facebook\'s security measures. Please open the URL in your browser and copy the product information manually.',
+           imageUrl: 'https://via.placeholder.com/150?text=Manual+Input+Required',
+           images: ['https://via.placeholder.com/150?text=Manual+Input+Required']
+         };
+         
+         setExtractedData(hintData);
+         // Removed alert to avoid popup when navigating
+       } else {
+                   // Ensure images array exists before setting data
+          if (!extractedData.images || extractedData.images.length === 0) {
+            if (extractedData.imageUrl && extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image') {
+              extractedData.images = [extractedData.imageUrl];
+              console.log('🖼️ Final fallback: Created images array from imageUrl');
+            } else {
+              extractedData.images = [];
+              console.log('🖼️ Final fallback: No images available');
+            }
+          }
+          
+          // CRITICAL FIX: Final filtering of images array
+          if (extractedData.images && extractedData.images.length > 0) {
+            // Filter out invalid images
+            extractedData.images = extractedData.images.filter(img => 
+              img && 
+              img.startsWith('http') && 
+              !img.includes('data:') && 
+              !img.includes('placeholder') &&
+              !img.includes('avatar') &&
+              !img.includes('profile') &&
+              !img.includes('icon') &&
+              !img.includes('fbcdn.net') // Filter out Facebook CDN images that might be duplicates
+            );
+            
+            // Limit to first 10 images to avoid overwhelming the UI
+            if (extractedData.images.length > 10) {
+              extractedData.images = extractedData.images.slice(0, 10);
+              console.log('🖼️ Final fallback: Limited images to first 10 to avoid UI issues');
+            }
+            
+            console.log('🖼️ Final fallback: Filtered images array length:', extractedData.images.length);
+          }
+          
+          console.log('🖼️ Final extracted data with images:', extractedData);
+          // We found some data, show it to the user
+          setExtractedData(extractedData);
+          // Removed alert to avoid popup when navigating
+       }
       
     } catch (error) {
       console.error('🚨 Facebook scraping error:', error);
@@ -1299,6 +1597,13 @@ export default function ProductDetails({ navigation, route }) {
         ...prev,
         [field]: cleanValue
       }));
+    } else if (field === 'imageUrl') {
+      // When manually editing imageUrl, also update the images array
+      setExtractedData(prev => ({
+        ...prev,
+        [field]: value,
+        images: value ? [value] : []
+      }));
     } else {
       setExtractedData(prev => ({
         ...prev,
@@ -1361,9 +1666,10 @@ export default function ProductDetails({ navigation, route }) {
   const handleRetakeScreenshot = () => {
     setExtractedData({
       productName: '',
-      price: '',
+      price: '$', // Reset to just $ sign
       description: '',
-      imageUrl: ''
+      imageUrl: '',
+      images: []
     });
     // Restart scraping
     scrapeFacebookData(productUrl);
@@ -1375,23 +1681,12 @@ export default function ProductDetails({ navigation, route }) {
 
 
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
-          <Text style={styles.loadingText}>Extracting product information...</Text>
-          <Text style={styles.loadingSubtext}>This may take a few moments</Text>
-          <View style={styles.progressDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Removed the first loading screen to avoid duplicate loading states
+
+  // Debug: Log the current extractedData state
+  console.log('🖼️ UI Render - Current extractedData:', extractedData);
+  console.log('🖼️ UI Render - Images array:', extractedData.images);
+  console.log('🖼️ UI Render - Images length:', extractedData.images ? extractedData.images.length : 'undefined');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1460,114 +1755,82 @@ export default function ProductDetails({ navigation, route }) {
                 }
               </Text>
               
-              {/* Helpful note about Facebook scraping */}
-              <View style={styles.helpNoteContainer}>
-                <Text style={styles.helpNoteText}>
-                  💡 <Text style={styles.helpNoteBold}>Note:</Text> Facebook has security measures that may prevent automatic data extraction. If scraping fails, you can enter the product details manually below.
-                  {isSelling && ' We\'ll help you create an attractive listing for potential buyers.'}
-                </Text>
-              </View>
+                             {/* Note section removed */}
               
-              {/* Loading State */}
-              <View style={styles.loadingStateContainer}>
-                <ActivityIndicator size="large" color="#10B981" />
-                <Text style={styles.loadingStateText}>
-                  {isScraping 
-                    ? (isSelling ? '🔄 Scraping Facebook Marketplace for listing...' : '🔄 Scraping Facebook Marketplace...')
-                    : (isSelling ? '⏳ Preparing to scrape for listing...' : '⏳ Preparing to scrape...')
-                  }
-                </Text>
-                <Text style={styles.loadingStateSubtext}>
-                  This may take a few moments
-                </Text>
-              </View>
-              
-              {/* Open in Browser Button */}
-              <TouchableOpacity 
-                style={styles.openInBrowserButton}
-                onPress={async () => {
-                  try {
-                    await WebBrowser.openBrowserAsync(productUrl);
-                  } catch (error) {
-                    console.log('🌐 Error opening browser:', error);
-                    Alert.alert('Error', 'Could not open product URL in browser');
-                  }
-                }}
-              >
-                <Text style={styles.openInBrowserButtonText}>Open in Browser</Text>
-              </TouchableOpacity>
-              
-               
-               
-                               {/* Debug button to test extraction without screenshot */}
-                <TouchableOpacity 
-                  style={[styles.captureButton, { backgroundColor: '#FF6B6B', marginTop: 12 }]} 
-                  onPress={() => {
-                    console.log('🧪 Debug: Testing extraction directly...');
-                    extractProductInfo();
-                  }}
-                >
-                  <Text style={styles.captureButtonText}>🧪 Test Extraction (Debug)</Text>
-                </TouchableOpacity>
-                
-                {/* Image-only search button */}
-                <TouchableOpacity 
-                  style={[styles.captureButton, { backgroundColor: '#8B5CF6', marginTop: 12 }]} 
-                  onPress={async () => {
-                    console.log('🖼️ Testing image-only search...');
-                    try {
-                      const response = await fetch(productUrl, {
-                        method: 'GET',
-                        headers: {
-                          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        },
-                        credentials: 'omit',
-                      });
-                      
-                      if (response.ok) {
-                        const htmlContent = await response.text();
-                        console.log('🖼️ HTML received for image search, length:', htmlContent.length);
-                        
-                        const foundImage = await findAnyImage(htmlContent, productUrl);
-                        if (foundImage) {
-                          console.log('🖼️ SUCCESS: Image found:', foundImage);
-                          Alert.alert('Image Found!', `Found image: ${foundImage}`);
-                          
-                          // Update the extracted data with just the image
-                          setExtractedData(prev => ({
-                            ...prev,
-                            imageUrl: foundImage
-                          }));
-                        } else {
-                          console.log('❌ No image found');
-                          // Removed alert to avoid popup
+                             {/* Loading State - Couri AI Style */}
+               <View style={styles.couriLoadingContainer}>
+                 {/* Main Modal */}
+                 <View style={styles.couriModal}>
+                                       {/* Central Icon */}
+                    <View style={styles.couriIconContainer}>
+                      <View style={styles.couriIconOuter}>
+                        <View style={styles.couriIconInner}>
+                          <Image 
+                            source={require('../assets/mark2_dark.png')} 
+                            style={styles.couriIconImage}
+                          />
+                        </View>
+                      </View>
+                    </View>
+
+                                       {/* Loading Text & Animation */}
+                    <View style={styles.couriLoadingTextContainer}>
+                      <View style={styles.sparkleAnimation} />
+                      <Text style={styles.couriLoadingText}>
+                        {checkmarkStates.filter(Boolean).length === 4 
+                          ? 'Couri AI verification complete! ✨' 
+                          : 'Couri AI assist... ✨'
                         }
-                      }
-                    } catch (error) {
-                      console.log('❌ Image search failed:', error.message);
-                      // Removed alert to avoid popup
-                    }
-                  }}
-                >
-                  <Text style={styles.captureButtonText}>🖼️ Search for Images Only</Text>
-                </TouchableOpacity>
-               
-               {/* Manual table creation button */}
-               <TouchableOpacity 
-                 style={[styles.captureButton, { backgroundColor: '#8B5CF6', marginTop: 12 }]} 
-                 onPress={async () => {
-                   console.log('🔧 Manual: Attempting to create products table...');
-                   try {
-                     await createProductsTable();
-                     // Removed alert to avoid popup
-                   } catch (error) {
-                     console.error('❌ Manual table creation failed:', error);
-                     // Removed alert to avoid popup
-                   }
-                 }}
-               >
-                 <Text style={styles.captureButtonText}>🔧 Create Products Table</Text>
-               </TouchableOpacity>
+                      </Text>
+                    </View>
+
+                   {/* Progress Steps */}
+                   <View style={styles.verificationSteps}>
+                     <View style={styles.verificationStep}>
+                       <View style={[styles.checkmarkContainer, checkmarkStates[0] && styles.checkmarkContainerActive]}>
+                         <Text style={[styles.checkmark, { opacity: checkmarkStates[0] ? 1 : 0.3 }]}>✓</Text>
+                       </View>
+                       <Text style={styles.verificationText}>Verifying the seller</Text>
+                     </View>
+                     
+                     <View style={styles.verificationStep}>
+                       <View style={[styles.checkmarkContainer, checkmarkStates[1] && styles.checkmarkContainerActive]}>
+                         <Text style={[styles.checkmark, { opacity: checkmarkStates[1] ? 1 : 0.3 }]}>✓</Text>
+                       </View>
+                       <Text style={styles.verificationText}>Analyzing images and brand data</Text>
+                     </View>
+                     
+                     <View style={styles.verificationStep}>
+                       <View style={[styles.checkmarkContainer, checkmarkStates[2] && styles.checkmarkContainerActive]}>
+                         <Text style={[styles.checkmark, { opacity: checkmarkStates[2] ? 1 : 0.3 }]}>✓</Text>
+                       </View>
+                       <Text style={styles.verificationText}>Scanning for fraud indicators</Text>
+                     </View>
+                     
+                     <View style={styles.verificationStep}>
+                       <View style={[styles.checkmarkContainer, checkmarkStates[3] && styles.checkmarkContainerActive]}>
+                         <Text style={[styles.checkmark, { opacity: checkmarkStates[3] ? 1 : 0.3 }]}>✓</Text>
+                       </View>
+                       <Text style={styles.verificationText}>Preparing your secure transaction</Text>
+                     </View>
+                   </View>
+
+                                       {/* Progress Indicator removed */}
+
+                    {/* Bottom Animation */}
+                    <View style={styles.bottomSparkleAnimation} />
+                  </View>
+                </View>
+                
+                {/* Image Preloading Indicator */}
+                {preloadingImages && (
+                  <View style={styles.imagePreloadingContainer}>
+                    <ActivityIndicator size="small" color="#007AFF" />
+                    <Text style={styles.imagePreloadingText}>Loading images for instant display...</Text>
+                  </View>
+                )}
+              
+                                                           {/* Open in Browser Button removed */}
             </View>
           ) : (
             <>
@@ -1585,106 +1848,152 @@ export default function ProductDetails({ navigation, route }) {
                 }
               </Text>
               
-                                             {/* Product Image */}
-                <View style={styles.imageContainer}>
-                  <Text style={styles.fieldLabel}>PRODUCT IMAGE</Text>
-                  
-                                                           {/* Display Image from URL */}
-                    {extractedData.imageUrl && 
-                     extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' && 
-                     extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input+Required' &&
-                     extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
-                     extractedData.imageUrl.startsWith('http') ? (
-                      <Image 
-                        source={{ uri: extractedData.imageUrl }}
-                        style={styles.productImage}
-                        resizeMode="cover"
-                        onLoad={() => console.log('🖼️ Image loaded successfully')}
-                        onError={(error) => console.log('❌ Image failed to load:', error.nativeEvent.error)}
-                      />
-                    ) : (
-                      <View style={styles.imagePlaceholder}>
-                        <Text style={styles.imagePlaceholderText}>
-                          {extractedData.imageUrl && 
-                           extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
-                           extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input+Required' &&
-                           extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
-                           extractedData.imageUrl.startsWith('http')
-                            ? 'Loading image...' 
-                            : 'No Image Available'}
-                        </Text>
+                                                                                           {/* Product Information Card */}
+                <TouchableOpacity 
+                  style={styles.productInfoCard}
+                  onPress={() => setShowProductModal(true)}
+                  activeOpacity={0.9}
+                >
+                  {/* Product Image */}
+                  <View style={styles.productImageContainer}>
+                    {extractedData.images && extractedData.images.length > 0 ? (
+                      <View style={styles.photoSwiperContainer}>
+                        <FlatList
+                          data={extractedData.images}
+                          horizontal
+                          pagingEnabled
+                          showsHorizontalScrollIndicator={false}
+                          keyExtractor={(item, index) => index.toString()}
+                          onMomentumScrollEnd={(event) => {
+                            const index = Math.round(event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width);
+                            setCurrentImageIndex(index);
+                          }}
+                          getItemLayout={(data, index) => ({
+                            length: 120,
+                            offset: 120 * index,
+                            index,
+                          })}
+                          renderItem={({ item, index }) => (
+                            <View style={styles.photoSwiperItem}>
+                              <Image 
+                                source={{ uri: item }}
+                                style={styles.productCardImage}
+                                resizeMode="cover"
+                                onLoad={() => console.log(`🖼️ Image ${index + 1} loaded successfully`)}
+                                onError={(error) => console.log(`❌ Image ${index + 1} failed to load:`, error.nativeEvent.error)}
+                              />
+                            </View>
+                          )}
+                        />
+                        
+                        {/* Image Counter - Only show for multiple images */}
+                        {extractedData.images.length > 1 && (
+                          <View style={styles.imageCounter}>
+                            <Text style={styles.imageCounterText}>
+                              {currentImageIndex + 1} of {extractedData.images.length}
+                            </Text>
+                          </View>
+                        )}
+                        
+                        {/* Image Dots - Only show for multiple images */}
+                        {extractedData.images.length > 1 && (
+                          <View style={styles.imageDots}>
+                            {extractedData.images.map((_, index) => (
+                              <View
+                                key={index}
+                                style={[
+                                  styles.imageDot,
+                                  index === currentImageIndex && styles.imageDotActive
+                                ]}
+                              />
+                            ))}
+                          </View>
+                        )}
                       </View>
+                    ) : (
+                      /* Fallback when no images - also check imageUrl for backward compatibility */
+                      extractedData.imageUrl && 
+                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
+                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input+Required' &&
+                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
+                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Error+Occurred' &&
+                      extractedData.imageUrl.startsWith('http') ? (
+                        <Image 
+                          source={{ uri: extractedData.imageUrl }}
+                          style={styles.productCardImage}
+                          resizeMode="cover"
+                          onLoad={() => console.log('🖼️ Single image loaded successfully')}
+                          onError={(error) => console.log('❌ Single image failed to load:', error.nativeEvent.error)}
+                        />
+                      ) : (
+                        <View style={styles.productCardImagePlaceholder}>
+                          <Text style={styles.productCardImagePlaceholderText}>
+                            {extractedData.imageUrl && 
+                             extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
+                             extractedData.imageUrl !== 'https://placeholder.com/150?text=Manual+Input+Required' &&
+                             extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
+                             extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Error+Occurred' &&
+                             extractedData.imageUrl.startsWith('http')
+                              ? 'Loading image...' 
+                              : 'No Image Available'}
+                          </Text>
+                        </View>
+                      )
                     )}
+                  </View>
                   
-                                                         
-                </View>
+                  {/* Product Details */}
+                  <View style={styles.productDetailsContainer}>
+                    <Text style={styles.productTitle}>
+                      {extractedData.productName || 'Product Name'}
+                    </Text>
+                    <View style={styles.sourceContainer}>
+                      <Text style={styles.facebookIcon}>f</Text>
+                      <Text style={styles.sourceText}>from Facebook Marketplace</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+               
+               {/* Product Name input removed - now editable directly in the card */}
               
-              {/* Product Name */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.fieldLabel}>
-                  {isSelling ? 'ITEM NAME' : 'PRODUCT NAME'}
-                </Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={extractedData.productName}
-                  onChangeText={(text) => handleManualEdit('productName', text)}
-                  placeholder="Enter product name"
-                  multiline
-                />
-              </View>
-              
-              {/* Price */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.fieldLabel}>
-                  {isSelling ? 'SELLING PRICE' : 'PRODUCT PRICE'}
-                </Text>
-                <View style={styles.priceInputContainer}>
-                  <Text style={styles.pricePrefix}>$</Text>
-                  <TextInput
-                    style={styles.priceTextInput}
-                    value={extractedData.price === '$' ? '' : extractedData.price.replace('$', '')}
-                    onChangeText={(text) => handleManualEdit('price', text)}
-                    placeholder=""
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-              
-              {/* Description */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.fieldLabel}>
-                  {isSelling ? 'ITEM DESCRIPTION' : 'DESCRIPTION'}
-                </Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={extractedData.description}
-                  onChangeText={(text) => handleManualEdit('description', text)}
-                  placeholder="Enter product description"
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-              
-                             {/* Action Buttons */}
-               <View style={styles.actionButtonsContainer}>
-                                   <TouchableOpacity 
-                    style={styles.retakeButton} 
-                    onPress={handleRetakeScreenshot}
-                  >
-                                         <Text style={styles.retakeButtonText}>
-                       Retry Scraping
-                     </Text>
-                  </TouchableOpacity>
-                 
-                 <TouchableOpacity 
-                   style={styles.submitButton} 
-                   onPress={handleSubmit}
-                 >
-                                                                               <Text style={styles.submitButtonText}>
-                       Submit
-                     </Text>
-                 </TouchableOpacity>
+                             {/* Price Input Card */}
+               <View style={styles.priceInputCard}>
+                 <Text style={styles.priceLabel}>
+                   {isSelling ? 'SELLING PRICE' : 'PRODUCT PRICE'}
+                 </Text>
+                 <View style={styles.priceInputContainer}>
+                   <Text style={styles.pricePrefix}>$</Text>
+                   <TextInput
+                     style={styles.priceTextInput}
+                     value={extractedData.price === '$' ? '' : extractedData.price.replace('$', '')}
+                     onChangeText={(text) => handleManualEdit('price', text)}
+                     placeholder=""
+                     keyboardType="numeric"
+                   />
+                   {extractedData.price !== '$' && (
+                     <TouchableOpacity 
+                       style={styles.clearPriceButton}
+                       onPress={() => handleManualEdit('price', '')}
+                     >
+                       <Text style={styles.clearPriceButtonText}>×</Text>
+                     </TouchableOpacity>
+                   )}
+                 </View>
                </View>
+              
+                                             {/* Description section removed */}
+              
+                                             {/* Action Buttons */}
+                <View style={styles.actionButtonsContainer}>
+                  <TouchableOpacity 
+                    style={styles.submitButton} 
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitButtonText}>
+                      Submit
+                    </Text>
+                  </TouchableOpacity>
+                </View>
         
             </View>
             </>
@@ -1693,43 +2002,91 @@ export default function ProductDetails({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* Modal Popup */}
-      {showModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            {/* Icon */}
-            <View style={styles.modalIconContainer}>
-              <View style={styles.modalIconOuter}>
-                <View style={styles.modalIconInner}>
-                  <Text style={styles.modalIconText}>CO</Text>
-                </View>
-              </View>
-            </View>
+             {/* Modal Popup */}
+       {showModal && (
+         <View style={styles.modalOverlay}>
+           <View style={styles.modalContainer}>
+             {/* Icon */}
+             <View style={styles.modalIconContainer}>
+               <View style={styles.modalIconOuter}>
+                 <View style={styles.modalIconInner}>
+                   <Text style={styles.modalIconText}>CO</Text>
+                 </View>
+               </View>
+             </View>
 
-            {/* Title */}
-            <Text style={styles.modalTitle}>Help Keep Couri Safe and Trusted</Text>
+             {/* Title */}
+             <Text style={styles.modalTitle}>Help Keep Couri Safe and Trusted</Text>
 
-            {/* Body Text */}
-            <Text style={styles.modalBodyText}>
-              To protect our community, buyers have a 4-hour return window in case an item is fake, damaged, or misrepresented. Seller payouts are held until this window closes.
-            </Text>
-            
-            <Text style={styles.modalBodyText}>
-              Please ensure your listings are authentic and accurately described. <Text style={styles.modalBoldText}>Repeated violations will lead to account suspension.</Text>
-            </Text>
+             {/* Body Text */}
+             <Text style={styles.modalBodyText}>
+               To protect our community, buyers have a 4-hour return window in case an item is fake, damaged, or misrepresented. Seller payouts are held until this window closes.
+             </Text>
+             
+             <Text style={styles.modalBodyText}>
+               Please ensure your listings are authentic and accurately described. <Text style={styles.modalBoldText}>Repeated violations will lead to account suspension.</Text>
+             </Text>
 
-            {/* Primary Button */}
-            <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleIUnderstand}>
-              <Text style={styles.modalPrimaryButtonText}>I understand</Text>
-            </TouchableOpacity>
+             {/* Primary Button */}
+             <TouchableOpacity style={styles.modalPrimaryButton} onPress={handleIUnderstand}>
+               <Text style={styles.modalPrimaryButtonText}>I understand</Text>
+             </TouchableOpacity>
 
-            {/* Secondary Button */}
-            <TouchableOpacity style={styles.modalSecondaryButton} onPress={handleCancelTransaction}>
-              <Text style={styles.modalSecondaryButtonText}>Cancel transaction</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+             {/* Secondary Button */}
+             <TouchableOpacity style={styles.modalSecondaryButton} onPress={handleCancelTransaction}>
+               <Text style={styles.modalSecondaryButtonText}>Cancel transaction</Text>
+             </TouchableOpacity>
+           </View>
+         </View>
+       )}
+
+       {/* Product Details Modal */}
+       {showProductModal && (
+         <View style={styles.modalOverlay}>
+           <View style={styles.productModalContainer}>
+             {/* Close Button */}
+             <TouchableOpacity 
+               style={styles.closeButton}
+               onPress={() => setShowProductModal(false)}
+             >
+               <Text style={styles.closeButtonText}>×</Text>
+             </TouchableOpacity>
+
+             {/* Product Image */}
+             <View style={styles.productModalImageContainer}>
+               {extractedData.images && extractedData.images.length > 0 ? (
+                 <Image 
+                   source={{ uri: extractedData.images[currentImageIndex] }}
+                   style={styles.productModalImage}
+                   resizeMode="cover"
+                 />
+               ) : (
+                 <Image 
+                   source={{ uri: extractedData.imageUrl }}
+                   style={styles.productModalImage}
+                   resizeMode="cover"
+                 />
+               )}
+             </View>
+
+             {/* Product Information */}
+             <View style={styles.productModalInfo}>
+               <Text style={styles.productModalTitle}>
+                 {extractedData.productName || 'Product Name'}
+               </Text>
+               
+               <View style={styles.productModalSource}>
+                 <Text style={styles.facebookIcon}>f</Text>
+                 <Text style={styles.sourceText}>from Facebook Marketplace</Text>
+               </View>
+
+               <Text style={styles.productModalDescription}>
+                 {extractedData.description || 'No description available'}
+               </Text>
+             </View>
+           </View>
+         </View>
+       )}
     </SafeAreaView>
   );
 }
@@ -1853,35 +2210,27 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     alignItems: 'center',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  loadingSubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 24,
-  },
-  progressDots: {
+  // Image preloading indicator styles
+  imagePreloadingContainer: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+  imagePreloadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#6C757D',
+    fontWeight: '500',
   },
-  dotActive: {
-    backgroundColor: '#10B981',
-  },
+  
+  // Removed loading screen styles that are no longer needed
   webViewContainer: {
     width: '100%',
     alignItems: 'center',
@@ -1891,43 +2240,144 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
-  loadingStateContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  loadingStateSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  helpNoteContainer: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 24,
-    width: '100%',
-  },
-  helpNoteText: {
-    fontSize: 14,
-    color: '#92400E',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  helpNoteBold: {
-    fontWeight: 'bold',
-  },
+     // Couri AI Loading Screen Styles
+   couriLoadingContainer: {
+     width: '100%',
+     alignItems: 'center',
+     paddingVertical: 20,
+   },
+   couriModal: {
+     width: '90%',
+     maxWidth: 400,
+     backgroundColor: '#E8F4FD',
+     borderRadius: 20,
+     padding: 24,
+     alignItems: 'center',
+     shadowColor: '#000',
+     shadowOffset: {
+       width: 0,
+       height: 4,
+     },
+     shadowOpacity: 0.15,
+     shadowRadius: 12,
+     elevation: 8,
+     borderWidth: 1,
+     borderColor: 'rgba(135, 206, 250, 0.3)',
+   },
+   couriIconContainer: {
+     marginBottom: 20,
+   },
+   couriIconOuter: {
+     width: 80,
+     height: 80,
+     borderRadius: 40,
+     backgroundColor: '#fff',
+     justifyContent: 'center',
+     alignItems: 'center',
+     shadowColor: '#000',
+     shadowOffset: {
+       width: 0,
+       height: 2,
+     },
+     shadowOpacity: 0.1,
+     shadowRadius: 6,
+     elevation: 4,
+   },
+       couriIconInner: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: 'transparent',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 0,
+    },
+       couriIconImage: {
+      width: 32,
+      height: 32,
+      resizeMode: 'contain',
+    },
+   couriLoadingTextContainer: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     marginBottom: 24,
+   },
+   sparkleAnimation: {
+     width: 16,
+     height: 16,
+     backgroundColor: '#FFB6C1',
+     borderRadius: 8,
+     marginRight: 8,
+     opacity: 0.8,
+   },
+   couriLoadingText: {
+     fontSize: 18,
+     fontWeight: '600',
+     color: '#2F4F4F',
+     textAlign: 'center',
+   },
+   verificationSteps: {
+     width: '100%',
+     gap: 16,
+   },
+   verificationStep: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     backgroundColor: '#fff',
+     borderRadius: 12,
+     padding: 16,
+     shadowColor: '#000',
+     shadowOffset: {
+       width: 0,
+       height: 1,
+     },
+     shadowOpacity: 0.05,
+     shadowRadius: 3,
+     elevation: 2,
+   },
+   checkmarkContainer: {
+     width: 24,
+     height: 24,
+     borderRadius: 12,
+     backgroundColor: '#4CAF50',
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginRight: 12,
+     opacity: 0.3,
+   },
+   checkmarkContainerActive: {
+     opacity: 1,
+     backgroundColor: '#4CAF50',
+     shadowColor: '#4CAF50',
+     shadowOffset: {
+       width: 0,
+       height: 2,
+     },
+     shadowOpacity: 0.3,
+     shadowRadius: 4,
+     elevation: 4,
+   },
+   checkmark: {
+     color: '#fff',
+     fontSize: 14,
+     fontWeight: 'bold',
+   },
+   verificationText: {
+     fontSize: 14,
+     color: '#2F4F4F',
+     fontWeight: '500',
+     flex: 1,
+   },
+       bottomSparkleAnimation: {
+      width: 24,
+      height: 24,
+      backgroundColor: '#FFB6C1',
+      borderRadius: 12,
+      marginTop: 16,
+      opacity: 0.8,
+    },
+    // Progress indicator styles removed
+     // Removed help note styles
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -1954,19 +2404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
   },
-  openInBrowserButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  openInBrowserButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+     // Open in Browser button styles removed
 
   captureButton: {
     backgroundColor: '#000',
@@ -2014,6 +2452,148 @@ const styles = StyleSheet.create({
      backgroundColor: '#F3F4F6',
    },
    
+            // Product Info Card Styles
+     productInfoCard: {
+       flexDirection: 'row',
+       backgroundColor: '#fff',
+       borderRadius: 16,
+       padding: 20,
+       marginBottom: 24,
+       width: '95%',
+       shadowColor: '#000',
+       shadowOffset: {
+         width: 0,
+         height: 4,
+       },
+       shadowOpacity: 0.15,
+       shadowRadius: 12,
+       elevation: 8,
+       borderWidth: 1,
+       borderColor: '#E5E7EB',
+     },
+    productImageContainer: {
+      marginRight: 20,
+    },
+    productCardImage: {
+      width: 120,
+      height: 120,
+      borderRadius: 12,
+      backgroundColor: '#F3F4F6',
+    },
+    productCardImagePlaceholder: {
+      width: 120,
+      height: 120,
+      borderRadius: 12,
+      backgroundColor: '#F3F4F6',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+    },
+    productCardImagePlaceholderText: {
+      color: '#9CA3AF',
+      fontSize: 14,
+      textAlign: 'center',
+      paddingHorizontal: 10,
+    },
+    productDetailsContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+               productTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#000',
+        marginBottom: 8,
+        lineHeight: 24,
+      },
+    sourceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    facebookIcon: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#1877F2',
+      marginRight: 8,
+    },
+    sourceText: {
+      fontSize: 14,
+      color: '#6B7280',
+    },
+    
+         // Price Input Card Styles
+     priceInputCard: {
+       backgroundColor: '#fff',
+       borderRadius: 16,
+       padding: 20,
+       marginBottom: 24,
+       width: '95%',
+       shadowColor: '#000',
+       shadowOffset: {
+         width: 0,
+         height: 4,
+       },
+       shadowOpacity: 0.15,
+       shadowRadius: 12,
+       elevation: 8,
+       borderWidth: 1,
+       borderColor: '#E5E7EB',
+     },
+    priceLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#6B7280',
+      marginBottom: 12,
+      textTransform: 'uppercase',
+    },
+    
+    // Photo Swiper Styles (Updated for card layout)
+    photoSwiperContainer: {
+      width: 120,
+      height: 120,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: '#F3F4F6',
+    },
+    photoSwiperItem: {
+      width: 120, // Match the getItemLayout length
+      height: 120,
+    },
+   imageCounter: {
+     position: 'absolute',
+     top: 12,
+     right: 12,
+     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+     borderRadius: 12,
+     paddingHorizontal: 8,
+     paddingVertical: 4,
+   },
+   imageCounterText: {
+     color: '#fff',
+     fontSize: 12,
+     fontWeight: '600',
+   },
+   imageDots: {
+     position: 'absolute',
+     bottom: 12,
+     left: 0,
+     right: 0,
+     flexDirection: 'row',
+     justifyContent: 'center',
+     alignItems: 'center',
+     gap: 6,
+   },
+   imageDot: {
+     width: 8,
+     height: 8,
+     borderRadius: 4,
+     backgroundColor: 'rgba(255, 255, 255, 0.5)',
+   },
+   imageDotActive: {
+     backgroundColor: '#fff',
+   },
+   
    updateImageButton: {
      backgroundColor: '#10B981',
      borderRadius: 8,
@@ -2031,15 +2611,27 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 24,
   },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#fff',
-    minHeight: 48,
-  },
+     textInput: {
+     borderWidth: 1,
+     borderColor: '#E5E7EB',
+     borderRadius: 8,
+     padding: 16,
+     fontSize: 16,
+     backgroundColor: '#fff',
+     minHeight: 48,
+   },
+   descriptionText: {
+     fontSize: 16,
+     color: '#374151',
+     lineHeight: 24,
+     paddingVertical: 16,
+     paddingHorizontal: 16,
+     backgroundColor: '#F9FAFB',
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: '#E5E7EB',
+     minHeight: 48,
+   },
   actionButtonsContainer: {
     width: '100%',
     flexDirection: 'row',
@@ -2102,14 +2694,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  priceTextInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#000',
-    paddingVertical: 16,
-    paddingRight: 16,
-    minHeight: 48,
-  },
+     priceTextInput: {
+     flex: 1,
+     fontSize: 16,
+     color: '#000',
+     paddingVertical: 16,
+     paddingRight: 16,
+     minHeight: 48,
+   },
+   clearPriceButton: {
+     width: 24,
+     height: 24,
+     borderRadius: 12,
+     backgroundColor: '#E5E7EB',
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginLeft: 8,
+   },
+   clearPriceButtonText: {
+     fontSize: 18,
+     color: '#6B7280',
+     fontWeight: 'bold',
+   },
 
   // Modal styles
   modalOverlay: {
@@ -2202,11 +2808,88 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  modalSecondaryButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
-  },
+     modalSecondaryButtonText: {
+     color: '#000',
+     fontSize: 16,
+     fontWeight: '500',
+     textDecorationLine: 'underline',
+   },
+
+   // Product Modal Styles
+   productModalContainer: {
+     backgroundColor: '#fff',
+     borderRadius: 20,
+     padding: 24,
+     margin: 20,
+     width: '90%',
+     maxWidth: 400,
+     alignItems: 'center',
+     shadowColor: '#000',
+     shadowOffset: {
+       width: 0,
+       height: 4,
+     },
+     shadowOpacity: 0.25,
+     shadowRadius: 8,
+     elevation: 8,
+     position: 'relative',
+   },
+   closeButton: {
+     position: 'absolute',
+     top: 16,
+     right: 16,
+     width: 32,
+     height: 32,
+     borderRadius: 16,
+     backgroundColor: '#E5E7EB',
+     justifyContent: 'center',
+     alignItems: 'center',
+     zIndex: 1,
+   },
+   closeButtonText: {
+     fontSize: 20,
+     color: '#6B7280',
+     fontWeight: 'bold',
+   },
+   productModalImageContainer: {
+     width: '100%',
+     height: 200,
+     borderRadius: 16,
+     overflow: 'hidden',
+     marginBottom: 20,
+   },
+   productModalImage: {
+     width: '100%',
+     height: '100%',
+     borderRadius: 16,
+   },
+   productModalInfo: {
+     width: '100%',
+     alignItems: 'center',
+   },
+   productModalTitle: {
+     fontSize: 20,
+     fontWeight: '700',
+     color: '#000',
+     textAlign: 'center',
+     marginBottom: 12,
+     lineHeight: 28,
+   },
+   productModalSource: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     marginBottom: 16,
+   },
+   productModalDescription: {
+     fontSize: 16,
+     color: '#374151',
+     textAlign: 'center',
+     lineHeight: 24,
+     backgroundColor: '#F9FAFB',
+     padding: 16,
+     borderRadius: 12,
+     borderWidth: 1,
+     borderColor: '#E5E7EB',
+   },
    
  });

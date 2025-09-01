@@ -71,13 +71,15 @@ export default function PlaidConnect({ navigation, route }) {
         
         {/* Plaid Logo */}
         <View style={styles.plaidLogoContainer}>
-          <View style={styles.plaidIcon}>
-            <View style={styles.plaidSquare1} />
-            <View style={styles.plaidSquare2} />
-            <View style={styles.plaidSquare3} />
-            <View style={styles.plaidSquare4} />
-          </View>
+          <Image 
+            source={require('../assets/plaid-logo.png')} 
+            style={styles.plaidHeaderLogo}
+          />
           <Text style={styles.plaidText}>PLAID</Text>
+          <Image 
+            source={require('../assets/plaid-logo2.png')} 
+            style={styles.plaidHeaderLogo2}
+          />
         </View>
         
         {/* Profile Section */}
@@ -104,15 +106,16 @@ export default function PlaidConnect({ navigation, route }) {
           <View style={styles.connectionIconContainer}>
             <View style={styles.connectionIcon}>
               <View style={styles.couriCircle}>
-                <Text style={styles.couriText}>co</Text>
+                <Image 
+                  source={require('../assets/mark2_dark.png')} 
+                  style={styles.couriIconImage}
+                />
               </View>
               <View style={styles.plaidCircle}>
-                <View style={styles.plaidIconSmall}>
-                  <View style={styles.plaidSquare1} />
-                  <View style={styles.plaidSquare2} />
-                  <View style={styles.plaidSquare3} />
-                  <View style={styles.plaidSquare4} />
-                </View>
+                <Image 
+                  source={require('../assets/plaid-logo.png')} 
+                  style={styles.plaidLogoImage}
+                />
               </View>
             </View>
           </View>
@@ -208,43 +211,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  plaidIcon: {
+  plaidHeaderLogo: {
     width: 24,
     height: 24,
-    position: 'relative',
+    resizeMode: 'contain',
   },
-  plaidSquare1: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 12,
-    height: 12,
-    backgroundColor: '#000',
+  plaidHeaderLogo2: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
-  plaidSquare2: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    backgroundColor: '#000',
-  },
-  plaidSquare3: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: 12,
-    height: 12,
-    backgroundColor: '#000',
-  },
-  plaidSquare4: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    backgroundColor: '#000',
-  },
+
   plaidText: {
     fontSize: 18,
     fontWeight: '600',
@@ -267,7 +244,7 @@ const styles = StyleSheet.create({
   connectionIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: -10,
   },
   couriCircle: {
     width: 60,
@@ -279,10 +256,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  couriText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
+  couriIconImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
   },
   plaidCircle: {
     width: 60,
@@ -292,10 +269,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  plaidIconSmall: {
-    width: 20,
-    height: 20,
-    position: 'relative',
+  plaidLogoImage: {
+    width: 56,
+    height: 56,
+    resizeMode: 'contain',
   },
   mainTitle: {
     fontSize: 24,
