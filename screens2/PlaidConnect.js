@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,10 @@ import {
 
 export default function PlaidConnect({ navigation, route }) {
   const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
+  const [plaidLogoError, setPlaidLogoError] = useState(false);
+  
+  // Debug: Log the current state
+  console.log('🖼️ PlaidConnect - plaidLogoError state:', plaidLogoError);
 
   const getUserInitials = (profile) => {
     if (profile?.full_name) {
@@ -72,12 +76,12 @@ export default function PlaidConnect({ navigation, route }) {
         {/* Plaid Logo */}
         <View style={styles.plaidLogoContainer}>
           <Image 
-            source={require('../assets/plaid-logo.png')} 
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo.png' }} 
             style={styles.plaidHeaderLogo}
           />
           <Text style={styles.plaidText}>PLAID</Text>
           <Image 
-            source={require('../assets/plaid-logo2.png')} 
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo2.png' }} 
             style={styles.plaidHeaderLogo2}
           />
         </View>
@@ -113,8 +117,20 @@ export default function PlaidConnect({ navigation, route }) {
               </View>
               <View style={styles.plaidCircle}>
                 <Image 
-                  source={require('../assets/plaid-logo.png')} 
+                  source={plaidLogoError ? require('../assets/plaid-logo.png') : { uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/assets/plaid-logo.png' }} 
                   style={styles.plaidLogoImage}
+                  onError={(error) => {
+                    console.log('❌ Plaid logo failed to load from Supabase:', error);
+                    console.log('🔄 Switching to local asset fallback...');
+                    setPlaidLogoError(true);
+                  }}
+                  onLoad={() => {
+                    if (plaidLogoError) {
+                      console.log('✅ Plaid logo loaded successfully from local asset (fallback)');
+                    } else {
+                      console.log('✅ Plaid logo loaded successfully from Supabase');
+                    }
+                  }}
                 />
               </View>
             </View>
