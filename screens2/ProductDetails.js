@@ -6,37 +6,41 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../screens/supabaseClient';
+import { Buffer } from 'buffer';
+
+// RN sometimes needs this polyfill
+if (typeof global.Buffer === 'undefined') {
+  // @ts-ignore
+  global.Buffer = Buffer;
+}
 
 export default function ProductDetails({ navigation, route }) {
   const [loading, setLoading] = useState(false);
-  
+ 
   // Debug loading state changes
   useEffect(() => {
     console.log('🔄 Loading state changed to:', loading);
   }, [loading]);
-  
+ 
   // Get the transaction type from route params
   const { transactionType } = route.params || {};
   const isSelling = transactionType === 'sell';
-  
+ 
   const [extractedData, setExtractedData] = useState({
     productName: '',
-    price: '$', // Start with just $ sign
+    price: '$', // Keep $ prefix but remove initial price
     description: '',
-    imageUrl: '', // Keep for backward compatibility
-    images: [] // New array for multiple images
+    imageUrl: ''
   });
   const [isScraping, setIsScraping] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0); // For photo swiper
-  const [imagesLoaded, setImagesLoaded] = useState(false); // Track if images are preloaded
-  const [preloadingImages, setPreloadingImages] = useState(false); // Track preloading state
-  
-  // New state for animated checkmarks
   const [checkmarkStates, setCheckmarkStates] = useState([false, false, false, false]);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [preloadingImages, setPreloadingImages] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
   const [currentCheckmarkIndex, setCurrentCheckmarkIndex] = useState(0);
-  
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+ 
   const { productUrl, userAddress, userProfile } = route.params || {};
 
   const getUserInitials = (profile) => {
@@ -48,7 +52,7 @@ export default function ProductDetails({ navigation, route }) {
         return names[0].charAt(0).toUpperCase();
       }
     }
-    
+   
     if (profile?.name) {
       const names = profile.name.split(' ');
       if (names.length >= 2) {
@@ -57,9 +61,35 @@ export default function ProductDetails({ navigation, route }) {
         return names[0].charAt(0).toUpperCase();
       }
     }
-    
+   
     return 'U';
   };
+
+  // -----------------------------
+  // 👇 Invite helpers (payload + deep link)
+  // -----------------------------
+  const buildInvitePayload = () => {
+    return {
+      fbUrl: productUrl,
+      price: extractedData?.price || '$',
+      title: extractedData?.productName || '',     // product name the seller typed
+      image: extractedData?.imageUrl || '',        // image shown in "PRODUCT IMAGE"
+      seller: userProfile?.full_name || userProfile?.name || '',
+      sellerAvatar: userProfile?.avatar_url || '',
+      // offerId: 'optional-later'
+    };
+  };
+
+  const makeInviteLink = (payload) => {
+    const raw = JSON.stringify(payload);
+    const b64 = Buffer.from(raw, 'utf8')
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/,'');
+    return `couri://invite?data=${b64}`;
+  };
+  // -----------------------------
 
   // Image preloading function for instant display
   const preloadImages = async (imageUrls) => {
@@ -1618,6 +1648,10 @@ export default function ProductDetails({ navigation, route }) {
       return;
     }
 
+    // 👇 Build and pass invite payload + deep link
+    const invitePayload = buildInvitePayload();
+    const inviteUrl = makeInviteLink(invitePayload);
+
     // Only show the modal for sellers
     if (isSelling) {
       setShowModal(true);
@@ -1631,7 +1665,9 @@ export default function ProductDetails({ navigation, route }) {
         productDescription: extractedData.description,
         productImage: extractedData.imageUrl,
         transactionType,
-        userProfile
+        userProfile,
+        invitePayload, // 🔗
+        inviteUrl,     // 🔗
       });
     }
   };
@@ -1644,6 +1680,11 @@ export default function ProductDetails({ navigation, route }) {
       Alert.alert('Error', 'Please enter a valid price before continuing');
       return;
     }
+
+    // 👇 Build and pass invite payload + deep link
+    const invitePayload = buildInvitePayload();
+    const inviteUrl = makeInviteLink(invitePayload);
+
     // Navigate to ConfirmAddress page
     navigation.navigate('ConfirmAddress', {
       productUrl,
@@ -1653,7 +1694,9 @@ export default function ProductDetails({ navigation, route }) {
       productDescription: extractedData.description,
       productImage: extractedData.imageUrl,
       transactionType, // Pass along the transaction type
-      userProfile
+      userProfile,
+      invitePayload, // 🔗
+      inviteUrl,     // 🔗
     });
   };
 
@@ -2130,6 +2173,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   profilePlaceholder: {
     width: 40,

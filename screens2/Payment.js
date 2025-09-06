@@ -118,27 +118,27 @@ export default function Payment({ navigation, route }) {
             Used for Couri service fees. You won't be charged until delivery is complete.
           </Text>
 
-          {/* Information Box */}
+          {/* Transaction Fee Information Box */}
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              Once the product is delivered, you will incur a{' '}
-              <Text style={styles.feeAmount}>$2.99 transaction fee</Text> for using Couri. 
-              This fee is non-refundable.
+              Once the product is delivered, you will{'\n'}
+              incur a <Text style={styles.boldText}>$x.xx transaction fee</Text> for using{'\n'}
+              Couri. <Text style={styles.italicText}>This fee is non-refundable.</Text>
             </Text>
+          </View>
+
+          {/* Action Buttons - Moved up */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.linkPaymentButton} onPress={handleLinkPayment}>
+              <Text style={styles.linkPaymentButtonText}>Link payment method</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.cancelButton} onPress={handleCancelTransaction}>
+              <Text style={styles.cancelButtonText}>Cancel transaction</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.linkPaymentButton} onPress={handleLinkPayment}>
-          <Text style={styles.linkPaymentButtonText}>Link payment method</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancelTransaction}>
-          <Text style={styles.cancelButtonText}>Cancel transaction</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -182,6 +182,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   profilePlaceholder: {
     width: 40,
@@ -259,22 +261,30 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingTop: 20,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   mainTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#000',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 16,
+    alignSelf: 'flex-start',
   },
   subtitle: {
     fontSize: 16,
     color: '#000',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 32,
     lineHeight: 22,
-    maxWidth: 300,
+    maxWidth: 350,
+    alignSelf: 'flex-start',
+  },
+  boldText: {
+    fontWeight: 'bold',
+  },
+  italicText: {
+    fontStyle: 'italic',
   },
   infoBox: {
     backgroundColor: '#FCE7F3',
@@ -282,9 +292,10 @@ const styles = StyleSheet.create({
     borderColor: '#F472B6',
     borderRadius: 12,
     padding: 20,
-    marginBottom: 32,
+    marginBottom: 16,
     width: '100%',
     maxWidth: 350,
+    alignItems: 'center',
   },
   infoText: {
     fontSize: 16,
@@ -292,16 +303,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  feeAmount: {
-    fontWeight: 'bold',
-  },
   buttonContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    marginTop: 24,
+    width: '100%',
   },
   linkPaymentButton: {
-    backgroundColor: '#374151',
-    borderRadius: 12,
+    backgroundColor: '#000000',
+    borderRadius: 25,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,

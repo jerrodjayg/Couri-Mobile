@@ -10,6 +10,8 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
@@ -108,10 +110,19 @@ export default function ProductPrice({ navigation, route }) {
   };
 
   const handleSubmit = () => {
-    // Handle the product price submission
+    if (!productPrice || productPrice.trim() === '') {
+      Alert.alert('Missing Price', 'Please enter a product price before continuing.');
+      return;
+    }
+
     console.log('Product price submitted:', productPrice);
-    // Navigate to next step (Address screen)
-    // navigation.navigate('Address');
+    
+    // Navigate to next step (ConfirmAddress screen) with the product price
+    navigation.navigate('ConfirmAddress', {
+      productUrl: url,
+      productPrice: productPrice,
+      transactionType: 'sell' // This is the seller flow
+    });
   };
 
   const clearPrice = () => {
@@ -155,70 +166,82 @@ export default function ProductPrice({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
-        {/* Bars on top */}
-        <View style={styles.progressBar}>
-          <View style={[styles.stepIndicator, styles.stepActive]} />
-          <View style={[styles.stepIndicator, styles.stepInactive]} />
-          <View style={[styles.stepIndicator, styles.stepInactive]} />
-          <View style={[styles.stepIndicator, styles.stepInactive]} />
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* Progress Indicator */}
+        <View style={styles.progressContainer}>
+          {/* Bars on top */}
+          <View style={styles.progressBar}>
+            <View style={[styles.stepIndicator, styles.stepActive]} />
+            <View style={[styles.stepIndicator, styles.stepInactive]} />
+            <View style={[styles.stepIndicator, styles.stepInactive]} />
+            <View style={[styles.stepIndicator, styles.stepInactive]} />
+          </View>
+          
+          {/* Words underneath the bars */}
+          <View style={styles.progressLabels}>
+            <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
+            <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
+            <Text style={[styles.stepText, styles.stepTextThird]}>Payment</Text>
+            <Text style={[styles.stepText, styles.stepTextFourth]}>Share</Text>
+          </View>
         </View>
-        
-        {/* Words underneath the bars */}
-        <View style={styles.progressLabels}>
-          <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
-          <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
-          <Text style={[styles.stepText, styles.stepTextThird]}>Payment</Text>
-          <Text style={[styles.stepText, styles.stepTextFourth]}>Share</Text>
+
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Product Information Card */}
+          <View style={styles.productCard}>
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoTitle}>Product URL Entered</Text>
+              <Text style={styles.infoText}>{url || 'No URL provided'}</Text>
+            </View>
+          </View>
+
+          {/* Product Price Input Card */}
+          <View style={styles.priceCard}>
+            <Text style={styles.priceLabel}>PRODUCT PRICE</Text>
+            <View style={styles.priceInputContainer}>
+              <TextInput
+                style={styles.priceInput}
+                value={productPrice}
+                onChangeText={setProductPrice}
+                keyboardType="numeric"
+                placeholder="$0"
+                placeholderTextColor="#9CA3AF"
+              />
+              {productPrice.length > 0 && (
+                <TouchableOpacity onPress={clearPrice} style={styles.clearButton}>
+                  <Text style={styles.clearButtonText}>×</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Debug Button */}
+          <TouchableOpacity style={styles.debugButton} onPress={() => validateAndNavigate(url)}>
+            <Text style={styles.debugButtonText}>Debug: Validate URL</Text>
+          </TouchableOpacity>
+
+          {/* Manual URL Input Button */}
+          <TouchableOpacity style={styles.manualUrlButton} onPress={handleManualUrlInput}>
+            <Text style={styles.manualUrlButtonText}>Enter Different URL</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Submit Button - Positioned above keyboard */}
+        <View style={styles.submitButtonContainer}>
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+            <Text style={styles.submitButtonText}>Submit</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-
-             
-
-             {/* Product Information Card */}
-       <View style={styles.productCard}>
-         <View style={styles.infoContainer}>
-           <Text style={styles.infoTitle}>Product URL Entered</Text>
-           <Text style={styles.infoText}>{url || 'No URL provided'}</Text>
-         </View>
-       </View>
-
-      {/* Product Price Input Card */}
-      <View style={styles.priceCard}>
-        <Text style={styles.priceLabel}>PRODUCT PRICE</Text>
-        <View style={styles.priceInputContainer}>
-          <TextInput
-            style={styles.priceInput}
-            value={productPrice}
-            onChangeText={setProductPrice}
-            keyboardType="numeric"
-            placeholder="$0"
-            placeholderTextColor="#9CA3AF"
-          />
-          {productPrice.length > 0 && (
-            <TouchableOpacity onPress={clearPrice} style={styles.clearButton}>
-              <Text style={styles.clearButtonText}>×</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-             {/* Debug Button (SEE WHAT THIS BUTTON DOES!)*/}
-             
-      <TouchableOpacity style={styles.debugButton} onPress={() => validateAndNavigate(url)}>
-         <Text style={styles.debugButtonText}>Debug: Validate URL</Text>
-       </TouchableOpacity>
-
-      {/* Manual URL Input Button */}
-      <TouchableOpacity style={styles.manualUrlButton} onPress={handleManualUrlInput}>
-        <Text style={styles.manualUrlButtonText}>Enter Different URL</Text>
-      </TouchableOpacity>
-
-      {/* Submit Button */}
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitButtonText}>Submit</Text>
-      </TouchableOpacity>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -227,6 +250,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  submitButtonContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   header: {
     flexDirection: 'row',
@@ -262,6 +302,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   profilePlaceholder: {
     width: 40,
@@ -401,12 +443,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   submitButton: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#000',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    marginHorizontal: 24,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitButtonText: {
     color: '#fff',

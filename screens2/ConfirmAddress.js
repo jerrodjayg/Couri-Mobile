@@ -17,6 +17,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../screens/supabaseClient';
+import * as Location from 'expo-location';
 
 export default function ConfirmAddress({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
@@ -25,7 +26,16 @@ export default function ConfirmAddress({ navigation, route }) {
   const [hasDefaultPickupAddress, setHasDefaultPickupAddress] = useState(false);
   const [showDropOffModal, setShowDropOffModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [dropOffInstructions, setDropOffInstructions] = useState('');
+  const [newAddress, setNewAddress] = useState({
+    street: '',
+    address2: '',
+    city: '',
+    state: '',
+    zipCode: ''
+  });
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   const { user, customUser, setCustomUser } = useUser();
   
@@ -311,6 +321,170 @@ export default function ConfirmAddress({ navigation, route }) {
     navigation.navigate('Welcomepage');
   };
 
+  const handleSaveAddress = async () => {
+    try {
+      console.log('🔍 Saving new address:', newAddress);
+      
+      // Get user email for database update
+      let userEmail = null;
+      if (user?.email) {
+        userEmail = user.email;
+      } else if (userProfile?.email) {
+        userEmail = userProfile.email;
+      } else if (route?.params?.userData?.email) {
+        userEmail = route.params.userData.email;
+      }
+
+      if (!userEmail) {
+        Alert.alert('Error', 'Unable to identify user. Please try again.');
+        return;
+      }
+
+      // Save address to database
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          address_line_1: newAddress.street,
+          address_line_2: newAddress.address2 || null,
+          city: newAddress.city,
+          state: newAddress.state,
+          zip_code: newAddress.zipCode,
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', userEmail.toLowerCase())
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error saving address:', error);
+        Alert.alert('Error', 'Failed to save address. Please try again.');
+        return;
+      }
+
+      console.log('✅ Address saved successfully:', data);
+
+      // Update local state
+      const savedAddress = {
+        street: newAddress.street,
+        city: newAddress.city,
+        state: newAddress.state,
+        zipCode: newAddress.zipCode
+      };
+      setUserAddress(savedAddress);
+
+      // Cache the address
+      await AsyncStorage.setItem('userAddress', JSON.stringify(savedAddress));
+
+      // Close modal and show success
+      setShowAddAddressModal(false);
+      setNewAddress({
+        street: '',
+        address2: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      });
+
+      Alert.alert('Success', 'Address saved successfully!');
+
+    } catch (error) {
+      console.error('❌ Error in handleSaveAddress:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    }
+  };
+
+  const handleCancelAddAddress = () => {
+    setShowAddAddressModal(false);
+    setNewAddress({
+      street: '',
+      address2: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    });
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      setIsGettingLocation(true);
+      console.log('📍 Getting current location...');
+
+      // Request location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is required to use your current location. Please enable it in your device settings.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Get current position
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        maximumAge: 10000, // Use cached location if less than 10 seconds old
+        timeout: 15000, // 15 second timeout
+      });
+
+      console.log('📍 Current location obtained:', location.coords);
+
+      // Reverse geocode to get address
+      const reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (reverseGeocode && reverseGeocode.length > 0) {
+        const address = reverseGeocode[0];
+        console.log('📍 Reverse geocode result:', address);
+
+        // Format the address data
+        const locationAddress = {
+          street: address.street ? `${address.street} ${address.streetNumber || ''}`.trim() : '',
+          address2: address.district || '',
+          city: address.city || '',
+          state: address.region || address.regionCode || '',
+          zipCode: address.postalCode || ''
+        };
+
+        console.log('📍 Formatted address:', locationAddress);
+
+        // Populate the form fields with the location data
+        setNewAddress({
+          street: locationAddress.street,
+          address2: locationAddress.address2,
+          city: locationAddress.city,
+          state: locationAddress.state,
+          zipCode: locationAddress.zipCode
+        });
+
+        Alert.alert(
+          'Location Found!',
+          'Your current location has been filled in below. You can edit the address if needed, then tap "Save Address" to continue.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Location Error',
+          'Unable to determine your address from your current location. Please try adding your address manually.',
+          [{ text: 'OK' }]
+        );
+      }
+
+    } catch (error) {
+      console.error('❌ Error getting current location:', error);
+      Alert.alert(
+        'Location Error',
+        'Failed to get your current location. Please try adding your address manually.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+
   const handleUseDifferentAddress = () => {
     console.log('🔄 User wants to use different pickup address');
     // Navigate to PickupAddress screen
@@ -420,6 +594,25 @@ export default function ConfirmAddress({ navigation, route }) {
                 </Text>
               </>
             )}
+          </View>
+        )}
+
+        {/* No Address Section - Show when user has no address in database */}
+        {!loading && !route.params?.pickupAddress && !userAddress && (
+          <View style={styles.noAddressContainer}>
+            <View style={styles.noAddressIcon}>
+              <Text style={styles.noAddressIconText}>📍</Text>
+            </View>
+            <Text style={styles.noAddressTitle}>No address on file</Text>
+            <Text style={styles.noAddressMessage}>
+              We need your address to complete this transaction. Please add your address below.
+            </Text>
+            <TouchableOpacity 
+              style={styles.addAddressButton}
+              onPress={() => setShowAddAddressModal(true)}
+            >
+              <Text style={styles.addAddressButtonText}>Add Address</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -561,6 +754,115 @@ export default function ConfirmAddress({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      {/* Add Address Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showAddAddressModal}
+        onRequestClose={() => setShowAddAddressModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.addAddressModalContent}>
+              {/* Close Button */}
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={handleCancelAddAddress}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+
+              {/* Title */}
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>Add Your Address</Text>
+                <Text style={styles.modalSubtitle}>
+                  We need your address to complete this transaction
+                </Text>
+              </View>
+
+              {/* Address Form */}
+              <View style={styles.addressForm}>
+                <TextInput
+                  style={styles.addressInput}
+                  value={newAddress.street}
+                  onChangeText={(text) => setNewAddress({...newAddress, street: text})}
+                  placeholder="Street Address"
+                  placeholderTextColor="#9CA3AF"
+                />
+                
+                <TextInput
+                  style={styles.addressInput}
+                  value={newAddress.address2}
+                  onChangeText={(text) => setNewAddress({...newAddress, address2: text})}
+                  placeholder="Apartment, suite, etc. (optional)"
+                  placeholderTextColor="#9CA3AF"
+                />
+                
+                <View style={styles.addressRow}>
+                  <TextInput
+                    style={[styles.addressInput, styles.cityInput]}
+                    value={newAddress.city}
+                    onChangeText={(text) => setNewAddress({...newAddress, city: text})}
+                    placeholder="City"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  
+                  <TextInput
+                    style={[styles.addressInput, styles.stateInput]}
+                    value={newAddress.state}
+                    onChangeText={(text) => setNewAddress({...newAddress, state: text})}
+                    placeholder="State"
+                    placeholderTextColor="#9CA3AF"
+                    maxLength={2}
+                    autoCapitalize="characters"
+                  />
+                  
+                  <TextInput
+                    style={[styles.addressInput, styles.zipInput]}
+                    value={newAddress.zipCode}
+                    onChangeText={(text) => setNewAddress({...newAddress, zipCode: text})}
+                    placeholder="ZIP"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                </View>
+              </View>
+
+              {/* Use Current Location Button */}
+              <TouchableOpacity 
+                style={[
+                  styles.useLocationModalButton,
+                  isGettingLocation && styles.useLocationModalButtonDisabled
+                ]}
+                onPress={handleUseCurrentLocation}
+                disabled={isGettingLocation}
+              >
+                <Text style={styles.useLocationModalButtonText}>
+                  {isGettingLocation ? '📍 Getting Location...' : '📍 Use Current Location'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Action Buttons */}
+              <TouchableOpacity 
+                style={[
+                  styles.saveAddressButton,
+                  (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode) && styles.saveAddressButtonDisabled
+                ]}
+                onPress={handleSaveAddress}
+                disabled={!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode}
+              >
+                <Text style={styles.saveAddressButtonText}>Save Address</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.cancelAddressLink} onPress={handleCancelAddAddress}>
+                <Text style={styles.cancelAddressText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -604,6 +906,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   profilePlaceholder: {
     width: 40,
@@ -936,6 +1240,180 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noInstructionsText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  // No Address Section Styles
+  noAddressContainer: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 24,
+    width: '100%',
+    alignItems: 'center',
+  },
+  noAddressIcon: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  noAddressIconText: {
+    fontSize: 24,
+  },
+  noAddressTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noAddressMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  addAddressButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addAddressButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  useLocationModalButton: {
+    backgroundColor: '#000',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  useLocationModalButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  useLocationModalButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    borderColor: '#9CA3AF',
+  },
+  // Add Address Modal Styles
+  addAddressModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 400,
+    width: '100%',
+    position: 'relative',
+    maxHeight: '90%',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  addressForm: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  addressInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 12,
+    backgroundColor: '#fff',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  cityInput: {
+    flex: 2,
+    marginBottom: 0,
+  },
+  stateInput: {
+    flex: 1,
+    marginBottom: 0,
+    textAlign: 'center',
+  },
+  zipInput: {
+    flex: 1.5,
+    marginBottom: 0,
+  },
+  saveAddressButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  saveAddressButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    borderColor: '#9CA3AF',
+  },
+  saveAddressButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelAddressLink: {
+    alignItems: 'center',
+  },
+  cancelAddressText: {
     color: '#374151',
     fontSize: 16,
     fontWeight: '500',

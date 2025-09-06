@@ -184,7 +184,7 @@ export default function PlaidConnect({ navigation, route }) {
         {/* Privacy Policy */}
         <View style={styles.privacyContainer}>
           <Text style={styles.privacyText}>
-            By selecting "Continue" you agree to the{' '}
+            By selecting "Continue" you agree to the{'\n'}
             <Text style={styles.privacyLink}>Plaid End-User Privacy Policy</Text>
           </Text>
         </View>
@@ -432,6 +432,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   profilePlaceholder: {
     width: 40,

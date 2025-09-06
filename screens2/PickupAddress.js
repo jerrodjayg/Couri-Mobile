@@ -10,8 +10,13 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  FlatList,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
+import axios from 'axios';
 
 export default function PickupAddress({ navigation, route }) {
   const [form, setForm] = useState({
@@ -23,43 +28,24 @@ export default function PickupAddress({ navigation, route }) {
   });
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const { productUrl, productPrice, userAddress, transactionType } = route.params || {};
+  const { productUrl, productPrice, userAddress } = route.params || {};
 
-  // Pre-populate form with user's current address or default pickup address if available
+  // Pre-populate form with user's current address if available
   useEffect(() => {
-    const loadAddress = async () => {
-      if (userAddress) {
-        // Use user's main address as starting point
-        setForm({
-          address1: userAddress.street || '',
-          address2: userAddress.address2 || '',
-          city: userAddress.city || '',
-          state: userAddress.state || '',
-          zip: userAddress.zipCode || '',
-        });
-      } else {
-        // Check if there's a default pickup address
-        try {
-          const defaultAddress = await AsyncStorage.getItem('defaultPickupAddress');
-          if (defaultAddress) {
-            const parsed = JSON.parse(defaultAddress);
-            setForm({
-              address1: parsed.street || '',
-              address2: parsed.address2 || '',
-              city: parsed.city || '',
-              state: parsed.state || '',
-              zip: parsed.zipCode || '',
-            });
-            setIsDefault(true); // Pre-check the default option
-          }
-        } catch (error) {
-          console.log('⚠️ Error loading default pickup address:', error);
-        }
-      }
-    };
-    
-    loadAddress();
+    if (userAddress) {
+      setForm({
+        address1: userAddress.street || '',
+        address2: userAddress.address2 || '',
+        city: userAddress.city || '',
+        state: userAddress.state || '',
+        zip: userAddress.zipCode || '',
+      });
+    }
   }, [userAddress]);
 
   const handleChange = (field, value) => {
@@ -67,6 +53,136 @@ export default function PickupAddress({ navigation, route }) {
       ...prev,
       [field]: value
     }));
+
+    // Trigger address suggestions if editing address1
+    if (field === 'address1') {
+      if (value.length > 2) {
+        fetchSuggestions(value);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }
+  };
+
+  // Address autocomplete using Smarty API
+  const fetchSuggestions = async (input) => {
+    if (!input || input.trim().length < 3) {
+      setSuggestions([]);
+      setIsLoadingSuggestions(false);
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+
+    try {
+      const SMARTY_AUTH_ID = 'af0d27eb-c903-f64d-47eb-c8c06d7819e7';
+      const SMARTY_AUTH_TOKEN = '9NOFpSJMo87AMyFoHs3R';
+
+      const encodedInput = encodeURIComponent(input.trim());
+      const url = `https://us-autocomplete.api.smarty.com/lookup?search=${encodedInput}&auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&max_suggestions=5`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Smarty API error:', response.status, response.statusText);
+        setSuggestions([]);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data && data.suggestions) {
+        setSuggestions(data.suggestions);
+      } else {
+        setSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Smarty API error:', error);
+      setSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionPress = (suggestion) => {
+    setForm(prev => ({
+      ...prev,
+      address1: suggestion.street_line,
+      city: suggestion.city,
+      state: suggestion.state,
+      zip: suggestion.zipcode,
+    }));
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  // Get current location and reverse geocode
+  const getCurrentLocation = async () => {
+    try {
+      setIsGettingLocation(true);
+      
+      // Request location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is required to auto-fill your address.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      // Reverse geocode to get address
+      const reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (reverseGeocode.length > 0) {
+        const address = reverseGeocode[0];
+        setForm(prev => ({
+          ...prev,
+          address1: `${address.streetNumber || ''} ${address.street || ''}`.trim(),
+          city: address.city || '',
+          state: address.region || '',
+          zip: address.postalCode || '',
+        }));
+        
+        Alert.alert(
+          'Success',
+          'Address auto-filled from your current location!',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          'Could not determine address from your location.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Location error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to get your location. Please enter address manually.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsGettingLocation(false);
+    }
   };
 
   const validateForm = () => {
@@ -121,9 +237,7 @@ export default function PickupAddress({ navigation, route }) {
         productUrl,
         productPrice,
         userAddress,
-        pickupAddress,
-        transactionType,
-        userProfile: userAddress // Pass the user profile data
+        pickupAddress
       });
       
     } catch (error) {
@@ -158,14 +272,34 @@ export default function PickupAddress({ navigation, route }) {
       </View>
 
       {/* Main Content */}
-      <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.formContainer}>
+      <View style={styles.mainContent}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.formContainer}>
           {/* Info Note */}
           <View style={styles.infoNote}>
             <Text style={styles.infoNoteText}>
               This pickup address will only be used for this delivery and won't change your main address.
             </Text>
           </View>
+
+          {/* Auto-fill Location Button */}
+          <TouchableOpacity
+            style={[styles.autoFillButton, isGettingLocation && styles.autoFillButtonDisabled]}
+            onPress={getCurrentLocation}
+            disabled={isGettingLocation}
+          >
+            {isGettingLocation ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Image 
+                source={require('../assets/mountain.png')} 
+                style={styles.locationIcon}
+              />
+            )}
+            <Text style={styles.autoFillButtonText}>
+              {isGettingLocation ? 'Getting Location...' : 'Use Current Location'}
+            </Text>
+          </TouchableOpacity>
           {/* Address Line 1 */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Address Line 1</Text>
@@ -176,6 +310,37 @@ export default function PickupAddress({ navigation, route }) {
               placeholder="Enter address"
               placeholderTextColor="#9CA3AF"
             />
+            
+            {/* Address Suggestions */}
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {isLoadingSuggestions ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#000" />
+                    <Text style={styles.loadingText}>Finding addresses...</Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={suggestions}
+                    keyExtractor={(item, index) => `${item.street_line}-${index}`}
+                    renderItem={({ item }) => (
+                      <TouchableWithoutFeedback onPress={() => handleSuggestionPress(item)}>
+                        <View style={styles.suggestionItem}>
+                          <Text style={styles.suggestionText}>
+                            {item.street_line}
+                          </Text>
+                          <Text style={styles.suggestionSubtext}>
+                            {item.city}, {item.state} {item.zipcode}
+                          </Text>
+                        </View>
+                      </TouchableWithoutFeedback>
+                    )}
+                    style={styles.suggestionsList}
+                    showsVerticalScrollIndicator={false}
+                  />
+                )}
+              </View>
+            )}
           </View>
 
           {/* Address Line 2 (Optional) */}
@@ -237,8 +402,9 @@ export default function PickupAddress({ navigation, route }) {
             </TouchableOpacity>
             <Text style={styles.checkboxLabel}>Set as default pickup address for future deliveries</Text>
           </View>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
@@ -385,5 +551,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     textDecorationLine: 'underline',
+  },
+  // Auto-fill button styles
+  autoFillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 24,
+    gap: 8,
+  },
+  autoFillButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  locationIcon: {
+    width: 20,
+    height: 20,
+    tintColor: '#fff',
+  },
+  autoFillButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Address suggestions styles
+  suggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  suggestionsList: {
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  suggestionSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6B7280',
   },
 });

@@ -212,12 +212,23 @@ export default function LogInScreen({ navigation }) {
   const handleGoogleSignIn = async () => {
     console.log('🔄 handleGoogleSignIn called');
     console.log('🔍 LogInScreen DEBUG - Starting Google sign-in for returning user');
+    console.log('🔍 LogInScreen DEBUG - Current navigation state:', navigation.getState());
     
     try {
+      const currentSession = await supabase.auth.getSession();
+      console.log('🔍 LogInScreen DEBUG - Current user session before OAuth:', currentSession);
+    } catch (sessionError) {
+      console.log('🔍 LogInScreen DEBUG - Error getting current session (non-blocking):', sessionError.message);
+    }
+    
+    try {
+      console.log('🔍 LogInScreen DEBUG - About to call signInGoogle()...');
       const result = await signInGoogle();
       console.log('📱 Google sign-in result:', result);
       console.log('🔍 LogInScreen DEBUG - Google sign-in result type:', result.type);
       console.log('🔍 LogInScreen DEBUG - Full OAuth result:', result);
+      console.log('🔍 LogInScreen DEBUG - Result URL:', result?.url);
+      console.log('🔍 LogInScreen DEBUG - Result session:', result?.session);
 
       if (result.type !== 'success') {
         console.log('🔍 LogInScreen DEBUG - Google sign-in failed or incomplete');
@@ -238,7 +249,7 @@ export default function LogInScreen({ navigation }) {
       let userEmail = null;
       let userData = null;
       let attempts = 0;
-      const maxAttempts = 10; // Wait up to 10 seconds
+      const maxAttempts = 15; // Wait up to 15 seconds
 
       // First check if the result already has session data
       if (result.session?.user) {
@@ -259,25 +270,126 @@ export default function LogInScreen({ navigation }) {
             break;
           } else {
             // Fallback: try to get user from current session
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-              userData = session.user;
-              userEmail = session.user.email;
-              console.log('🔍 LogInScreen DEBUG - User data from current session:', userData);
-              break;
-            } else {
-              console.log(`🔍 LogInScreen DEBUG - No session yet, attempt ${attempts}/${maxAttempts}`);
-              // Wait 1 second before next attempt
-              await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log(`🔍 LogInScreen DEBUG - Checking current session, attempt ${attempts}/${maxAttempts}`);
+            
+            try {
+              // Add timeout to prevent hanging
+              const sessionPromise = supabase.auth.getSession();
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Session check timeout')), 3000)
+              );
+              
+              const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+              
+              if (session?.user) {
+                userData = session.user;
+                userEmail = session.user.email;
+                console.log('🔍 LogInScreen DEBUG - User data from current session:', userData);
+                break;
+              } else {
+                console.log(`🔍 LogInScreen DEBUG - No session yet, attempt ${attempts}/${maxAttempts}`);
+              }
+            } catch (sessionErr) {
+              console.log(`🔍 LogInScreen DEBUG - Session check failed or timed out, attempt ${attempts}/${maxAttempts}:`, sessionErr.message);
             }
+            
+            // Wait 1 second before next attempt
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }
 
       if (!userEmail) {
         console.log('🔍 LogInScreen DEBUG - No email available after waiting for session');
-        Alert.alert('Error', 'Unable to retrieve user information. Please try again.');
-        return;
+        console.log('🔍 LogInScreen DEBUG - This might be a new Google user, attempting to create session');
+        
+        // Check if we have a valid OAuth result with a code
+        console.log('🔍 LogInScreen DEBUG - Checking OAuth result URL:', result?.url);
+        console.log('🔍 LogInScreen DEBUG - URL contains code?', result?.url?.includes('code='));
+        
+        if (result?.url && result.url.includes('code=')) {
+          console.log('🔍 LogInScreen DEBUG - OAuth completed successfully, treating as new Google user');
+          console.log('🔍 LogInScreen DEBUG - Full result URL:', result.url);
+          
+          try {
+            // Extract the code from the URL
+            console.log('🔍 LogInScreen DEBUG - Parsing URL to extract code...');
+            const url = new URL(result.url);
+            console.log('🔍 LogInScreen DEBUG - Parsed URL:', url.toString());
+            console.log('🔍 LogInScreen DEBUG - URL search params:', url.searchParams.toString());
+            
+            const code = url.searchParams.get('code');
+            console.log('🔍 LogInScreen DEBUG - Extracted code:', code ? 'EXISTS' : 'NULL');
+            
+            if (code) {
+              console.log('🔍 LogInScreen DEBUG - Attempting to exchange code for session');
+              console.log('🔍 LogInScreen DEBUG - Code length:', code.length);
+              console.log('🔍 LogInScreen DEBUG - Code first 10 chars:', code.substring(0, 10));
+              
+              try {
+                console.log('🔍 LogInScreen DEBUG - Creating exchange promise...');
+                // Add timeout to prevent hanging
+                const exchangePromise = supabase.auth.exchangeCodeForSession(code);
+                console.log('🔍 LogInScreen DEBUG - Exchange promise created, starting race with timeout...');
+                
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => {
+                    console.log('🔍 LogInScreen DEBUG - Timeout reached (10 seconds)');
+                    reject(new Error('Code exchange timeout'));
+                  }, 10000)
+                );
+                
+                console.log('🔍 LogInScreen DEBUG - Racing exchange promise with timeout...');
+                const { data: exchangeData, error: exchangeError } = await Promise.race([
+                  exchangePromise,
+                  timeoutPromise
+                ]);
+                
+                console.log('🔍 LogInScreen DEBUG - Exchange completed, processing results...');
+                console.log('🔍 LogInScreen DEBUG - Exchange error:', exchangeError);
+                console.log('🔍 LogInScreen DEBUG - Exchange data:', exchangeData);
+                
+                if (exchangeError) {
+                  console.log('🔍 LogInScreen DEBUG - Code exchange failed:', exchangeError);
+                  console.log('🔍 LogInScreen DEBUG - Error message:', exchangeError.message);
+                  console.log('🔍 LogInScreen DEBUG - Error status:', exchangeError.status);
+                  console.log('🔍 LogInScreen DEBUG - Full error details:', JSON.stringify(exchangeError, null, 2));
+                  // Fall through to error handling
+                } else if (exchangeData?.session?.user) {
+                  console.log('🔍 LogInScreen DEBUG - Code exchange successful, got user:', exchangeData.session.user.email);
+                  console.log('🔍 LogInScreen DEBUG - User ID:', exchangeData.session.user.id);
+                  userData = exchangeData.session.user;
+                  userEmail = exchangeData.session.user.email;
+                } else {
+                  console.log('🔍 LogInScreen DEBUG - Code exchange returned no session data');
+                  console.log('🔍 LogInScreen DEBUG - Exchange data keys:', Object.keys(exchangeData || {}));
+                  console.log('🔍 LogInScreen DEBUG - Exchange data:', JSON.stringify(exchangeData, null, 2));
+                }
+              } catch (exchangeErr) {
+                console.log('🔍 LogInScreen DEBUG - Code exchange failed or timed out:', exchangeErr.message);
+                console.log('🔍 LogInScreen DEBUG - Exchange error type:', typeof exchangeErr);
+                console.log('🔍 LogInScreen DEBUG - Exchange error stack:', exchangeErr.stack);
+                console.log('🔍 LogInScreen DEBUG - Full exchange error:', JSON.stringify(exchangeErr, null, 2));
+                // Fall through to error handling
+              }
+            } else {
+              console.log('🔍 LogInScreen DEBUG - No code found in URL parameters');
+            }
+          } catch (exchangeErr) {
+            console.log('🔍 LogInScreen DEBUG - URL parsing error:', exchangeErr);
+            console.log('🔍 LogInScreen DEBUG - URL parsing error message:', exchangeErr.message);
+          }
+        } else {
+          console.log('🔍 LogInScreen DEBUG - No valid OAuth URL with code found');
+          console.log('🔍 LogInScreen DEBUG - Result URL:', result?.url);
+        }
+        
+        // If still no email, show error
+        if (!userEmail) {
+          console.log('🔍 LogInScreen DEBUG - Still no email available, showing error alert');
+          Alert.alert('Error', 'Unable to retrieve user information. Please try again.');
+          return;
+        }
       }
 
       const email = userEmail.toLowerCase();
@@ -285,64 +397,116 @@ export default function LogInScreen({ navigation }) {
 
       // Check if this email already exists in our DB (users table)
       console.log('🔍 LogInScreen DEBUG - Checking if user exists in database...');
-      const { exists, user: existingUser } = await UserService.checkUserExists(email);
-      console.log('🔍 LogInScreen DEBUG - User existence check result:', { exists, existingUser });
+      
+      // Add timeout to prevent hanging
+      const checkUserPromise = UserService.checkUserExists(email);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database check timeout')), 10000)
+      );
+      
+      let exists, existingUser;
+      try {
+        const result = await Promise.race([checkUserPromise, timeoutPromise]);
+        exists = result.exists;
+        existingUser = result.user;
+        console.log('🔍 LogInScreen DEBUG - User existence check result:', { exists, existingUser });
+      } catch (error) {
+        console.log('🔍 LogInScreen DEBUG - Database check failed or timed out:', error);
+        // If database check fails, assume new user and proceed
+        exists = false;
+        existingUser = null;
+        console.log('🔍 LogInScreen DEBUG - Assuming new user due to database error');
+      }
 
       if (!exists) {
-        console.log('🔍 LogInScreen DEBUG - User not found in database, staying on LogInScreen');
-        // Not registered — sign out the auth session so we don't keep a ghost login
-        await supabase.auth.signOut();
+        console.log('🔍 LogInScreen DEBUG - User not found in database, creating new Google user session');
         
-        // Show phone notification error message (no on-screen error)
+        // New Google user - create a minimal user session and navigate to Welcomepage
         try {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Account Not Found',
-              body: 'This Google email is not registered. Please go to Create Account first.',
-              data: { type: 'google_signin_error' },
-            },
-            trigger: null, // Show immediately
-          });
-          console.log('✅ Phone notification sent for unregistered Google user');
-        } catch (notificationError) {
-          console.error('❌ Failed to send phone notification:', notificationError);
-        }
-        
-        Alert.alert(
-          'Account Not Created',
-          'This Google email is not registered. Please go to Create Account first.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
-            {
-              text: 'Create Account',
-              onPress: () => {
-                console.log('🔍 LogInScreen DEBUG - User chose to create account, navigating to CreateAccount');
-                console.log('🔍 LogInScreen DEBUG - Current navigation state:', navigation.getState());
-                console.log('🔍 LogInScreen DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
-                
-                try {
-                  // Simple navigation to CreateAccount
-                  console.log('🔍 LogInScreen DEBUG - Attempting navigation to CreateAccount...');
-                  
-                  // Navigate to CreateAccount
-                  navigation.navigate('CreateAccount');
-                  console.log('✅ LogInScreen DEBUG - Navigation to CreateAccount initiated');
-                  
-                } catch (error) {
-                  console.error('❌ LogInScreen DEBUG - Navigation error:', error);
-                  Alert.alert('Navigation Error', 'Failed to navigate to Create Account screen. Please try again.');
-                }
-              }
+          console.log('🔍 LogInScreen DEBUG - Creating Google user data from:', userData);
+          
+          // Create user data from Google information
+          const googleUserData = {
+            id: userData.id,
+            email: userData.email,
+            name: userData.user_metadata?.full_name || userData.user_metadata?.name || '',
+            full_name: userData.user_metadata?.full_name || userData.user_metadata?.name || '',
+            firstName: userData.user_metadata?.full_name?.split(' ')[0] || '',
+            lastName: userData.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+            avatar_url: userData.user_metadata?.avatar_url || userData.user_metadata?.picture || '',
+            profileImageUri: userData.user_metadata?.avatar_url || userData.user_metadata?.picture || '',
+            isGoogleAuth: true,
+            hasSkippedPhoto: false, // Google users have profile pictures
+            userInitials: userData.user_metadata?.full_name ? 
+              userData.user_metadata.full_name.split(' ').map(n => n.charAt(0)).join('').toUpperCase() : 
+              userData.email.charAt(0).toUpperCase()
+          };
+
+          console.log('🔍 LogInScreen DEBUG - Created Google user data for new user:', googleUserData);
+
+          // Save the Google user to the database
+          console.log('🔍 LogInScreen DEBUG - Saving Google user to database...');
+          try {
+            const saveResult = await UserService.saveGoogleAuthUser(userData, googleUserData);
+            console.log('✅ LogInScreen DEBUG - Google user saved to database:', saveResult);
+            
+            if (saveResult.success && saveResult.user) {
+              // Update googleUserData with the database user data
+              const dbUser = saveResult.user;
+              googleUserData.id = dbUser.id; // Use the database ID
+              googleUserData.firstName = dbUser.first_name || googleUserData.firstName;
+              googleUserData.lastName = dbUser.last_name || googleUserData.lastName;
+              console.log('🔍 LogInScreen DEBUG - Updated Google user data with database info:', googleUserData);
             }
-          ]
-        );
-        
-        // CRITICAL: Stay on LogInScreen - don't navigate anywhere
-        console.log('🔍 LogInScreen DEBUG - User stays on LogInScreen after account not found error');
-        return;
+          } catch (saveError) {
+            console.error('❌ LogInScreen DEBUG - Error saving Google user to database:', saveError);
+            console.error('❌ LogInScreen DEBUG - Save error details:', JSON.stringify(saveError, null, 2));
+            // Continue with AsyncStorage even if database save fails
+          }
+
+          // Store the Google user data in AsyncStorage for the session
+          console.log('🔍 LogInScreen DEBUG - Storing Google user data in AsyncStorage...');
+          await AsyncStorage.setItem('tempUserData', JSON.stringify(googleUserData));
+          await AsyncStorage.setItem('userProfileData', JSON.stringify(googleUserData));
+          console.log('✅ LogInScreen DEBUG - Google user data stored in AsyncStorage');
+          
+          // Navigate to Welcomepage with Google user data
+          console.log('🔍 LogInScreen DEBUG - Navigating new Google user to Welcomepage...');
+          console.log('🔍 LogInScreen DEBUG - Navigation params:', { 
+            userData: googleUserData,
+            isNewGoogleUser: true 
+          });
+          console.log('🔍 LogInScreen DEBUG - Current navigation state before navigate:', navigation.getState());
+          console.log('🔍 LogInScreen DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
+          
+          try {
+            navigation.navigate('Welcomepage', { 
+              userData: googleUserData,
+              isNewGoogleUser: true 
+            });
+            console.log('✅ LogInScreen DEBUG - Navigation.navigate() called successfully');
+            
+            // Wait a moment and check if navigation actually happened
+            setTimeout(() => {
+              console.log('🔍 LogInScreen DEBUG - Navigation state after 1 second:', navigation.getState());
+            }, 1000);
+            
+          } catch (navError) {
+            console.error('❌ LogInScreen DEBUG - Navigation error:', navError);
+            console.error('❌ LogInScreen DEBUG - Navigation error message:', navError.message);
+          }
+          
+          console.log('✅ LogInScreen DEBUG - New Google user navigation completed');
+          return;
+
+        } catch (error) {
+          console.error('❌ LogInScreen DEBUG - Error creating new Google user session:', error);
+          
+          // Fallback: sign out and show error
+          await supabase.auth.signOut();
+          Alert.alert('Error', 'Failed to create user session. Please try again.');
+          return;
+        }
       }
 
       console.log('🔍 LogInScreen DEBUG - User found in database, proceeding with sign-in');
@@ -406,27 +570,48 @@ export default function LogInScreen({ navigation }) {
           ? `${userToUse.first_name} ${userToUse.last_name}`
           : userData.user_metadata?.full_name || userData.user_metadata?.name || 'there';
         
-        // Pass the complete user data to Welcomepage
-        navigation.replace('Welcomepage', { 
-          name: fullName,
-          userData: {
-            id: userToUse.id || 'temp_user',
-            email: email,
-            firstName: userToUse.first_name || '',
-            lastName: userToUse.last_name || '',
-            name: userToUse.first_name || userToUse.last_name ? `${userToUse.first_name || ''} ${userToUse.last_name || ''}`.trim() : '',
-            full_name: userToUse.first_name && userToUse.last_name ? `${userToUse.first_name} ${userToUse.last_name}` : '',
-            phone: userToUse.phone || '',
-            address1: userToUse.address_line_1 || '',
-            address2: userToUse.address_line_2 || '',
-            city: userToUse.city || '',
-            state: userToUse.state || '',
-            zip: userToUse.zip_code || '',
-            avatar_url: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
-            profileImageUri: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
-            isGoogleAuth: true
-          }
-        });
+        console.log('🔍 LogInScreen DEBUG - Full name for returning user:', fullName);
+        console.log('🔍 LogInScreen DEBUG - Current navigation state before replace:', navigation.getState());
+        console.log('🔍 LogInScreen DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
+        
+        const userDataToPass = {
+          id: userToUse.id || 'temp_user',
+          email: email,
+          firstName: userToUse.first_name || '',
+          lastName: userToUse.last_name || '',
+          name: userToUse.first_name || userToUse.last_name ? `${userToUse.first_name || ''} ${userToUse.last_name || ''}`.trim() : '',
+          full_name: userToUse.first_name && userToUse.last_name ? `${userToUse.first_name} ${userToUse.last_name}` : '',
+          phone: userToUse.phone || '',
+          address1: userToUse.address_line_1 || '',
+          address2: userToUse.address_line_2 || '',
+          city: userToUse.city || '',
+          state: userToUse.state || '',
+          zip: userToUse.zip_code || '',
+          avatar_url: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
+          profileImageUri: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
+          isGoogleAuth: true
+        };
+        
+        console.log('🔍 LogInScreen DEBUG - User data to pass to Welcomepage:', userDataToPass);
+        
+        try {
+          // Pass the complete user data to Welcomepage
+          navigation.replace('Welcomepage', { 
+            name: fullName,
+            userData: userDataToPass
+          });
+          console.log('✅ LogInScreen DEBUG - Navigation.replace() called successfully for returning user');
+          
+          // Wait a moment and check if navigation actually happened
+          setTimeout(() => {
+            console.log('🔍 LogInScreen DEBUG - Navigation state after 1 second (returning user):', navigation.getState());
+          }, 1000);
+          
+        } catch (navError) {
+          console.error('❌ LogInScreen DEBUG - Navigation error for returning user:', navError);
+          console.error('❌ LogInScreen DEBUG - Navigation error message:', navError.message);
+        }
+        
         console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage completed with complete user data');
 
       } catch (error) {
@@ -434,7 +619,10 @@ export default function LogInScreen({ navigation }) {
         Alert.alert('Error', 'Google sign-in failed. Please try again.');
       }
     } catch (error) {
-      console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
+      console.error('❌ LogInScreen DEBUG - Google sign-in error (outer catch):', error);
+      console.error('❌ LogInScreen DEBUG - Error message:', error.message);
+      console.error('❌ LogInScreen DEBUG - Error stack:', error.stack);
+      console.error('❌ LogInScreen DEBUG - Full error details:', JSON.stringify(error, null, 2));
       Alert.alert('Error', 'Google sign-in failed. Please try again.');
     }
   };
