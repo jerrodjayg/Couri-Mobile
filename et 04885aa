@@ -1,0 +1,10 @@
+[33mc1cef33[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/new-main[m[33m)[m HEAD@{0}: rebase (start): checkout origin/new-main
+[33ma8839f8[m[33m ([m[1;32mnew-main[m[33m)[m HEAD@{1}: reset: moving to HEAD
+[33ma8839f8[m[33m ([m[1;32mnew-main[m[33m)[m HEAD@{2}: commit: feat: improve keyboard scroll on price/details; enhance address display; simplify Share by removing copy link/share buttons
+[33m04885aa[m HEAD@{3}: reset: moving to HEAD
+[33m04885aa[m HEAD@{4}: pull: Fast-forward
+[33m537a32c[m HEAD@{5}: reset: moving to HEAD
+[33m537a32c[m HEAD@{6}: pull: Fast-forward
+[33m7537958[m HEAD@{7}: reset: moving to HEAD
+[33m7537958[m HEAD@{8}: reset: moving to origin/new-main
+[33m2c4f7d8[m HEAD@{9}: checkout: moving from new-main to new-main

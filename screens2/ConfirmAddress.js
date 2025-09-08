@@ -285,6 +285,7 @@ export default function ConfirmAddress({ navigation, route }) {
     
     // Navigate to Payment screen with the pickup address and user profile
     navigation.navigate('Payment', { 
+      ...(route.params || {}),            // ✅ forward everything (title/image, etc.)
       productUrl, 
       productPrice, 
       userAddress: routeUserAddress,
@@ -489,6 +490,7 @@ export default function ConfirmAddress({ navigation, route }) {
     console.log('🔄 User wants to use different pickup address');
     // Navigate to PickupAddress screen
     navigation.navigate('PickupAddress', { 
+      ...(route.params || {}),            // ✅ keep forwarding
       productUrl, 
       productPrice, 
       userAddress: routeUserAddress,
@@ -572,28 +574,44 @@ export default function ConfirmAddress({ navigation, route }) {
         </Text>
 
         {/* Address Display */}
-        {!loading && (route.params?.pickupAddress || userAddress) && (
+        {loading ? (
           <View style={styles.addressContainer}>
-            {route.params?.pickupAddress ? (
-              <>
-                <Text style={styles.addressLabel}>Pickup Address:</Text>
-                <Text style={styles.addressText}>{route.params.pickupAddress.street}</Text>
-                {route.params.pickupAddress.address2 && (
-                  <Text style={styles.addressText}>{route.params.pickupAddress.address2}</Text>
-                )}
-                <Text style={styles.addressText}>
-                  {route.params.pickupAddress.city}, {route.params.pickupAddress.state} {route.params.pickupAddress.zipCode}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.addressLabel}>Delivery Address:</Text>
-                <Text style={styles.addressText}>{userAddress.street}</Text>
-                <Text style={styles.addressText}>
-                  {userAddress.city}, {userAddress.state} {userAddress.zipCode}
-                </Text>
-              </>
-            )}
+            <Text style={styles.loadingText}>Loading your address...</Text>
+          </View>
+        ) : (route.params?.pickupAddress || userAddress) ? (
+          <View style={styles.addressContainer}>
+            <View style={styles.addressHeader}>
+              <Text style={styles.addressLabel}>
+                {route.params?.pickupAddress ? 'Pickup Address' : 'Delivery Address'}
+              </Text>
+            </View>
+            <View style={styles.addressDetails}>
+              {route.params?.pickupAddress ? (
+                <>
+                  <Text style={styles.addressText}>{route.params.pickupAddress.street}</Text>
+                  {route.params.pickupAddress.address2 && (
+                    <Text style={styles.addressText}>{route.params.pickupAddress.address2}</Text>
+                  )}
+                  <Text style={styles.addressText}>
+                    {route.params.pickupAddress.city}, {route.params.pickupAddress.state} {route.params.pickupAddress.zipCode}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.addressText}>{userAddress.street}</Text>
+                  <Text style={styles.addressText}>
+                    {userAddress.city}, {userAddress.state} {userAddress.zipCode}
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.noAddressContainer}>
+            <Text style={styles.noAddressText}>No address found</Text>
+            <Text style={styles.noAddressSubtext}>
+              Please add an address to continue with your transaction
+            </Text>
           </View>
         )}
 
@@ -1008,14 +1026,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  addressHeader: {
+    marginBottom: 12,
   },
   addressLabel: {
     fontSize: 14,
     color: '#6B7280',
-    fontWeight: '500',
-    marginBottom: 8,
+    fontWeight: '600',
     textAlign: 'center',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  addressDetails: {
+    alignItems: 'center',
   },
   addressText: {
     fontSize: 16,
@@ -1023,6 +1055,36 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 4,
     textAlign: 'center',
+    lineHeight: 22,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  noAddressContainer: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  noAddressText: {
+    fontSize: 16,
+    color: '#DC2626',
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noAddressSubtext: {
+    fontSize: 14,
+    color: '#7F1D1D',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   addressOptionsContainer: {
     alignItems: 'center',
@@ -1119,7 +1181,6 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: 'bold',
-    // Create triangle using text symbol
     transform: [{ rotate: '0deg' }],
   },
   modalMessage: {

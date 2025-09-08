@@ -17,19 +17,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../screens/supabaseClient';
 
-
 export default function ProductPrice({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [productPrice, setProductPrice] = useState('');
   const { user, customUser, setCustomUser } = useUser();
-  
-  const { url } = route.params || {};
+
+  // Safely read/normalize params
+  const params = route?.params || {};
+  const {
+    url,
+    productTitle: incomingTitle,
+    productImage: incomingImage,
+    productName,
+    imageUrl,
+  } = params;
+
+  const productTitle = incomingTitle || productName || '';
+  const productImage = incomingImage || imageUrl || '';
 
   useEffect(() => {
-    console.log('🔄 ProductPrice useEffect triggered');
-    console.log('🔗 URL from route params:', url);
-    console.log('🔗 Route params:', route.params);
-    
+    // Load cached user profile for header avatar
     loadUserProfile();
   }, [url]);
 
@@ -44,52 +51,34 @@ export default function ProductPrice({ navigation, route }) {
     }
   };
 
-  const validateAndNavigate = async (url) => {
-    console.log('🔍 Validating URL:', url);
-    
+  const validateAndNavigate = async (maybeUrl) => {
     try {
-      // Check if URL starts with https://
-      if (url.startsWith('https://')) {
-        console.log('✅ Valid HTTPS URL detected, navigating to ConfirmAddress');
-        
-        // Navigate to the next screen (ConfirmAddress)
-        navigation.navigate('ConfirmAddress', { 
-          productUrl: url,
-          productPrice: productPrice 
+      const isString = typeof maybeUrl === 'string';
+      if (isString && maybeUrl.startsWith('https://')) {
+        navigation.navigate('ConfirmAddress', {
+          productUrl: maybeUrl,
+          productPrice: productPrice,
+          productTitle: productTitle,
+          productImage: productImage,
         });
       } else {
-        console.log('❌ Invalid URL - does not start with https://');
-        
-        // Show error message for non-HTTPS URLs
         Alert.alert(
           'Invalid Link',
-          'We weren\'t able to recognize that link. Please try again, or input product info manually.',
-          [
-            {
-              text: 'OK',
-              style: 'default'
-            }
-          ]
+          "We weren't able to recognize that link. Please try again, or input product info manually.",
+          [{ text: 'OK', style: 'default' }]
         );
       }
     } catch (error) {
-      console.error('❌ URL validation error:', error);
-      Alert.alert(
-        'Error',
-        'There was an error processing your link. Please try again.',
-        [
-          {
-            text: 'OK',
-            style: 'default'
-          }
-        ]
-      );
+      console.error('URL validation error:', error);
+      Alert.alert('Error', 'There was an error processing your link. Please try again.', [{ text: 'OK', style: 'default' }]);
     }
   };
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
+      if (supabase?.auth?.signOut) {
+        await supabase.auth.signOut();
+      }
       setCustomUser(null);
       navigation.navigate('Welcome');
     } catch (error) {
@@ -97,9 +86,10 @@ export default function ProductPrice({ navigation, route }) {
     }
   };
 
+  // NOTE: Admin deleteUser is typically server-side only; guard it to avoid crashes on client
   const handleDeleteAccount = async () => {
     try {
-      if (user) {
+      if (user && supabase?.auth?.admin?.deleteUser) {
         await supabase.auth.admin.deleteUser(user.id);
       }
       setCustomUser(null);
@@ -115,47 +105,35 @@ export default function ProductPrice({ navigation, route }) {
       return;
     }
 
-    console.log('Product price submitted:', productPrice);
-    
-    // Navigate to next step (ConfirmAddress screen) with the product price
-    navigation.navigate('ConfirmAddress', {
+    if (!url || typeof url !== 'string') {
+      Alert.alert('Missing link', 'Please add a product link first.');
+      return;
+    }
+
+    navigation.navigate('Share', {
       productUrl: url,
       productPrice: productPrice,
-      transactionType: 'sell' // This is the seller flow
+      productTitle: productTitle,
+      productImage: productImage,
     });
   };
 
-  const clearPrice = () => {
-    setProductPrice('');
-  };
-
-  const handleManualUrlInput = () => {
-    // Navigate back to URL screen to enter a different URL
-    navigation.goBack();
-  };
+  const clearPrice = () => setProductPrice('');
+  const handleManualUrlInput = () => navigation.goBack();
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Image 
-            source={require('../assets/backarrow.png')} 
-            style={styles.backButtonImage}
-          />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Image source={require('../assets/backarrow.png')} style={styles.backButtonImage} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.profileContainer}>
+        <TouchableOpacity style={styles.profileContainer} onPress={handleSignOut}>
           {userProfile?.profilePicture ? (
-            <Image
-              source={{ uri: userProfile.profilePicture }}
-              style={styles.profileImage}
-            />
+            <Image source={{ uri: userProfile.profilePicture }} style={styles.profileImage} />
           ) : (
             <View style={styles.profilePlaceholder}>
               <Text style={styles.profileInitials}>
@@ -166,22 +144,20 @@ export default function ProductPrice({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoidingView} 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Progress Indicator */}
         <View style={styles.progressContainer}>
-          {/* Bars on top */}
           <View style={styles.progressBar}>
             <View style={[styles.stepIndicator, styles.stepActive]} />
             <View style={[styles.stepIndicator, styles.stepInactive]} />
             <View style={[styles.stepIndicator, styles.stepInactive]} />
             <View style={[styles.stepIndicator, styles.stepInactive]} />
           </View>
-          
-          {/* Words underneath the bars */}
+
           <View style={styles.progressLabels}>
             <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
             <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
@@ -190,7 +166,7 @@ export default function ProductPrice({ navigation, route }) {
           </View>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -198,9 +174,16 @@ export default function ProductPrice({ navigation, route }) {
         >
           {/* Product Information Card */}
           <View style={styles.productCard}>
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoTitle}>Product URL Entered</Text>
-              <Text style={styles.infoText}>{url || 'No URL provided'}</Text>
+            {productImage ? (
+              <Image source={{ uri: productImage }} style={styles.productImage} />
+            ) : null}
+            <View style={styles.productInfo}>
+              <Text style={styles.productTitle}>{productTitle || 'Product'}</Text>
+              <View style={styles.sourceContainer}>
+                <Text style={styles.sourceText} numberOfLines={2}>
+                  {typeof url === 'string' && url.length > 0 ? url : 'No URL provided'}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -212,9 +195,11 @@ export default function ProductPrice({ navigation, route }) {
                 style={styles.priceInput}
                 value={productPrice}
                 onChangeText={setProductPrice}
-                keyboardType="numeric"
+                keyboardType={Platform.select({ ios: 'decimal-pad', android: 'numeric' })}
                 placeholder="$0"
                 placeholderTextColor="#9CA3AF"
+                returnKeyType="done"
+                autoCorrect={false}
               />
               {productPrice.length > 0 && (
                 <TouchableOpacity onPress={clearPrice} style={styles.clearButton}>
@@ -235,7 +220,7 @@ export default function ProductPrice({ navigation, route }) {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Submit Button - Positioned above keyboard */}
+        {/* Sticky Submit Button */}
         <View style={styles.submitButtonContainer}>
           <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
             <Text style={styles.submitButtonText}>Submit</Text>
@@ -259,14 +244,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 20,
-  },
-  submitButtonContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    paddingBottom: 120, // leave room for sticky submit button
   },
   header: {
     flexDirection: 'row',
@@ -330,12 +308,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
     width: '100%',
-    paddingHorizontal: 0,
   },
   progressLabels: {
     flexDirection: 'row',
     width: '100%',
-    paddingHorizontal: 0,
     position: 'relative',
   },
   stepIndicator: {
@@ -442,6 +418,12 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: 'bold',
   },
+  submitButtonContainer: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    bottom: 24,
+  },
   submitButton: {
     backgroundColor: '#000',
     borderRadius: 12,
@@ -449,10 +431,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -479,30 +458,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
-     errorText: {
-     fontSize: 16,
-     color: '#EF4444',
-     textAlign: 'center',
-   },
-   infoContainer: {
-     flex: 1,
-     justifyContent: 'center',
-     alignItems: 'center',
-     paddingVertical: 20,
-   },
-   infoTitle: {
-     fontSize: 18,
-     color: '#000',
-     fontWeight: '600',
-     marginBottom: 12,
-     textAlign: 'center',
-   },
-   infoText: {
-     fontSize: 14,
-     color: '#6B7280',
-     textAlign: 'center',
-     paddingHorizontal: 16,
-   },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  infoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  infoTitle: {
+    fontSize: 18,
+    color: '#000',
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
   manualUrlButton: {
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
@@ -535,5 +514,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  
 });

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, StatusBar,
   TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator,
-  TextInput, FlatList
+  TextInput, FlatList, KeyboardAvoidingView, Platform
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../screens/supabaseClient';
@@ -123,7 +123,6 @@ export default function ProductDetails({ navigation, route }) {
       setPreloadingImages(false);
     }
   };
-
   // Create products table if it doesn't exist
   const createProductsTable = async () => {
     try {
@@ -890,9 +889,9 @@ export default function ProductDetails({ navigation, route }) {
        
        if (validPrices.length > 0) {
          // Take the LOWEST reasonable price (usually the main product price)
-         foundPrice = Math.min(...validPrices);
-         console.log('💰 Method 6 - Lowest reasonable price found:', foundPrice);
-         return foundPrice;
+         const foundPrice2 = Math.min(...validPrices);
+         console.log('💰 Method 6 - Lowest reasonable price found:', foundPrice2);
+         return foundPrice2;
        }
      }
      
@@ -1782,11 +1781,21 @@ export default function ProductDetails({ navigation, route }) {
         </View>
       </View>
 
-      {/* Main Content */}
-      <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
+      {/* Main Content with Keyboard Avoidance */}
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          style={styles.mainContent} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
         <View style={styles.contentContainer}>
           
-                    {!extractedData.productName ? (
+          {!extractedData.productName ? (
             <View style={styles.webViewContainer}>
               <Text style={styles.sectionTitle}>
                 {isSelling ? 'Facebook Marketplace Seller' : 'Facebook Marketplace Scraper'}
@@ -1800,69 +1809,66 @@ export default function ProductDetails({ navigation, route }) {
               
                              {/* Note section removed */}
               
-                             {/* Loading State - Couri AI Style */}
-               <View style={styles.couriLoadingContainer}>
-                 {/* Main Modal */}
-                 <View style={styles.couriModal}>
-                                       {/* Central Icon */}
-                    <View style={styles.couriIconContainer}>
-                      <View style={styles.couriIconOuter}>
-                        <View style={styles.couriIconInner}>
-                          <Image 
-                            source={require('../assets/mark2_dark.png')} 
-                            style={styles.couriIconImage}
-                          />
-                        </View>
+              {/* Loading State - Couri AI Style */}
+              <View style={styles.couriLoadingContainer}>
+                {/* Main Modal */}
+                <View style={styles.couriModal}>
+                  {/* Central Icon */}
+                  <View style={styles.couriIconContainer}>
+                    <View style={styles.couriIconOuter}>
+                      <View style={styles.couriIconInner}>
+                        <Image 
+                          source={require('../assets/mark2_dark.png')} 
+                          style={styles.couriIconImage}
+                        />
                       </View>
                     </View>
-
-                                       {/* Loading Text & Animation */}
-                    <View style={styles.couriLoadingTextContainer}>
-                      <View style={styles.sparkleAnimation} />
-                      <Text style={styles.couriLoadingText}>
-                        {checkmarkStates.filter(Boolean).length === 4 
-                          ? 'Couri AI verification complete! ✨' 
-                          : 'Couri AI assist... ✨'
-                        }
-                      </Text>
-                    </View>
-
-                   {/* Progress Steps */}
-                   <View style={styles.verificationSteps}>
-                     <View style={styles.verificationStep}>
-                       <View style={[styles.checkmarkContainer, checkmarkStates[0] && styles.checkmarkContainerActive]}>
-                         <Text style={[styles.checkmark, { opacity: checkmarkStates[0] ? 1 : 0.3 }]}>✓</Text>
-                       </View>
-                       <Text style={styles.verificationText}>Verifying the seller</Text>
-                     </View>
-                     
-                     <View style={styles.verificationStep}>
-                       <View style={[styles.checkmarkContainer, checkmarkStates[1] && styles.checkmarkContainerActive]}>
-                         <Text style={[styles.checkmark, { opacity: checkmarkStates[1] ? 1 : 0.3 }]}>✓</Text>
-                       </View>
-                       <Text style={styles.verificationText}>Analyzing images and brand data</Text>
-                     </View>
-                     
-                     <View style={styles.verificationStep}>
-                       <View style={[styles.checkmarkContainer, checkmarkStates[2] && styles.checkmarkContainerActive]}>
-                         <Text style={[styles.checkmark, { opacity: checkmarkStates[2] ? 1 : 0.3 }]}>✓</Text>
-                       </View>
-                       <Text style={styles.verificationText}>Scanning for fraud indicators</Text>
-                     </View>
-                     
-                     <View style={styles.verificationStep}>
-                       <View style={[styles.checkmarkContainer, checkmarkStates[3] && styles.checkmarkContainerActive]}>
-                         <Text style={[styles.checkmark, { opacity: checkmarkStates[3] ? 1 : 0.3 }]}>✓</Text>
-                       </View>
-                       <Text style={styles.verificationText}>Preparing your secure transaction</Text>
-                     </View>
-                   </View>
-
-                                       {/* Progress Indicator removed */}
-
-                    {/* Bottom Animation */}
-                    <View style={styles.bottomSparkleAnimation} />
                   </View>
+
+                  {/* Loading Text & Animation */}
+                  <View style={styles.couriLoadingTextContainer}>
+                    <View style={styles.sparkleAnimation} />
+                    <Text style={styles.couriLoadingText}>
+                      {checkmarkStates.filter(Boolean).length === 4 
+                        ? 'Couri AI verification complete! ✨' 
+                        : 'Couri AI assist... ✨'
+                      }
+                    </Text>
+                  </View>
+
+                  {/* Progress Steps */}
+                  <View style={styles.verificationSteps}>
+                    <View style={styles.verificationStep}>
+                      <View style={[styles.checkmarkContainer, checkmarkStates[0] && styles.checkmarkContainerActive]}>
+                        <Text style={[styles.checkmark, { opacity: checkmarkStates[0] ? 1 : 0.3 }]}>✓</Text>
+                      </View>
+                      <Text style={styles.verificationText}>Verifying the seller</Text>
+                    </View>
+                    
+                    <View style={styles.verificationStep}>
+                      <View style={[styles.checkmarkContainer, checkmarkStates[1] && styles.checkmarkContainerActive]}>
+                        <Text style={[styles.checkmark, { opacity: checkmarkStates[1] ? 1 : 0.3 }]}>✓</Text>
+                      </View>
+                      <Text style={styles.verificationText}>Analyzing images and brand data</Text>
+                    </View>
+                    
+                    <View style={styles.verificationStep}>
+                      <View style={[styles.checkmarkContainer, checkmarkStates[2] && styles.checkmarkContainerActive]}>
+                        <Text style={[styles.checkmark, { opacity: checkmarkStates[2] ? 1 : 0.3 }]}>✓</Text>
+                      </View>
+                      <Text style={styles.verificationText}>Scanning for fraud indicators</Text>
+                    </View>
+                    
+                    <View style={styles.verificationStep}>
+                      <View style={[styles.checkmarkContainer, checkmarkStates[3] && styles.checkmarkContainerActive]}>
+                        <Text style={[styles.checkmark, { opacity: checkmarkStates[3] ? 1 : 0.3 }]}>✓</Text>
+                      </View>
+                      <Text style={styles.verificationText}>Preparing your secure transaction</Text>
+                    </View>
+                  </View>
+
+                  {/* Bottom Animation */}
+                  <View style={styles.bottomSparkleAnimation} />
                 </View>
                 
                 {/* Image Preloading Indicator */}
@@ -1872,13 +1878,10 @@ export default function ProductDetails({ navigation, route }) {
                     <Text style={styles.imagePreloadingText}>Loading images for instant display...</Text>
                   </View>
                 )}
-              
-                                                           {/* Open in Browser Button removed */}
+              </View>
             </View>
           ) : (
             <>
-                             
-              
               {/* Extracted Data Section */}
               <View style={styles.extractedDataContainer}>
               <Text style={styles.sectionTitle}>
@@ -1891,144 +1894,149 @@ export default function ProductDetails({ navigation, route }) {
                 }
               </Text>
               
-                                                                                           {/* Product Information Card */}
-                <TouchableOpacity 
-                  style={styles.productInfoCard}
-                  onPress={() => setShowProductModal(true)}
-                  activeOpacity={0.9}
-                >
-                  {/* Product Image */}
-                  <View style={styles.productImageContainer}>
-                    {extractedData.images && extractedData.images.length > 0 ? (
-                      <View style={styles.photoSwiperContainer}>
-                        <FlatList
-                          data={extractedData.images}
-                          horizontal
-                          pagingEnabled
-                          showsHorizontalScrollIndicator={false}
-                          keyExtractor={(item, index) => index.toString()}
-                          onMomentumScrollEnd={(event) => {
-                            const index = Math.round(event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width);
-                            setCurrentImageIndex(index);
-                          }}
-                          getItemLayout={(data, index) => ({
-                            length: 120,
-                            offset: 120 * index,
-                            index,
-                          })}
-                          renderItem={({ item, index }) => (
-                            <View style={styles.photoSwiperItem}>
-                              <Image 
-                                source={{ uri: item }}
-                                style={styles.productCardImage}
-                                resizeMode="cover"
-                                onLoad={() => console.log(`🖼️ Image ${index + 1} loaded successfully`)}
-                                onError={(error) => console.log(`❌ Image ${index + 1} failed to load:`, error.nativeEvent.error)}
-                              />
-                            </View>
-                          )}
-                        />
-                        
-                        {/* Image Counter - Only show for multiple images */}
-                        {extractedData.images.length > 1 && (
-                          <View style={styles.imageCounter}>
-                            <Text style={styles.imageCounterText}>
-                              {currentImageIndex + 1} of {extractedData.images.length}
-                            </Text>
+              {/* Product Information Card */}
+              <TouchableOpacity 
+                style={styles.productInfoCard}
+                onPress={() => setShowProductModal(true)}
+                activeOpacity={0.9}
+              >
+                {/* Product Image */}
+                <View style={styles.productImageContainer}>
+                  {extractedData.images && extractedData.images.length > 0 ? (
+                    <View style={styles.photoSwiperContainer}>
+                      <FlatList
+                        data={extractedData.images}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item, index) => index.toString()}
+                        onMomentumScrollEnd={(event) => {
+                          const index = Math.round(event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width);
+                          setCurrentImageIndex(index);
+                        }}
+                        getItemLayout={(data, index) => ({
+                          length: 120,
+                          offset: 120 * index,
+                          index,
+                        })}
+                        renderItem={({ item, index }) => (
+                          <View style={styles.photoSwiperItem}>
+                            <Image 
+                              source={{ uri: item }}
+                              style={styles.productCardImage}
+                              resizeMode="cover"
+                              onLoad={() => console.log(`🖼️ Image ${index + 1} loaded successfully`)}
+                              onError={(error) => console.log(`❌ Image ${index + 1} failed to load:`, error.nativeEvent.error)}
+                            />
                           </View>
                         )}
-                        
-                        {/* Image Dots - Only show for multiple images */}
-                        {extractedData.images.length > 1 && (
-                          <View style={styles.imageDots}>
-                            {extractedData.images.map((_, index) => (
-                              <View
-                                key={index}
-                                style={[
-                                  styles.imageDot,
-                                  index === currentImageIndex && styles.imageDotActive
-                                ]}
-                              />
-                            ))}
-                          </View>
-                        )}
-                      </View>
-                    ) : (
-                      /* Fallback when no images - also check imageUrl for backward compatibility */
-                      extractedData.imageUrl && 
-                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
-                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input+Required' &&
-                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
-                      extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Error+Occurred' &&
-                      extractedData.imageUrl.startsWith('http') ? (
-                        <Image 
-                          source={{ uri: extractedData.imageUrl }}
-                          style={styles.productCardImage}
-                          resizeMode="cover"
-                          onLoad={() => console.log('🖼️ Single image loaded successfully')}
-                          onError={(error) => console.log('❌ Single image failed to load:', error.nativeEvent.error)}
-                        />
-                      ) : (
-                        <View style={styles.productCardImagePlaceholder}>
-                          <Text style={styles.productCardImagePlaceholderText}>
-                            {extractedData.imageUrl && 
-                             extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
-                             extractedData.imageUrl !== 'https://placeholder.com/150?text=Manual+Input+Required' &&
-                             extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
-                             extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Error+Occurred' &&
-                             extractedData.imageUrl.startsWith('http')
-                              ? 'Loading image...' 
-                              : 'No Image Available'}
+                      />
+                      
+                      {/* Image Counter - Only show for multiple images */}
+                      {extractedData.images.length > 1 && (
+                        <View style={styles.imageCounter}>
+                          <Text style={styles.imageCounterText}>
+                            {currentImageIndex + 1} of {extractedData.images.length}
                           </Text>
                         </View>
-                      )
-                    )}
-                  </View>
-                  
-                  {/* Product Details */}
-                  <View style={styles.productDetailsContainer}>
-                    <Text style={styles.productTitle}>
-                      {extractedData.productName || 'Product Name'}
-                    </Text>
-                    <View style={styles.sourceContainer}>
-                      <Text style={styles.facebookIcon}>f</Text>
-                      <Text style={styles.sourceText}>from Facebook Marketplace</Text>
+                      )}
+                      
+                      {/* Image Dots - Only show for multiple images */}
+                      {extractedData.images.length > 1 && (
+                        <View style={styles.imageDots}>
+                          {extractedData.images.map((_, index) => (
+                            <View
+                              key={index}
+                              style={[
+                                styles.imageDot,
+                                index === currentImageIndex && styles.imageDotActive
+                              ]}
+                            />
+                          ))}
+                        </View>
+                      )}
                     </View>
+                  ) : (
+                    /* Fallback when no images - also check imageUrl for backward compatibility */
+                    extractedData.imageUrl && 
+                    extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
+                    extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input+Required' &&
+                    extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
+                    extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Error+Occurred' &&
+                    extractedData.imageUrl.startsWith('http') ? (
+                      <Image 
+                        source={{ uri: extractedData.imageUrl }}
+                        style={styles.productCardImage}
+                        resizeMode="cover"
+                        onLoad={() => console.log('🖼️ Single image loaded successfully')}
+                        onError={(error) => console.log('❌ Single image failed to load:', error.nativeEvent.error)}
+                      />
+                    ) : (
+                      <View style={styles.productCardImagePlaceholder}>
+                        <Text style={styles.productCardImagePlaceholderText}>
+                          {extractedData.imageUrl && 
+                           extractedData.imageUrl !== 'https://via.placeholder.com/150?text=No+Image' &&
+                           extractedData.imageUrl !== 'https://placeholder.com/150?text=Manual+Input+Required' &&
+                           extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Manual+Input' &&
+                           extractedData.imageUrl !== 'https://via.placeholder.com/150?text=Error+Occurred' &&
+                           extractedData.imageUrl.startsWith('http')
+                            ? 'Loading image...' 
+                            : 'No Image Available'}
+                        </Text>
+                      </View>
+                    )
+                  )}
+                </View>
+                
+                {/* Product Details */}
+                <View style={styles.productDetailsContainer}>
+                  <Text style={styles.productTitle}>
+                    {extractedData.productName || 'Product Name'}
+                  </Text>
+                  <View style={styles.sourceContainer}>
+                    <Text style={styles.facebookIcon}>f</Text>
+                    <Text style={styles.sourceText}>from Facebook Marketplace</Text>
                   </View>
+                </View>
+              </TouchableOpacity>
+             
+              {/* Price Input Card */}
+              <View style={styles.priceInputCard}>
+                <Text style={styles.priceLabel}>
+                  {isSelling ? 'SELLING PRICE' : 'PRODUCT PRICE'}
+                </Text>
+                <View style={styles.priceInputContainer}>
+                  <Text style={styles.pricePrefix}>$</Text>
+                  <TextInput
+                    style={styles.priceTextInput}
+                    value={extractedData.price === '$' ? '' : extractedData.price.replace('$', '')}
+                    onChangeText={(text) => handleManualEdit('price', text)}
+                    placeholder=""
+                    keyboardType="numeric"
+                  />
+                  {extractedData.price !== '$' && (
+                    <TouchableOpacity 
+                      style={styles.clearPriceButton}
+                      onPress={() => handleManualEdit('price', '')}
+                    >
+                      <Text style={styles.clearPriceButtonText}>×</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              
+              {/* Action Buttons */}
+              <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity 
+                  style={styles.retakeButton} 
+                  onPress={handleRetakeScreenshot}
+                >
+                  <Text style={styles.retakeButtonText}>
+                    Retry Scraping
+                  </Text>
                 </TouchableOpacity>
                
-               {/* Product Name input removed - now editable directly in the card */}
-              
-                             {/* Price Input Card */}
-               <View style={styles.priceInputCard}>
-                 <Text style={styles.priceLabel}>
-                   {isSelling ? 'SELLING PRICE' : 'PRODUCT PRICE'}
-                 </Text>
-                 <View style={styles.priceInputContainer}>
-                   <Text style={styles.pricePrefix}>$</Text>
-                   <TextInput
-                     style={styles.priceTextInput}
-                     value={extractedData.price === '$' ? '' : extractedData.price.replace('$', '')}
-                     onChangeText={(text) => handleManualEdit('price', text)}
-                     placeholder=""
-                     keyboardType="numeric"
-                   />
-                   {extractedData.price !== '$' && (
-                     <TouchableOpacity 
-                       style={styles.clearPriceButton}
-                       onPress={() => handleManualEdit('price', '')}
-                     >
-                       <Text style={styles.clearPriceButtonText}>×</Text>
-                     </TouchableOpacity>
-                   )}
-                 </View>
-               </View>
-              
-                                             {/* Description section removed */}
-              
-                                             {/* Action Buttons */}
-                <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity 
+                <TouchableOpacity 
                     style={styles.submitButton} 
                     onPress={handleSubmit}
                   >
@@ -2037,13 +2045,13 @@ export default function ProductDetails({ navigation, route }) {
                     </Text>
                   </TouchableOpacity>
                 </View>
-        
-            </View>
+              </View>
             </>
           )}
           
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
              {/* Modal Popup */}
        {showModal && (
@@ -2138,6 +2146,13 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -2486,172 +2501,172 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-     imagePlaceholderText: {
-     color: '#9CA3AF',
-     fontSize: 14,
-   },
-   productImage: {
-     width: '100%',
-     height: 200,
-     borderRadius: 8,
-     backgroundColor: '#F3F4F6',
-   },
+  imagePlaceholderText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  productImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
    
-            // Product Info Card Styles
-     productInfoCard: {
-       flexDirection: 'row',
-       backgroundColor: '#fff',
-       borderRadius: 16,
-       padding: 20,
-       marginBottom: 24,
-       width: '95%',
-       shadowColor: '#000',
-       shadowOffset: {
-         width: 0,
-         height: 4,
-       },
-       shadowOpacity: 0.15,
-       shadowRadius: 12,
-       elevation: 8,
-       borderWidth: 1,
-       borderColor: '#E5E7EB',
-     },
-    productImageContainer: {
-      marginRight: 20,
+  // Product Info Card Styles
+  productInfoCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    width: '95%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
     },
-    productCardImage: {
-      width: 120,
-      height: 120,
-      borderRadius: 12,
-      backgroundColor: '#F3F4F6',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  productImageContainer: {
+    marginRight: 20,
+  },
+  productCardImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  productCardImagePlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  productCardImagePlaceholderText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+  },
+  productDetailsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  productTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  sourceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  facebookIcon: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1877F2',
+    marginRight: 8,
+  },
+  sourceText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  
+  // Price Input Card Styles
+  priceInputCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    width: '95%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
     },
-    productCardImagePlaceholder: {
-      width: 120,
-      height: 120,
-      borderRadius: 12,
-      backgroundColor: '#F3F4F6',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: '#E5E7EB',
-    },
-    productCardImagePlaceholderText: {
-      color: '#9CA3AF',
-      fontSize: 14,
-      textAlign: 'center',
-      paddingHorizontal: 10,
-    },
-    productDetailsContainer: {
-      flex: 1,
-      justifyContent: 'center',
-    },
-               productTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 8,
-        lineHeight: 24,
-      },
-    sourceContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    facebookIcon: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      color: '#1877F2',
-      marginRight: 8,
-    },
-    sourceText: {
-      fontSize: 14,
-      color: '#6B7280',
-    },
-    
-         // Price Input Card Styles
-     priceInputCard: {
-       backgroundColor: '#fff',
-       borderRadius: 16,
-       padding: 20,
-       marginBottom: 24,
-       width: '95%',
-       shadowColor: '#000',
-       shadowOffset: {
-         width: 0,
-         height: 4,
-       },
-       shadowOpacity: 0.15,
-       shadowRadius: 12,
-       elevation: 8,
-       borderWidth: 1,
-       borderColor: '#E5E7EB',
-     },
-    priceLabel: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: '#6B7280',
-      marginBottom: 12,
-      textTransform: 'uppercase',
-    },
-    
-    // Photo Swiper Styles (Updated for card layout)
-    photoSwiperContainer: {
-      width: 120,
-      height: 120,
-      borderRadius: 12,
-      overflow: 'hidden',
-      backgroundColor: '#F3F4F6',
-    },
-    photoSwiperItem: {
-      width: 120, // Match the getItemLayout length
-      height: 120,
-    },
-   imageCounter: {
-     position: 'absolute',
-     top: 12,
-     right: 12,
-     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-     borderRadius: 12,
-     paddingHorizontal: 8,
-     paddingVertical: 4,
-   },
-   imageCounterText: {
-     color: '#fff',
-     fontSize: 12,
-     fontWeight: '600',
-   },
-   imageDots: {
-     position: 'absolute',
-     bottom: 12,
-     left: 0,
-     right: 0,
-     flexDirection: 'row',
-     justifyContent: 'center',
-     alignItems: 'center',
-     gap: 6,
-   },
-   imageDot: {
-     width: 8,
-     height: 8,
-     borderRadius: 4,
-     backgroundColor: 'rgba(255, 255, 255, 0.5)',
-   },
-   imageDotActive: {
-     backgroundColor: '#fff',
-   },
-   
-   updateImageButton: {
-     backgroundColor: '#10B981',
-     borderRadius: 8,
-     paddingVertical: 8,
-     paddingHorizontal: 16,
-     alignItems: 'center',
-     alignSelf: 'flex-start',
-   },
-       updateImageButtonText: {
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: '600',
-    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  priceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  
+  // Photo Swiper Styles (Updated for card layout)
+  photoSwiperContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+  },
+  photoSwiperItem: {
+    width: 120, // Match the getItemLayout length
+    height: 120,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imageDots: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  imageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  imageDotActive: {
+    backgroundColor: '#fff',
+  },
+  
+  updateImageButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  updateImageButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   inputContainer: {
     width: '100%',
     marginBottom: 24,
@@ -2716,7 +2731,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
-       skipButtonText: {
+  skipButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
@@ -2853,88 +2868,87 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-     modalSecondaryButtonText: {
-     color: '#000',
-     fontSize: 16,
-     fontWeight: '500',
-     textDecorationLine: 'underline',
-   },
+  modalSecondaryButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
 
-   // Product Modal Styles
-   productModalContainer: {
-     backgroundColor: '#fff',
-     borderRadius: 20,
-     padding: 24,
-     margin: 20,
-     width: '90%',
-     maxWidth: 400,
-     alignItems: 'center',
-     shadowColor: '#000',
-     shadowOffset: {
-       width: 0,
-       height: 4,
-     },
-     shadowOpacity: 0.25,
-     shadowRadius: 8,
-     elevation: 8,
-     position: 'relative',
-   },
-   closeButton: {
-     position: 'absolute',
-     top: 16,
-     right: 16,
-     width: 32,
-     height: 32,
-     borderRadius: 16,
-     backgroundColor: '#E5E7EB',
-     justifyContent: 'center',
-     alignItems: 'center',
-     zIndex: 1,
-   },
-   closeButtonText: {
-     fontSize: 20,
-     color: '#6B7280',
-     fontWeight: 'bold',
-   },
-   productModalImageContainer: {
-     width: '100%',
-     height: 200,
-     borderRadius: 16,
-     overflow: 'hidden',
-     marginBottom: 20,
-   },
-   productModalImage: {
-     width: '100%',
-     height: '100%',
-     borderRadius: 16,
-   },
-   productModalInfo: {
-     width: '100%',
-     alignItems: 'center',
-   },
-   productModalTitle: {
-     fontSize: 20,
-     fontWeight: '700',
-     color: '#000',
-     textAlign: 'center',
-     marginBottom: 12,
-     lineHeight: 28,
-   },
-   productModalSource: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     marginBottom: 16,
-   },
-   productModalDescription: {
-     fontSize: 16,
-     color: '#374151',
-     textAlign: 'center',
-     lineHeight: 24,
-     backgroundColor: '#F9FAFB',
-     padding: 16,
-     borderRadius: 12,
-     borderWidth: 1,
-     borderColor: '#E5E7EB',
-   },
-   
- });
+  // Product Modal Styles
+  productModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    margin: 20,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: '#6B7280',
+    fontWeight: 'bold',
+  },
+  productModalImageContainer: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  productModalImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  productModalInfo: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  productModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 28,
+  },
+  productModalSource: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  productModalDescription: {
+    fontSize: 16,
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 24,
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+});
