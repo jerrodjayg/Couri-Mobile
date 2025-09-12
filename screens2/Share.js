@@ -149,7 +149,6 @@ export default function Share({ navigation, route }) {
     }
   };
 
-
   const handleSentInvite = () => {
     console.log('📤 User sent the invite', { inviteLink, invitePayload });
     setModalVisible(true);
@@ -391,4 +390,24 @@ const styles = StyleSheet.create({
   modalMessage: { fontSize: 16, color: '#000', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
   gotItButton: { backgroundColor: '#374151', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 32, alignItems: 'center', width: '100%' },
   gotItButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  returnWindowContainer: { 
+    backgroundColor: '#FEF3C7', 
+    borderWidth: 1, 
+    borderColor: '#F59E0B', 
+    borderRadius: 12, 
+    padding: 16, 
+    marginTop: 8 
+  },
+  returnWindowText: { 
+    fontSize: 14, 
+    color: '#92400E', 
+    textAlign: 'center', 
+    lineHeight: 20 
+  },
+  boldText: { 
+    fontWeight: 'bold' 
+  },
+  italicText: { 
+    fontStyle: 'italic' 
+  },
 });

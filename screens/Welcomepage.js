@@ -52,6 +52,9 @@ const InviterRow = ({ seller, sellerAvatar }) => {
   const initials = initialsFromName(seller);
   return (
     <View style={inviteRowStyles.container}>
+      <Text style={inviteRowStyles.text}>
+        with {seller || 'Seller'}
+      </Text>
       {sellerAvatar ? (
         <Image source={{ uri: sellerAvatar }} style={inviteRowStyles.avatar} />
       ) : (
@@ -59,9 +62,6 @@ const InviterRow = ({ seller, sellerAvatar }) => {
           <Text style={inviteRowStyles.initials}>{initials}</Text>
         </View>
       )}
-      <Text style={inviteRowStyles.text}>
-        with {seller || 'Seller'}
-      </Text>
     </View>
   );
 };
@@ -74,18 +74,18 @@ const inviteRowStyles = StyleSheet.create({
     marginBottom: 10,
   },
   avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#eee',
-    marginRight: 8,
+    marginLeft: 8,
   },
   avatarFallback: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#eee',
-    marginRight: 8,
+    marginLeft: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -100,32 +100,33 @@ const inviteRowStyles = StyleSheet.create({
 ------------------------------*/
 const InvitePreviewCard = ({ invite, onPress }) => {
   return (
-    <View
-      style={{
-        width: '95%',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#000',
-        padding: 14,
-        backgroundColor: '#fff',
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={{ fontSize: 18, fontWeight: '600' }}>
-            {invite?.title || ''}
-          </Text>
-        </View>
+      <View
+        style={{
+          width: '95%',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#000',
+          padding: 24,
+          backgroundColor: '#fff',
+          minHeight: 140,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text style={{ fontSize: 21, fontWeight: '600' }}>
+              "{invite?.title || 'Product Name'}"
+            </Text>
+          </View>
 
-        {invite?.image ? (
-          <Image
-            source={{ uri: invite.image }}
-            style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#eee' }}
-          />
-        ) : (
-          <View style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#eee' }} />
-        )}
-      </View>
+          {invite?.image ? (
+            <Image
+              source={{ uri: invite.image }}
+              style={{ width: 100, height: 100, borderRadius: 8, backgroundColor: '#eee' }}
+            />
+          ) : (
+            <View style={{ width: 100, height: 100, borderRadius: 8, backgroundColor: '#eee' }} />
+          )}
+        </View>
 
       <TouchableOpacity
         onPress={onPress}
@@ -749,20 +750,16 @@ export default function Welcomepage({ route, navigation }) {
 
             {/* CTA switches label & behavior */}
             {userProfile ? (
-              <TouchableOpacity
-                style={styles.beginButton}
-                onPress={() => {
-                  if (invite) {
-                    setConfirmVisible(true);
-                  } else {
-                    setModalVisible(true);
-                  }
-                }}
-              >
-                <Text style={styles.beginButtonText}>
-                  {invite ? 'View & Confirm Invitation' : '+ Begin a Transaction'}
-                </Text>
-              </TouchableOpacity>
+              !invite && (
+                <TouchableOpacity
+                  style={styles.beginButton}
+                  onPress={() => setModalVisible(true)}
+                >
+                  <Text style={styles.beginButtonText}>
+                    + Begin a Transaction
+                  </Text>
+                </TouchableOpacity>
+              )
             ) : (
               <TouchableOpacity style={styles.beginButton} onPress={() => navigation.navigate('Login')}>
                 <Text style={styles.beginButtonText}>Sign In to Continue</Text>

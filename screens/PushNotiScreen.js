@@ -495,7 +495,7 @@ const saveRegularUserToDatabase = async () => {
       if (!userFromParams) {
         console.log('❌ No user data available to save');
         console.log('🔍 PushNotiScreen DEBUG - userFromParams is null/undefined');
-        return;
+        return; // This is fine - it's not in a hook
       }
 
       // CRITICAL FIX: First check AsyncStorage for personal info data from PersonalInfoScreen
@@ -667,6 +667,9 @@ const saveRegularUserToDatabase = async () => {
           details: usersError.details,
           hint: usersError.hint
         });
+        
+        // Don't throw the error, just log it so the UI flow can continue
+        console.log('⚠️ Continuing despite database error - user data saved to AsyncStorage');
         
 
       } else {

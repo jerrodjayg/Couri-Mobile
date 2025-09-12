@@ -39,6 +39,7 @@ export default function Payment({ navigation, route }) {
     console.log('💳 User wants to link payment method');
     // Navigate to Plaid connection screen
     navigation.navigate('PlaidConnect', {
+      ...(route.params || {}),            // ✅ forward everything (title/image, etc.)
       productUrl,
       productPrice,
       userAddress,

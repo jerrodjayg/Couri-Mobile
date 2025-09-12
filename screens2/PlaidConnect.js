@@ -44,6 +44,7 @@ export default function PlaidConnect({ navigation, route }) {
     // Here you would typically integrate with Plaid SDK
     // For now, we'll navigate to the next step (Share screen)
     navigation.navigate('Share', {
+      ...(route.params || {}),            // ✅ forward everything (title/image, etc.)
       productUrl,
       productPrice,
       userAddress,

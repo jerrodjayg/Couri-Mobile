@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "owner": "sammymush",
+    "sdkVersion": "54.0.0",
     "platforms": ["ios", "android", "web"],
     "newArchEnabled": false,
     "scheme": "com.anonymous.jerrod",

@@ -1661,6 +1661,7 @@ export default function ProductDetails({ navigation, route }) {
         productPrice: extractedData.price,
         userAddress,
         productName: extractedData.productName,
+        productTitle: extractedData.productName, // ✅ Add productTitle alias
         productDescription: extractedData.description,
         productImage: extractedData.imageUrl,
         transactionType,
@@ -1690,6 +1691,7 @@ export default function ProductDetails({ navigation, route }) {
       productPrice: extractedData.price,
       userAddress,
       productName: extractedData.productName,
+      productTitle: extractedData.productName, // ✅ Add productTitle alias
       productDescription: extractedData.description,
       productImage: extractedData.imageUrl,
       transactionType, // Pass along the transaction type
