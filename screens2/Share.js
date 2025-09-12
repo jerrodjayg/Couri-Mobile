@@ -109,6 +109,8 @@ export default function Share({ navigation, route }) {
       title: resolvedTitle || '',
       image: resolvedImage || '',
       seller: userProfile?.full_name || userProfile?.name || '',
+      buyer: userProfile?.full_name || userProfile?.name || '', // Add buyer info
+      buyerId: userProfile?.id || '', // Add buyer ID for identification
       offerId: offerId || undefined,
     }),
     [productUrl, productPrice, resolvedTitle, resolvedImage, userProfile, offerId]
@@ -156,7 +158,17 @@ export default function Share({ navigation, route }) {
 
   const handleModalGotIt = () => {
     setModalVisible(false);
-    navigation.navigate('Welcomepage');
+    // Pass transaction data to show the review state
+    navigation.navigate('Welcomepage', {
+      transactionData: {
+        productTitle: resolvedTitle,
+        productImage: resolvedImage,
+        productPrice: productPrice,
+        seller: userProfile?.full_name || userProfile?.name || 'Seller',
+        status: 'reviewing',
+        transactionType: transactionType
+      }
+    });
   };
 
   const handleCancelTransaction = () => {

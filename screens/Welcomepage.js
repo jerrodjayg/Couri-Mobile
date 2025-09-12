@@ -261,6 +261,86 @@ const CouriModal = ({ visible, onClose, onGetStarted }) => {
 };
 
 /* -----------------------------
+   Transaction Review Card Component
+------------------------------*/
+const TransactionReviewCard = ({ transactionData, onViewDetails, onCancel }) => {
+  return (
+    <View style={transactionCardStyles.container}>
+      <View style={transactionCardStyles.content}>
+        <View style={transactionCardStyles.details}>
+          <Text style={transactionCardStyles.productTitle}>
+            "{transactionData?.productTitle || 'Product'}"
+          </Text>
+        </View>
+        
+        <View style={transactionCardStyles.imageContainer}>
+          {transactionData?.productImage ? (
+            <Image 
+              source={{ uri: transactionData.productImage }} 
+              style={transactionCardStyles.productImage} 
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={transactionCardStyles.placeholderImage}>
+              <Text style={transactionCardStyles.placeholderText}>📦</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const transactionCardStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 24,
+  },
+  details: {
+    flex: 1,
+    marginRight: 12,
+  },
+  productTitle: {
+    fontSize: 21,
+    fontWeight: '600',
+    color: '#000',
+  },
+});
+
+/* -----------------------------
    Accept/Decline modal (same screen)
 ------------------------------*/
 const ConfirmInviteModal = ({ visible, onClose, invite, onAccept }) => {
@@ -304,10 +384,19 @@ export default function Welcomepage({ route, navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [invite, setInvite] = useState(null); // 👈 incoming invite payload
+  const [transactionData, setTransactionData] = useState(null); // 👈 transaction data from Share.js
 
   // All other hooks must be called in the same order every time
   const { user, customUser, setCustomUser } = useUser();
   const waveAnim = useRef(new Animated.Value(0)).current;
+
+  /* ----- Handle transaction data from Share.js ----- */
+  useEffect(() => {
+    if (route?.params?.transactionData) {
+      setTransactionData(route.params.transactionData);
+      console.log('✅ Transaction data loaded:', route.params.transactionData);
+    }
+  }, [route?.params?.transactionData]);
 
   /* ----- Deep link handling: parse ?data=... or ?id=... ----- */
   const handleIncomingUrl = async (url) => {
@@ -316,8 +405,27 @@ export default function Welcomepage({ route, navigation }) {
       const parsed = Linking.parse(url);
       if (parsed?.queryParams?.data && typeof parsed.queryParams.data === 'string') {
         const payload = decodeInvite(parsed.queryParams.data);
-        setInvite(payload);
-        console.log('✅ Invite loaded from link:', payload);
+        
+        // Check if current user is the buyer who created the link
+        const isCurrentUserBuyer = userProfile?.id && payload?.buyerId && 
+          userProfile.id === payload.buyerId;
+        
+        if (isCurrentUserBuyer) {
+          // If current user is the buyer, show transaction review state
+          setTransactionData({
+            productTitle: payload.title,
+            productImage: payload.image,
+            productPrice: payload.price,
+            seller: payload.seller,
+            status: 'reviewing',
+            transactionType: 'buy'
+          });
+          console.log('✅ Buyer clicked own link - showing transaction review state');
+        } else {
+          // If someone else clicked the link, show invite modal
+          setInvite(payload);
+          console.log('✅ Someone else clicked link - showing invite modal');
+        }
       } else if (parsed?.queryParams?.id && typeof parsed.queryParams.id === 'string') {
         // TODO: fetch by ID from your backend if using short links
       }
@@ -335,12 +443,12 @@ export default function Welcomepage({ route, navigation }) {
         console.log('Linking getInitialURL error', e);
       }
     })();
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     const sub = Linking.addEventListener('url', ({ url }) => handleIncomingUrl(url));
     return () => sub.remove();
-  }, []);
+  }, [userProfile]);
 
   /* ----- Original safety checks / session logic (unchanged) ----- */
   useEffect(() => {
@@ -725,21 +833,66 @@ export default function Welcomepage({ route, navigation }) {
               <Text style={styles.welcomeText}>WELCOME, {name.toUpperCase()}!</Text>
             </View>
 
-            {/* Headline / subheadline switch when invite exists or new Google user */}
+            {/* Headline / subheadline switch when invite exists, transaction data exists, or new Google user */}
             <Text style={styles.headline}>
               {invite ? "You've been invited to a transaction" : 
+               transactionData ? "The seller is reviewing your transaction" :
                "Let's get started."}
             </Text>
+
+            {/* Status message for transaction review */}
+            {transactionData && (
+              <Text style={styles.transactionStatusText}>
+                We'll notify you as soon as it's confirmed.
+              </Text>
+            )}
 
             {/* NEW: inviter row directly under headline, outside the card */}
             {invite ? (
               <InviterRow seller={invite?.seller} sellerAvatar={invite?.sellerAvatar} />
-            ) : (
+            ) : transactionData ? null : (
               <Text style={styles.subheadline}>You don't have any active Couri transactions.</Text>
             )}
 
-            {/* Invite preview OR placeholder */}
-            {invite ? (
+            {/* Transaction review card OR invite preview OR placeholder */}
+            {transactionData ? (
+              <>
+                <TransactionReviewCard
+                  transactionData={transactionData}
+                  onViewDetails={() => {
+                    // TODO: Navigate to transaction details screen
+                    console.log('View transaction details');
+                  }}
+                  onCancel={() => {
+                    setTransactionData(null);
+                    // TODO: Handle transaction cancellation
+                    console.log('Cancel transaction');
+                  }}
+                />
+                
+                {/* Buttons outside the card */}
+                <TouchableOpacity 
+                  style={styles.viewDetailsButton} 
+                  onPress={() => {
+                    // TODO: Navigate to transaction details screen
+                    console.log('View transaction details');
+                  }}
+                >
+                  <Text style={styles.viewDetailsText}>View Transaction Details</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.cancelTransactionButton} 
+                  onPress={() => {
+                    setTransactionData(null);
+                    // TODO: Handle transaction cancellation
+                    console.log('Cancel transaction');
+                  }}
+                >
+                  <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
+                </TouchableOpacity>
+              </>
+            ) : invite ? (
               <InvitePreviewCard
                 invite={invite}
                 onPress={() => setConfirmVisible(true)}
@@ -750,7 +903,7 @@ export default function Welcomepage({ route, navigation }) {
 
             {/* CTA switches label & behavior */}
             {userProfile ? (
-              !invite && (
+              !invite && !transactionData && (
                 <TouchableOpacity
                   style={styles.beginButton}
                   onPress={() => setModalVisible(true)}
@@ -761,9 +914,11 @@ export default function Welcomepage({ route, navigation }) {
                 </TouchableOpacity>
               )
             ) : (
-              <TouchableOpacity style={styles.beginButton} onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.beginButtonText}>Sign In to Continue</Text>
-              </TouchableOpacity>
+              !transactionData && (
+                <TouchableOpacity style={styles.beginButton} onPress={() => navigation.navigate('Login')}>
+                  <Text style={styles.beginButtonText}>Sign In to Continue</Text>
+                </TouchableOpacity>
+              )
             )}
           </View>
         </View>
@@ -882,7 +1037,32 @@ const styles = StyleSheet.create({
   welcomeText: { fontSize: 16, fontWeight: '600' },
   headline: { fontSize: 35, fontWeight: '400', textAlign: 'center', marginTop: 20, marginBottom: 6 },
   subheadline: { fontSize: 16, color: '#444', textAlign: 'center', marginBottom: 20 },
+  transactionStatusText: { fontSize: 16, color: '#444', textAlign: 'center', marginBottom: 20 },
   placeholderBox: { width: '95%', height: 140, backgroundColor: '#eee', borderRadius: 8, marginBottom: 20 },
+  viewDetailsButton: {
+    backgroundColor: '#000',
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  viewDetailsText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelTransactionButton: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  cancelTransactionText: {
+    color: '#FF0000',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
   beginButton: { backgroundColor: '#000', paddingVertical: 19, paddingHorizontal: 33, borderRadius: 50, marginTop: 20 },
   beginButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
   pinkBackground: { backgroundColor: '#FDEAFF', alignItems: 'center', paddingBottom: 30, paddingTop: 16 },
