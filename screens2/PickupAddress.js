@@ -33,19 +33,51 @@ export default function PickupAddress({ navigation, route }) {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const { productUrl, productPrice, userAddress } = route.params || {};
+  const { 
+    productUrl, 
+    productPrice, 
+    productTitle,
+    productDescription,
+    productImage,
+    userAddress,
+    transactionType,
+    userProfile
+  } = route.params || {};o
 
-  // Pre-populate form with user's current address if available
+  // Pre-populate form with user's current address or default pickup address if available
   useEffect(() => {
-    if (userAddress) {
-      setForm({
-        address1: userAddress.street || '',
-        address2: userAddress.address2 || '',
-        city: userAddress.city || '',
-        state: userAddress.state || '',
-        zip: userAddress.zipCode || '',
-      });
-    }
+    const loadAddress = async () => {
+      if (userAddress) {
+        // Use user's main address as starting point
+        setForm({
+          address1: userAddress.street || '',
+          address2: userAddress.address2 || '',
+          city: userAddress.city || '',
+          state: userAddress.state || '',
+          zip: userAddress.zipCode || '',
+        });
+      } else {
+        // Check if there's a default pickup address
+        try {
+          const defaultAddress = await AsyncStorage.getItem('defaultPickupAddress');
+          if (defaultAddress) {
+            const parsed = JSON.parse(defaultAddress);
+            setForm({
+              address1: parsed.street || '',
+              address2: parsed.address2 || '',
+              city: parsed.city || '',
+              state: parsed.state || '',
+              zip: parsed.zipCode || '',
+            });
+            setIsDefault(true); // Pre-check the default option
+          }
+        } catch (error) {
+          console.log('⚠️ Error loading default pickup address:', error);
+        }
+      }
+    };
+    
+    loadAddress();
   }, [userAddress]);
 
   const handleChange = (field, value) => {
@@ -161,11 +193,6 @@ export default function PickupAddress({ navigation, route }) {
           zip: address.postalCode || '',
         }));
         
-        Alert.alert(
-          'Success',
-          'Address auto-filled from your current location!',
-          [{ text: 'OK' }]
-        );
       } else {
         Alert.alert(
           'Error',
@@ -234,10 +261,13 @@ export default function PickupAddress({ navigation, route }) {
       
       // Navigate back to ConfirmAddress with the new pickup address
       navigation.navigate('ConfirmAddress', {
+        ...(route.params || {}), // ✅ forward everything (title/image, etc.)
         productUrl,
         productPrice,
         userAddress,
-        pickupAddress
+        pickupAddress,
+        transactionType,
+        userProfile: userProfile || userAddress // Pass the user profile data
       });
       
     } catch (error) {
@@ -275,12 +305,6 @@ export default function PickupAddress({ navigation, route }) {
       <View style={styles.mainContent}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.formContainer}>
-          {/* Info Note */}
-          <View style={styles.infoNote}>
-            <Text style={styles.infoNoteText}>
-              This pickup address will only be used for this delivery and won't change your main address.
-            </Text>
-          </View>
 
           {/* Auto-fill Location Button */}
           <TouchableOpacity
@@ -464,20 +488,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingTop: 20,
-  },
-  infoNote: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 24,
-  },
-  infoNoteText: {
-    fontSize: 14,
-    color: '#92400E',
-    textAlign: 'center',
-    lineHeight: 20,
   },
   inputContainer: {
     marginBottom: 24,

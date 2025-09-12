@@ -131,77 +131,81 @@ export function useGoogleAuth() {
           }
           
           // Try to manually exchange the code if session check failed
-          try {
-            console.log('🔍 useGoogleAuth DEBUG - Attempting manual code exchange...');
-            console.log('🔍 useGoogleAuth DEBUG - Redirect URL for parsing:', redirectUrl);
-            
-            const url = new URL(redirectUrl);
-            const code = url.searchParams.get('code');
-            
-            console.log('🔍 useGoogleAuth DEBUG - Parsed code from URL:', code ? 'EXISTS' : 'NULL');
-            console.log('🔍 useGoogleAuth DEBUG - Code length:', code?.length || 0);
-            
-            if (code) {
-              console.log('🔑 Attempting manual code exchange with code:', code.substring(0, 10) + '...');
-              console.log('🔍 useGoogleAuth DEBUG - Creating exchange promise...');
+          if (redirectUrl) {
+            try {
+              console.log('🔍 useGoogleAuth DEBUG - Attempting manual code exchange...');
+              console.log('🔍 useGoogleAuth DEBUG - Redirect URL for parsing:', redirectUrl);
               
-              // Add timeout to prevent hanging
-              const exchangePromise = supabase.auth.exchangeCodeForSession(code);
-              console.log('🔍 useGoogleAuth DEBUG - Exchange promise created');
+              const url = new URL(redirectUrl);
+              const code = url.searchParams.get('code');
               
-              const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => {
-                  console.log('🔍 useGoogleAuth DEBUG - Exchange timeout reached (10 seconds)');
-                  reject(new Error('Code exchange timeout'));
-                }, 10000)
-              );
+              console.log('🔍 useGoogleAuth DEBUG - Parsed code from URL:', code ? 'EXISTS' : 'NULL');
+              console.log('🔍 useGoogleAuth DEBUG - Code length:', code?.length || 0);
               
-              console.log('🔍 useGoogleAuth DEBUG - Racing exchange promise with timeout...');
-              const { data: exchangeData, error: exchangeError } = await Promise.race([
-                exchangePromise,
-                timeoutPromise
-              ]);
-              
-              console.log('🔍 useGoogleAuth DEBUG - Exchange completed');
-              console.log('🔍 useGoogleAuth DEBUG - Exchange error:', exchangeError);
-              console.log('🔍 useGoogleAuth DEBUG - Exchange data:', exchangeData);
-              
-              if (exchangeError) {
-                console.error('❌ Code exchange error:', exchangeError);
-                console.error('🔍 useGoogleAuth DEBUG - Error message:', exchangeError.message);
-                console.error('🔍 useGoogleAuth DEBUG - Error status:', exchangeError.status);
-                throw exchangeError;
-              }
-              
-              if (exchangeData?.session) {
-                console.log('✅ Manual code exchange successful');
-                console.log('🔍 useGoogleAuth DEBUG - Session user email:', exchangeData.session.user?.email);
-                return { 
-                  type: 'success', 
-                  url: redirectUrl,
-                  session: exchangeData.session
-                };
+              if (code) {
+                console.log('🔑 Attempting manual code exchange with code:', code.substring(0, 10) + '...');
+                console.log('🔍 useGoogleAuth DEBUG - Creating exchange promise...');
+                
+                // Add timeout to prevent hanging - increased to 15 seconds
+                const exchangePromise = supabase.auth.exchangeCodeForSession(code);
+                console.log('🔍 useGoogleAuth DEBUG - Exchange promise created');
+                
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => {
+                    console.log('🔍 useGoogleAuth DEBUG - Exchange timeout reached (15 seconds)');
+                    reject(new Error('Code exchange timeout'));
+                  }, 15000)
+                );
+                
+                console.log('🔍 useGoogleAuth DEBUG - Racing exchange promise with timeout...');
+                const { data: exchangeData, error: exchangeError } = await Promise.race([
+                  exchangePromise,
+                  timeoutPromise
+                ]);
+                
+                console.log('🔍 useGoogleAuth DEBUG - Exchange completed');
+                console.log('🔍 useGoogleAuth DEBUG - Exchange error:', exchangeError);
+                console.log('🔍 useGoogleAuth DEBUG - Exchange data:', exchangeData);
+                
+                if (exchangeError) {
+                  console.error('❌ Code exchange error:', exchangeError);
+                  console.error('🔍 useGoogleAuth DEBUG - Error message:', exchangeError.message);
+                  console.error('🔍 useGoogleAuth DEBUG - Error status:', exchangeError.status);
+                  throw exchangeError;
+                }
+                
+                if (exchangeData?.session) {
+                  console.log('✅ Manual code exchange successful');
+                  console.log('🔍 useGoogleAuth DEBUG - Session user email:', exchangeData.session.user?.email);
+                  return { 
+                    type: 'success', 
+                    url: redirectUrl,
+                    session: exchangeData.session
+                  };
+                } else {
+                  console.log('🔍 useGoogleAuth DEBUG - Exchange succeeded but no session data');
+                  console.log('🔍 useGoogleAuth DEBUG - Exchange data keys:', Object.keys(exchangeData || {}));
+                }
               } else {
-                console.log('🔍 useGoogleAuth DEBUG - Exchange succeeded but no session data');
-                console.log('🔍 useGoogleAuth DEBUG - Exchange data keys:', Object.keys(exchangeData || {}));
+                console.log('🔍 useGoogleAuth DEBUG - No code found in URL');
               }
-            } else {
-              console.log('🔍 useGoogleAuth DEBUG - No code found in URL');
+            } catch (exchangeErr) {
+              console.error('❌ Manual code exchange failed:', exchangeErr);
+              console.error('🔍 useGoogleAuth DEBUG - Exchange error type:', typeof exchangeErr);
+              console.error('🔍 useGoogleAuth DEBUG - Exchange error message:', exchangeErr.message);
+              console.error('🔍 useGoogleAuth DEBUG - Exchange error stack:', exchangeErr.stack);
+              
+              // If code exchange fails, still return success with the redirect URL
+              // The LogInScreen will handle the session check
+              console.log('🔄 Code exchange failed, returning success to let LogInScreen handle session');
+              return { 
+                type: 'success', 
+                url: redirectUrl,
+                message: 'OAuth completed, session will be established by app'
+              };
             }
-          } catch (exchangeErr) {
-            console.error('❌ Manual code exchange failed:', exchangeErr);
-            console.error('🔍 useGoogleAuth DEBUG - Exchange error type:', typeof exchangeErr);
-            console.error('🔍 useGoogleAuth DEBUG - Exchange error message:', exchangeErr.message);
-            console.error('🔍 useGoogleAuth DEBUG - Exchange error stack:', exchangeErr.stack);
-            
-            // If code exchange fails, still return success with the redirect URL
-            // The LogInScreen will handle the session check
-            console.log('🔄 Code exchange failed, returning success to let LogInScreen handle session');
-            return { 
-              type: 'success', 
-              url: redirectUrl,
-              message: 'OAuth completed, session will be established by app'
-            };
+          } else {
+            console.log('🔍 useGoogleAuth DEBUG - No redirect URL found in result');
           }
           
           // If we get here, the code exchange failed

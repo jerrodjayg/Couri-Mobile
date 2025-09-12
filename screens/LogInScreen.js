@@ -138,6 +138,7 @@ export default function LogInScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingSignIn, setIsProcessingSignIn] = useState(false);
   const { signIn: signInGoogle, loading: googleLoading } = useGoogleAuth();
   const { signIn: signInFacebook, loading: facebookLoading } = useFacebookAuth();
   const { signIn: signInApple, loading: appleLoading } = useAppleAuth();
@@ -209,7 +210,65 @@ export default function LogInScreen({ navigation }) {
     }
   };
 
+  // Helper function to wait for session establishment
+  const waitForSession = () => {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const maxAttempts = 20; // Increased to 20 attempts
+      const interval = 500; // Check every 500ms
+      
+      const checkSession = async () => {
+        attempts++;
+        console.log(`🔍 LogInScreen DEBUG - Session check attempt ${attempts}/${maxAttempts}`);
+        
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.log(`🔍 LogInScreen DEBUG - Session error:`, error.message);
+          } else if (session?.user) {
+            console.log('🔍 LogInScreen DEBUG - Session established successfully');
+            resolve(session);
+            return;
+          } else {
+            console.log(`🔍 LogInScreen DEBUG - No session yet, attempt ${attempts}/${maxAttempts}`);
+          }
+          
+          if (attempts >= maxAttempts) {
+            console.log('🔍 LogInScreen DEBUG - Max attempts reached, rejecting');
+            reject(new Error('Session establishment timeout'));
+            return;
+          }
+          
+          // Continue checking
+          setTimeout(checkSession, interval);
+        } catch (sessionErr) {
+          console.log(`🔍 LogInScreen DEBUG - Session check error:`, sessionErr.message);
+          
+          if (attempts >= maxAttempts) {
+            reject(sessionErr);
+            return;
+          }
+          
+          // Continue checking
+          setTimeout(checkSession, interval);
+        }
+      };
+      
+      // Start checking after a brief delay to allow auth state change to process
+      setTimeout(checkSession, 1000);
+    });
+  };
+
   const handleGoogleSignIn = async () => {
+    // Prevent multiple simultaneous sign-in attempts
+    if (isLoading || isProcessingSignIn) {
+      console.log('🔍 LogInScreen DEBUG - Sign-in already in progress, ignoring request');
+      return;
+    }
+    
+    setIsProcessingSignIn(true);
+    
     console.log('🔄 handleGoogleSignIn called');
     console.log('🔍 LogInScreen DEBUG - Starting Google sign-in for returning user');
     console.log('🔍 LogInScreen DEBUG - Current navigation state:', navigation.getState());
@@ -248,54 +307,26 @@ export default function LogInScreen({ navigation }) {
       console.log('🔍 LogInScreen DEBUG - Waiting for session to be established...');
       let userEmail = null;
       let userData = null;
-      let attempts = 0;
-      const maxAttempts = 15; // Wait up to 15 seconds
-
+      
       // First check if the result already has session data
       if (result.session?.user) {
         userData = result.session.user;
         userEmail = userData.email;
         console.log('🔍 LogInScreen DEBUG - User data from OAuth result session:', userData);
       } else {
-        // Fallback: wait for session to be established
-        while (attempts < maxAttempts) {
-          attempts++;
-          console.log(`🔍 LogInScreen DEBUG - Session check attempt ${attempts}/${maxAttempts}`);
-          
-          // Check if we have session data from the OAuth result
-          if (result.session?.user) {
-            userData = result.session.user;
-            userEmail = userData.email;
-            console.log('🔍 LogInScreen DEBUG - User data from OAuth session:', userData);
-            break;
-          } else {
-            // Fallback: try to get user from current session
-            console.log(`🔍 LogInScreen DEBUG - Checking current session, attempt ${attempts}/${maxAttempts}`);
-            
-            try {
-              // Add timeout to prevent hanging
-              const sessionPromise = supabase.auth.getSession();
-              const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Session check timeout')), 3000)
-              );
-              
-              const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-              
-              if (session?.user) {
-                userData = session.user;
-                userEmail = session.user.email;
-                console.log('🔍 LogInScreen DEBUG - User data from current session:', userData);
-                break;
-              } else {
-                console.log(`🔍 LogInScreen DEBUG - No session yet, attempt ${attempts}/${maxAttempts}`);
-              }
-            } catch (sessionErr) {
-              console.log(`🔍 LogInScreen DEBUG - Session check failed or timed out, attempt ${attempts}/${maxAttempts}:`, sessionErr.message);
-            }
-            
-            // Wait 1 second before next attempt
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for session with improved logic using Promise-based approach
+        console.log('🔍 LogInScreen DEBUG - Session not in result, waiting for auth state change...');
+        
+        try {
+          // Wait for session to be established with a more reliable approach
+          const sessionData = await waitForSession();
+          if (sessionData) {
+            userData = sessionData.user;
+            userEmail = sessionData.user.email;
+            console.log('🔍 LogInScreen DEBUG - User data from established session:', userData);
           }
+        } catch (sessionError) {
+          console.log('🔍 LogInScreen DEBUG - Failed to establish session:', sessionError.message);
         }
       }
 
@@ -624,6 +655,8 @@ export default function LogInScreen({ navigation }) {
       console.error('❌ LogInScreen DEBUG - Error stack:', error.stack);
       console.error('❌ LogInScreen DEBUG - Full error details:', JSON.stringify(error, null, 2));
       Alert.alert('Error', 'Google sign-in failed. Please try again.');
+    } finally {
+      setIsProcessingSignIn(false);
     }
   };
 
@@ -662,8 +695,8 @@ export default function LogInScreen({ navigation }) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       
-      // CRITICAL FIX: Don't auto-navigate if user doesn't exist in database
-      if (event === 'SIGNED_IN' && session?.user) {
+      // CRITICAL FIX: Don't auto-navigate if user doesn't exist in database or if we're processing sign-in
+      if (event === 'SIGNED_IN' && session?.user && !isProcessingSignIn) {
         console.log('🔍 LogInScreen DEBUG - Auth state change: SIGNED_IN detected');
         
         // Check if this user actually exists in our database before navigating
