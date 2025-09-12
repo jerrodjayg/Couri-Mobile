@@ -386,7 +386,6 @@ export default function ConfirmAddress({ navigation, route }) {
         zipCode: ''
       });
 
-      Alert.alert('Success', 'Address saved successfully!');
 
     } catch (error) {
       console.error('❌ Error in handleSaveAddress:', error);
@@ -460,11 +459,6 @@ export default function ConfirmAddress({ navigation, route }) {
           zipCode: locationAddress.zipCode
         });
 
-        Alert.alert(
-          'Location Found!',
-          'Your current location has been filled in below. You can edit the address if needed, then tap "Save Address" to continue.',
-          [{ text: 'OK' }]
-        );
       } else {
         Alert.alert(
           'Location Error',
@@ -606,14 +600,7 @@ export default function ConfirmAddress({ navigation, route }) {
               )}
             </View>
           </View>
-        ) : (
-          <View style={styles.noAddressContainer}>
-            <Text style={styles.noAddressText}>No address found</Text>
-            <Text style={styles.noAddressSubtext}>
-              Please add an address to continue with your transaction
-            </Text>
-          </View>
-        )}
+        ) : null}
 
         {/* No Address Section - Show when user has no address in database */}
         {!loading && !route.params?.pickupAddress && !userAddress && (
@@ -1072,19 +1059,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FECACA',
-  },
-  noAddressText: {
-    fontSize: 16,
-    color: '#DC2626',
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  noAddressSubtext: {
-    fontSize: 14,
-    color: '#7F1D1D',
-    textAlign: 'center',
-    lineHeight: 20,
   },
   addressOptionsContainer: {
     alignItems: 'center',

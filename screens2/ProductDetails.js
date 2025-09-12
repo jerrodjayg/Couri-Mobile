@@ -1439,12 +1439,12 @@ export default function ProductDetails({ navigation, route }) {
       
       // Show error but still let user input manually
       const errorData = {
-        productName: isSelling ? 'Item Information (Error Occurred)' : 'Product Information (Error Occurred)',
+        productName: isSelling ? 'Item Information' : 'Product Information',
         price: '$', // Keep $ prefix but remove initial price
         description: isSelling
-          ? 'An error occurred during scraping: ' + error.message + '\n\nPlease enter your item details manually below to create a listing.'
-          : 'An error occurred during scraping: ' + error.message + '\n\nPlease enter the product details manually below.',
-        imageUrl: 'https://via.placeholder.com/150?text=Error+Occurred'
+          ? 'Please enter your item details manually below to create a listing.'
+          : 'Please enter the product details manually below.',
+        imageUrl: 'https://via.placeholder.com/150?text=Manual+Input+Required'
       };
       
       setExtractedData(errorData);
@@ -2029,15 +2029,6 @@ export default function ProductDetails({ navigation, route }) {
               
               {/* Action Buttons */}
               <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity 
-                  style={styles.retakeButton} 
-                  onPress={handleRetakeScreenshot}
-                >
-                  <Text style={styles.retakeButtonText}>
-                    Retry Scraping
-                  </Text>
-                </TouchableOpacity>
-               
                 <TouchableOpacity 
                     style={styles.submitButton} 
                     onPress={handleSubmit}
@@ -2696,8 +2687,6 @@ const styles = StyleSheet.create({
    },
   actionButtonsContainer: {
     width: '100%',
-    flexDirection: 'row',
-    gap: 16,
     marginTop: 16,
   },
   retakeButton: {
@@ -2715,7 +2704,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    flex: 1,
+    width: '100%',
     backgroundColor: '#000',
     borderRadius: 12,
     paddingVertical: 16,
