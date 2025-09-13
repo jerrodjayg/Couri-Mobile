@@ -436,15 +436,6 @@ export default function Welcomepage({ route, navigation }) {
     };
   }, [navigation]);
 
-  if (hasError) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.wrapper}>
-          <Text>Something went wrong. Please try again.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const name = userProfile
     ? (route?.params?.name ||

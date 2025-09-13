@@ -107,17 +107,12 @@ export default function PersonalInfoScreen({ navigation, route }) {
         const googleData = route.params.googleUserData;
         console.log('🔍 PersonalInfoScreen DEBUG - Processing Google user data:', googleData);
         
-        // Extract names from Google user metadata
-        const fullName = googleData.user_metadata?.full_name || googleData.user_metadata?.name || '';
-        const firstName = fullName.split(' ')[0] || '';
-        const lastName = fullName.split(' ').slice(1).join(' ') || '';
-        
-        console.log('🔍 PersonalInfoScreen DEBUG - Extracted names:', { fullName, firstName, lastName });
-        
+        // Use the names that were already processed in CreateAccountScreen
+        // Don't re-extract names to avoid duplication
         setForm(prev => ({
           ...prev,
-          firstName: firstName || userInfo.firstName || '',
-          lastName: lastName || userInfo.lastName || '',
+          firstName: userInfo.firstName || '',
+          lastName: userInfo.lastName || '',
           email: googleData.email || userInfo.email || '',
         }));
         

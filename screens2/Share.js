@@ -16,6 +16,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { Buffer } from 'buffer';
+import { saveTransaction } from '../utils/transactionService';
 
 // polyfill Buffer (RN sometimes needs it)
 if (typeof global.Buffer === 'undefined') {
@@ -154,7 +155,24 @@ export default function Share({ navigation, route }) {
     setModalVisible(true);
   };
 
-  const handleModalGotIt = () => {
+  const handleModalGotIt = async () => {
+    try {
+      // Save transaction to AsyncStorage
+      await saveTransaction({
+        productTitle: resolvedTitle,
+        productImage: resolvedImage,
+        productPrice: productPrice,
+        productUrl: productUrl,
+        transactionType: transactionType,
+        userProfile: userProfile,
+        offerId: offerId,
+      });
+      
+      console.log('✅ Transaction saved successfully');
+    } catch (error) {
+      console.error('❌ Error saving transaction:', error);
+    }
+    
     setModalVisible(false);
     navigation.navigate('Welcomepage');
   };
@@ -314,18 +332,27 @@ export default function Share({ navigation, route }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            {/* Close button */}
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+
+            {/* Success icon */}
             <View style={styles.successIconContainer}>
               <View style={styles.successIcon}>
                 <Text style={styles.checkmark}>✓</Text>
               </View>
             </View>
 
+            {/* Message */}
             <Text style={styles.modalMessage}>
-              {isSelling
-                ? "As soon as the seller confirms the transaction details, we'll notify you and we'll begin pickup."
-                : "As soon as the buyer confirms the transaction details, we'll notify you and we'll begin pickup."}
+              As soon as the seller confirms the transaction details, we'll notify you and we'll begin delivery.
             </Text>
 
+            {/* Got it button */}
             <TouchableOpacity style={styles.gotItButton} onPress={handleModalGotIt}>
               <Text style={styles.gotItButtonText}>Got it</Text>
             </TouchableOpacity>
@@ -383,12 +410,49 @@ const styles = StyleSheet.create({
   cancelButton: { alignItems: 'center' },
   cancelButtonText: { color: '#000', fontSize: 16, fontWeight: '500', textDecorationLine: 'underline' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', maxWidth: 320, width: '100%' },
-  successIconContainer: { marginBottom: 24 },
+  modalContent: { 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    padding: 24, 
+    alignItems: 'center', 
+    maxWidth: 320, 
+    width: '100%',
+    position: 'relative'
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: '#000',
+    fontWeight: '300'
+  },
+  successIconContainer: { marginBottom: 16, marginTop: 8 },
   successIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center' },
   checkmark: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
-  modalMessage: { fontSize: 16, color: '#000', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  gotItButton: { backgroundColor: '#374151', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 32, alignItems: 'center', width: '100%' },
+  modalMessage: { 
+    fontSize: 16, 
+    color: '#000', 
+    textAlign: 'center', 
+    lineHeight: 22, 
+    marginBottom: 24,
+    paddingHorizontal: 8
+  },
+  gotItButton: { 
+    backgroundColor: '#000', 
+    borderRadius: 12, 
+    paddingVertical: 16, 
+    paddingHorizontal: 32, 
+    alignItems: 'center', 
+    width: '100%' 
+  },
   gotItButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   returnWindowContainer: { 
     backgroundColor: '#FEF3C7', 

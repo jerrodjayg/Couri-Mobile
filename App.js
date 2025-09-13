@@ -30,6 +30,7 @@ import ConfirmInfoScreen from './screens/ConfirmInfoScreen';
 import SupportScreen from './screens/SupportScreen';
 import BankInfo from './screens/BankInfo';
 import Transactions from './screens/Transactions';
+import TransactionDetails from './screens/TransactionDetails';
 import ChatHistory from './screens/ChatHistory';
 import Notification from './screens/Notification';
 import Legal from './screens/Legal';
@@ -151,6 +152,7 @@ export default function App() {
  <Stack.Screen name="Support" component={SupportScreen} />
  <Stack.Screen name="BankInfo" component={BankInfo} />
  <Stack.Screen name="Transactions" component={Transactions} />
+ <Stack.Screen name="TransactionDetails" component={TransactionDetails} />
  <Stack.Screen name="ChatHistory" component={ChatHistory} />
  <Stack.Screen name="Notification" component={Notification} />
  <Stack.Screen name="Legal" component={Legal} />
