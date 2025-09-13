@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -879,8 +879,8 @@ export default function ProfileScreen({ navigation, route }) {
     }
   };
 
-  // Edit Modal Component - Memoized to prevent unnecessary re-renders
-  const EditModal = useMemo(() => (
+  // Edit Modal Component
+  const EditModal = () => (
     <Modal
       key={editingField}
       visible={editModalVisible}
@@ -1064,7 +1064,7 @@ export default function ProfileScreen({ navigation, route }) {
         </View>
       </TouchableWithoutFeedback>
     </Modal>
-  ), [editModalVisible, editingField, editFormData, isUpdating, handleCancelEdit, handleUpdateProfile]);
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
