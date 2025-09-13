@@ -9,10 +9,16 @@ import {
   Image,
   ScrollView,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from './supabaseClient';
+import { UserService } from '../utils/userService';
 
 export default function ProfileScreen({ navigation, route }) {
   const { user } = useUser();
@@ -31,6 +37,23 @@ export default function ProfileScreen({ navigation, route }) {
     zip: '',
     fullAddress: '',
   });
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingField, setEditingField] = useState('');
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    zip: '',
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [lastEditPressTime, setLastEditPressTime] = useState(0);
 
   // Fetch user profile from AsyncStorage or context
   useEffect(() => {
@@ -201,181 +224,12 @@ export default function ProfileScreen({ navigation, route }) {
     };
 
     fetchUserProfile();
-  }, [user, route?.params?.userData, userInitials]);
+  }, [user, route?.params?.userData]);
 
-  // Add a focus effect to refresh data when screen comes into focus
+  // Simplified focus effect to prevent infinite re-renders
   useFocusEffect(
     useCallback(() => {
-      const refreshProfileData = async () => {
-        try {
-          console.log('🔄 ProfileScreen - Refreshing data on focus...');
-          
-          // Check AsyncStorage for comprehensive user data
-          const tempUserData = await AsyncStorage.getItem('tempUserData');
-          const userProfileData = await AsyncStorage.getItem('userProfileData');
-          
-          if (tempUserData || userProfileData) {
-            console.log('✅ ProfileScreen - Found data in AsyncStorage, refreshing...');
-            // Trigger a re-fetch of the profile data
-            const fetchUserProfile = async () => {
-              try {
-                // First check route params for user data with initials
-                if (route?.params?.userData?.userInitials) {
-                  setUserInitials(route.params.userData.userInitials);
-                }
-                
-                let mergedUserData = {};
-                
-                // Merge data from both sources, with userProfileData taking precedence
-                if (userProfileData) {
-                  const parsedUserData = JSON.parse(userProfileData);
-                  console.log('✅ Profile - Found persistent user data in AsyncStorage:', parsedUserData);
-                  mergedUserData = { ...parsedUserData };
-                }
-                
-                if (tempUserData) {
-                  const parsedData = JSON.parse(tempUserData);
-                  console.log('✅ Profile - Found temp user data in AsyncStorage:', parsedData);
-                  if (parsedData.userInitials && !userInitials) {
-                    setUserInitials(parsedData.userInitials);
-                  }
-                  
-                  // Merge tempUserData with existing merged data
-                  mergedUserData = { ...mergedUserData, ...parsedData };
-                }
-                
-                console.log('🔍 Profile - Final mergedUserData after merging:', mergedUserData);
-
-                // Load address data from the same source as ConfirmAddress and PersonalInfoScreen
-                let addressData = null;
-                let phoneNumber = '';
-                
-                // First, try to get phone number from mergedUserData (PersonalInfoScreen format)
-                phoneNumber = mergedUserData.phone || mergedUserData.phoneNumber || '';
-                console.log('🔍 Profile - Phone number found:', phoneNumber);
-                console.log('🔍 Profile - mergedUserData keys:', Object.keys(mergedUserData));
-                console.log('🔍 Profile - mergedUserData.address1:', mergedUserData.address1);
-                console.log('🔍 Profile - mergedUserData.city:', mergedUserData.city);
-                console.log('🔍 Profile - mergedUserData.state:', mergedUserData.state);
-                console.log('🔍 Profile - mergedUserData.zip:', mergedUserData.zip);
-                
-                          // Check if address data is stored in the same format as PersonalInfoScreen (this should be the primary source)
-          if (mergedUserData.address1 && mergedUserData.city && mergedUserData.state && mergedUserData.zip) {
-            addressData = {
-              street: mergedUserData.address1,
-              city: mergedUserData.city,
-              state: mergedUserData.state,
-              zipCode: mergedUserData.zip
-            };
-            console.log('✅ Profile - Address loaded from PersonalInfoScreen format:', addressData);
-          } else if (mergedUserData.address_line_1 && mergedUserData.city && mergedUserData.state && mergedUserData.zip_code) {
-            // Check for database format (address_line_1, zip_code)
-            addressData = {
-              street: mergedUserData.address_line_1,
-              city: mergedUserData.city,
-              state: mergedUserData.state,
-              zipCode: mergedUserData.zip_code
-            };
-            console.log('✅ Profile - Address loaded from database format:', addressData);
-          } else {
-            // Only set default address if we have NO address data at all
-            console.log('⚠️ Profile - No address data found anywhere, setting default');
-            console.log('🔍 Profile - Available data in mergedUserData:', {
-              address1: mergedUserData.address1,
-              address_line_1: mergedUserData.address_line_1,
-              city: mergedUserData.city,
-              state: mergedUserData.state,
-              zip: mergedUserData.zip,
-              zip_code: mergedUserData.zip_code
-            });
-            addressData = {
-              street: '',
-              city: '',
-              state: '',
-              zipCode: ''
-            };
-            console.log('✅ Profile - No address data available, will show "Not provided"');
-          }
-                
-                // Update profile data with comprehensive user information including address
-                setProfileData({
-                  firstName: mergedUserData.firstName || mergedUserData.first_name || '',
-                  lastName: mergedUserData.lastName || mergedUserData.last_name || '',
-                  name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
-                  phone: phoneNumber,
-                  email: mergedUserData.email || '',
-                  address1: addressData.street || '',
-                  address2: mergedUserData.address2 || '',
-                  city: addressData.city || '',
-                  state: addressData.state || '',
-                  zip: addressData.zipCode || '',
-                  fullAddress: addressData.street && addressData.city && addressData.state && addressData.zipCode 
-                    ? `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`
-                    : 'Not provided',
-                });
-                
-                // Update userProfile with profile picture if available
-                if (!mergedUserData.hasSkippedPhoto && (mergedUserData.avatar_url || mergedUserData.profileImageUri)) {
-                  setUserProfile(prev => ({
-                    ...prev,
-                    id: mergedUserData.id || 'temp_user',
-                    name: mergedUserData.name || mergedUserData.full_name,
-                    full_name: mergedUserData.full_name || mergedUserData.name,
-                    avatar_url: mergedUserData.avatar_url || mergedUserData.profileImageUri,
-                    email: mergedUserData.email
-                  }));
-                } else if (mergedUserData.hasSkippedPhoto) {
-                  // User explicitly skipped photo - show initials
-                  setUserProfile(prev => ({
-                    ...prev,
-                    id: mergedUserData.id || 'temp_user',
-                    name: mergedUserData.name || mergedUserData.full_name,
-                    full_name: mergedUserData.full_name || mergedUserData.name,
-                    avatar_url: '', // Force empty to show initials
-                    email: mergedUserData.email
-                  }));
-                }
-                
-                console.log('✅ ProfileScreen - Data refreshed successfully');
-                
-              } catch (error) {
-                console.log('⚠️ Error refreshing profile data:', error);
-              }
-            };
-            
-            fetchUserProfile();
-          }
-        } catch (error) {
-          console.log('⚠️ Error in refreshProfileData:', error);
-        }
-      };
-      
-      refreshProfileData();
-    }, [route?.params?.userData, userInitials])
-  );
-
-  // Refresh profile picture when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      const refreshProfilePicture = async () => {
-        try {
-          // Check for updated profile picture in tempUserData
-          const tempUserData = await AsyncStorage.getItem('tempUserData');
-          if (tempUserData) {
-            const parsedData = JSON.parse(tempUserData);
-            if (parsedData.avatar_url || parsedData.profileImageUri) {
-              setUserProfile(prev => ({
-                ...prev,
-                avatar_url: parsedData.avatar_url || parsedData.profileImageUri
-              }));
-            }
-          }
-        } catch (error) {
-          console.log('⚠️ Error refreshing profile picture:', error);
-        }
-      };
-
-      refreshProfilePicture();
+      console.log('🔄 ProfileScreen - Screen focused');
     }, [])
   );
 
@@ -438,9 +292,154 @@ export default function ProfileScreen({ navigation, route }) {
   };
 
   const handleEditPress = (field) => {
-    // Placeholder for edit functionality
+    const currentTime = Date.now();
+    
+    // Prevent rapid button presses (debounce)
+    if (currentTime - lastEditPressTime < 500) {
+      console.log('Button pressed too quickly, ignoring');
+      return;
+    }
+    
     console.log(`Edit ${field} pressed`);
-    Alert.alert('Edit', `Edit ${field} functionality will be implemented here`);
+    console.log('Current modal visible state:', editModalVisible);
+    
+    // Prevent opening modal if already open or updating
+    if (editModalVisible || isUpdating) {
+      console.log('Modal already open or updating, ignoring request');
+      return;
+    }
+    
+    setLastEditPressTime(currentTime);
+    setEditingField(field);
+    
+    // Pre-populate form data based on the field being edited
+    setEditFormData({
+      firstName: profileData.firstName || '',
+      lastName: profileData.lastName || '',
+      phone: profileData.phone || '',
+      email: profileData.email || '',
+      address1: profileData.address1 || '',
+      address2: profileData.address2 || '',
+      city: profileData.city || '',
+      state: profileData.state || '',
+      zip: profileData.zip || '',
+    });
+    
+    console.log('Setting modal visible to true');
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      setIsUpdating(true);
+      
+      // Get current user email for database lookup
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !currentUser) {
+        Alert.alert('Error', 'Unable to identify user. Please try again.');
+        return;
+      }
+
+      const userEmail = currentUser.email;
+      
+      // Prepare update data based on what fields were edited
+      const updateData = {};
+      
+      if (editingField === 'Name') {
+        updateData.first_name = editFormData.firstName;
+        updateData.last_name = editFormData.lastName;
+        // Don't update full_name if it doesn't exist in the database schema
+      } else if (editingField === 'Phone') {
+        updateData.phone = editFormData.phone;
+      } else if (editingField === 'Email') {
+        updateData.email = editFormData.email;
+      } else if (editingField === 'Full Address') {
+        updateData.address_line_1 = editFormData.address1;
+        updateData.address_line_2 = editFormData.address2;
+        updateData.city = editFormData.city;
+        updateData.state = editFormData.state;
+        updateData.zip_code = editFormData.zip;
+      }
+
+      // Update in database
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', userEmail);
+
+      if (error) {
+        console.error('❌ Error updating profile:', error);
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+        return;
+      }
+
+      // Update local profile data
+      const updatedProfileData = {
+        ...profileData,
+        ...updateData,
+        // Also update the display fields
+        name: editingField === 'Name' ? `${editFormData.firstName} ${editFormData.lastName}`.trim() : profileData.name,
+        firstName: editingField === 'Name' ? editFormData.firstName : profileData.firstName,
+        lastName: editingField === 'Name' ? editFormData.lastName : profileData.lastName,
+        phone: editingField === 'Phone' ? editFormData.phone : profileData.phone,
+        email: editingField === 'Email' ? editFormData.email : profileData.email,
+        address1: editingField === 'Full Address' ? editFormData.address1 : profileData.address1,
+        address2: editingField === 'Full Address' ? editFormData.address2 : profileData.address2,
+        city: editingField === 'Full Address' ? editFormData.city : profileData.city,
+        state: editingField === 'Full Address' ? editFormData.state : profileData.state,
+        zip: editingField === 'Full Address' ? editFormData.zip : profileData.zip,
+        fullAddress: editingField === 'Full Address' 
+          ? `${editFormData.address1}${editFormData.address2 ? ', ' + editFormData.address2 : ''}, ${editFormData.city}, ${editFormData.state} ${editFormData.zip}`.trim()
+          : profileData.fullAddress,
+      };
+
+      setProfileData(updatedProfileData);
+
+      // Update AsyncStorage with new data
+      await AsyncStorage.setItem('tempUserData', JSON.stringify(updatedProfileData));
+      await AsyncStorage.setItem('userProfileData', JSON.stringify(updatedProfileData));
+
+      // Close modal and reset states
+      setEditModalVisible(false);
+      setEditingField('');
+      setEditFormData({
+        firstName: '',
+        lastName: '',
+        phone: '',
+        email: '',
+        address1: '',
+        address2: '',
+        city: '',
+        state: '',
+        zip: '',
+      });
+      
+    } catch (error) {
+      console.error('❌ Error in handleUpdateProfile:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    console.log('Canceling edit modal');
+    setEditModalVisible(false);
+    setEditingField('');
+    setEditFormData({
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      address1: '',
+      address2: '',
+      city: '',
+      state: '',
+      zip: '',
+    });
   };
 
   // Debug function to update AsyncStorage with test data
@@ -880,9 +879,197 @@ export default function ProfileScreen({ navigation, route }) {
     }
   };
 
+  // Edit Modal Component
+  const EditModal = () => (
+    <Modal
+      key={editingField}
+      visible={editModalVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleCancelEdit}
+    >
+      <TouchableWithoutFeedback onPress={handleCancelEdit}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Edit {editingField}</Text>
+            <TouchableOpacity onPress={handleCancelEdit}>
+              <Text style={styles.modalCloseButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView 
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={true}
+            bounces={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            {editingField === 'Name' && (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>First Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.firstName}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, firstName: text }))}
+                    placeholder="Enter first name"
+                    placeholderTextColor="#9CA3AF"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+                </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Last Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.lastName}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, lastName: text }))}
+                    placeholder="Enter last name"
+                    placeholderTextColor="#9CA3AF"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </>
+            )}
+
+            {editingField === 'Phone' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editFormData.phone}
+                  onChangeText={(text) => setEditFormData(prev => ({ ...prev, phone: text }))}
+                  placeholder="Enter phone number"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="phone-pad"
+                  blurOnSubmit={false}
+                  autoCorrect={false}
+                />
+              </View>
+            )}
+
+            {editingField === 'Email' && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email Address</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editFormData.email}
+                  onChangeText={(text) => setEditFormData(prev => ({ ...prev, email: text }))}
+                  placeholder="Enter email address"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  blurOnSubmit={false}
+                  autoCorrect={false}
+                />
+              </View>
+            )}
+
+            {editingField === 'Full Address' && (
+              <>
+                <View style={[styles.inputContainer, styles.addressInputContainer]}>
+                  <Text style={styles.inputLabel}>Address Line 1</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.address1}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, address1: text }))}
+                    placeholder="Enter street address"
+                    placeholderTextColor="#9CA3AF"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+                </View>
+                <View style={[styles.inputContainer, styles.addressInputContainer]}>
+                  <Text style={styles.inputLabel}>Address Line 2 (Optional)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.address2}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, address2: text }))}
+                    placeholder="Apartment, suite, etc."
+                    placeholderTextColor="#9CA3AF"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+                </View>
+                <View style={[styles.inputContainer, styles.addressInputContainer]}>
+                  <Text style={styles.inputLabel}>City</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.city}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, city: text }))}
+                    placeholder="Enter city"
+                    placeholderTextColor="#9CA3AF"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+                </View>
+                <View style={[styles.inputContainer, styles.addressInputContainer]}>
+                  <Text style={styles.inputLabel}>State</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.state}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, state: text }))}
+                    placeholder="Enter state"
+                    placeholderTextColor="#9CA3AF"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                    autoCapitalize="characters"
+                  />
+                </View>
+                <View style={[styles.inputContainer, styles.addressInputContainer]}>
+                  <Text style={styles.inputLabel}>Zip Code</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editFormData.zip}
+                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, zip: text }))}
+                    placeholder="Enter zip code"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    blurOnSubmit={false}
+                    autoCorrect={false}
+                  />
+                </View>
+              </>
+            )}
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelEdit}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.saveButton, isUpdating && styles.saveButtonDisabled]}
+              onPress={handleUpdateProfile}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" translucent />
+      <EditModal />
       
       <View style={styles.container}>
         {/* Header */}
@@ -1147,5 +1334,104 @@ const styles = StyleSheet.create({
     fontSize: Math.min(14, 13),
     color: '#666',
     fontWeight: '500',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  modalCloseButton: {
+    fontSize: 20,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    padding: 20,
+    paddingBottom: 10,
+    maxHeight: 500,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  addressInputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#000',
+    backgroundColor: '#fff',
   },
 });

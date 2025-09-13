@@ -16,6 +16,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { Buffer } from 'buffer';
+import { saveTransaction } from '../utils/transactionService';
 
 // polyfill Buffer (RN sometimes needs it)
 if (typeof global.Buffer === 'undefined') {
@@ -157,7 +158,24 @@ export default function Share({ navigation, route }) {
     setModalVisible(true);
   };
 
-  const handleModalGotIt = () => {
+  const handleModalGotIt = async () => {
+    try {
+      // Save transaction to AsyncStorage
+      await saveTransaction({
+        productTitle: resolvedTitle,
+        productImage: resolvedImage,
+        productPrice: productPrice,
+        productUrl: productUrl,
+        transactionType: transactionType,
+        userProfile: userProfile,
+        offerId: offerId,
+      });
+      
+      console.log('✅ Transaction saved successfully');
+    } catch (error) {
+      console.error('❌ Error saving transaction:', error);
+    }
+    
     setModalVisible(false);
     // Pass transaction data to show the review state
     navigation.navigate('Welcomepage', {
