@@ -112,6 +112,7 @@ export default function Share({ navigation, route }) {
       buyer: userProfile?.full_name || userProfile?.name || '', // Add buyer info
       buyerId: userProfile?.id || '', // Add buyer ID for identification
       offerId: offerId || undefined,
+      transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique transaction ID
     }),
     [productUrl, productPrice, resolvedTitle, resolvedImage, userProfile, offerId]
   );
@@ -166,7 +167,8 @@ export default function Share({ navigation, route }) {
         productPrice: productPrice,
         seller: userProfile?.full_name || userProfile?.name || 'Seller',
         status: 'reviewing',
-        transactionType: transactionType
+        transactionType: transactionType,
+        transactionId: invitePayload.transactionId
       }
     });
   };

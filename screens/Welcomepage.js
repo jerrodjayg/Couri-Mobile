@@ -341,6 +341,107 @@ const transactionCardStyles = StyleSheet.create({
 });
 
 /* -----------------------------
+   Transaction Accepted Success Modal
+------------------------------*/
+const TransactionAcceptedModal = ({ visible, onClose }) => {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={successModalStyles.overlay}>
+        <View style={successModalStyles.modalContent}>
+          {/* Success icon */}
+          <View style={successModalStyles.successIconContainer}>
+            <View style={successModalStyles.successIcon}>
+              <Text style={successModalStyles.checkmark}>✓</Text>
+            </View>
+          </View>
+
+          {/* Main heading */}
+          <Text style={successModalStyles.mainHeading}>
+            Your transaction was accepted
+          </Text>
+
+          {/* Body text */}
+          <Text style={successModalStyles.bodyText}>
+            We're dispatching a Couri driver now to pickup the product. We'll notify you as soon as it's ready for delivery.
+          </Text>
+
+          {/* Got it button */}
+          <TouchableOpacity style={successModalStyles.gotItButton} onPress={onClose}>
+            <Text style={successModalStyles.gotItText}>Got it</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const successModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 320,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  successIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  mainHeading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  bodyText: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  gotItButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+  },
+  gotItText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
+/* -----------------------------
    Accept/Decline modal (same screen)
 ------------------------------*/
 const ConfirmInviteModal = ({ visible, onClose, invite, onAccept }) => {
@@ -385,6 +486,7 @@ export default function Welcomepage({ route, navigation }) {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [invite, setInvite] = useState(null); // 👈 incoming invite payload
   const [transactionData, setTransactionData] = useState(null); // 👈 transaction data from Share.js
+  const [successModalVisible, setSuccessModalVisible] = useState(false); // 👈 success modal for accepted transaction
 
   // All other hooks must be called in the same order every time
   const { user, customUser, setCustomUser } = useUser();
@@ -418,7 +520,8 @@ export default function Welcomepage({ route, navigation }) {
             productPrice: payload.price,
             seller: payload.seller,
             status: 'reviewing',
-            transactionType: 'buy'
+            transactionType: 'buy',
+            transactionId: payload.transactionId
           });
           console.log('✅ Buyer clicked own link - showing transaction review state');
         } else {
@@ -694,12 +797,19 @@ export default function Welcomepage({ route, navigation }) {
         }
       };
       
+      const checkTransactionStatus = async () => {
+        if (isMounted) {
+          await checkForTransactionAcceptance();
+        }
+      };
+      
       refreshProfilePicture();
+      checkTransactionStatus();
       
       return () => {
         isMounted = false;
       };
-    }, [])
+    }, [transactionData])
   );
 
   const handleSignOut = async () => {
@@ -740,6 +850,53 @@ export default function Welcomepage({ route, navigation }) {
     }
   };
 
+  // Function to trigger success modal (simulates Person 2 accepting the invite)
+  const triggerTransactionAccepted = async (transactionId) => {
+    console.log('🚀 triggerTransactionAccepted called with transactionId:', transactionId);
+    setSuccessModalVisible(true);
+    // Update transaction status to accepted
+    if (transactionData) {
+      setTransactionData(prev => ({
+        ...prev,
+        status: 'accepted'
+      }));
+    }
+    // Store in AsyncStorage to simulate cross-device notification
+    await AsyncStorage.setItem('transactionAccepted', transactionId || 'true');
+    console.log('💾 Stored transactionAccepted in AsyncStorage:', transactionId || 'true');
+  };
+
+  // Check for transaction acceptance from other devices
+  const checkForTransactionAcceptance = async () => {
+    try {
+      const transactionAccepted = await AsyncStorage.getItem('transactionAccepted');
+      console.log('🔍 Checking transaction acceptance:', {
+        transactionAccepted,
+        currentTransactionId: transactionData?.transactionId,
+        currentStatus: transactionData?.status
+      });
+      
+      if (transactionAccepted && transactionData && transactionData.status !== 'accepted') {
+        // Check if the accepted transaction matches the current transaction
+        // Be more lenient - if there's any transactionAccepted flag, show the modal
+        if (transactionAccepted === transactionData.transactionId || 
+            transactionAccepted === 'true' || 
+            transactionAccepted.length > 0) {
+          console.log('✅ Transaction accepted! Showing success modal');
+          setSuccessModalVisible(true);
+          setTransactionData(prev => ({
+            ...prev,
+            status: 'accepted'
+          }));
+          // Clear the flag
+          await AsyncStorage.removeItem('transactionAccepted');
+        }
+      }
+    } catch (error) {
+      console.log('Error checking transaction acceptance:', error);
+    }
+  };
+
   const getUserInitials = () => {
     if (userProfile?.full_name) {
       const names = userProfile.full_name.split(' ');
@@ -767,6 +924,23 @@ export default function Welcomepage({ route, navigation }) {
       Animated.timing(waveAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  // Poll for transaction acceptance when user has an active transaction
+  useEffect(() => {
+    let interval;
+    if (transactionData && transactionData.status !== 'accepted') {
+      console.log('🔄 Starting polling for transaction acceptance');
+      interval = setInterval(async () => {
+        await checkForTransactionAcceptance();
+      }, 2000); // Check every 2 seconds
+    }
+    return () => {
+      if (interval) {
+        console.log('🛑 Stopping polling for transaction acceptance');
+        clearInterval(interval);
+      }
+    };
+  }, [transactionData]);
 
   // Add error boundary to prevent hooks issues
   if (hasError) {
@@ -843,7 +1017,9 @@ export default function Welcomepage({ route, navigation }) {
             {/* Status message for transaction review */}
             {transactionData && (
               <Text style={styles.transactionStatusText}>
-                We'll notify you as soon as it's confirmed.
+                {transactionData.status === 'accepted' 
+                  ? 'Your transaction was accepted! Driver is on the way.' 
+                  : "We'll notify you as soon as it's confirmed."}
               </Text>
             )}
 
@@ -890,6 +1066,17 @@ export default function Welcomepage({ route, navigation }) {
                   }}
                 >
                   <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
+                </TouchableOpacity>
+
+                {/* Debug button - remove in production */}
+                <TouchableOpacity 
+                  style={[styles.viewDetailsButton, { backgroundColor: '#FF6B6B', marginTop: 10 }]} 
+                  onPress={() => {
+                    console.log('🧪 Manual test - triggering success modal');
+                    setSuccessModalVisible(true);
+                  }}
+                >
+                  <Text style={styles.viewDetailsText}>Test Success Modal</Text>
                 </TouchableOpacity>
               </>
             ) : invite ? (
@@ -982,11 +1169,23 @@ export default function Welcomepage({ route, navigation }) {
             try {
               // TODO: send accept to backend here
               setConfirmVisible(false);
-              Alert.alert('Invitation accepted', 'The seller will be notified.');
+              console.log('🎉 Person 2 accepted invite, transactionId:', invite?.transactionId);
+              // Simulate triggering success modal on Person 1's screen
+              // In a real app, this would be handled via push notifications or real-time updates
+              setTimeout(async () => {
+                console.log('⏰ Triggering transaction accepted after 1 second delay');
+                await triggerTransactionAccepted(invite?.transactionId);
+              }, 1000);
+              Alert.alert('Invitation accepted', 'The buyer will be notified.');
             } catch (e) {
               Alert.alert('Something went wrong', 'Please try again.');
             }
           }}
+        />
+
+        <TransactionAcceptedModal
+          visible={successModalVisible}
+          onClose={() => setSuccessModalVisible(false)}
         />
       </View>
     </SafeAreaView>
