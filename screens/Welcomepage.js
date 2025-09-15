@@ -649,11 +649,27 @@ export default function Welcomepage({ route, navigation }) {
 
 
   const name = userProfile
-    ? (route?.params?.name ||
-        route?.params?.userData?.firstName ||
+    ? (userProfile?.firstName ||
         userProfile?.full_name?.split(' ')[0] ||
+        userProfile?.name?.split(' ')[0] ||
+        route?.params?.userData?.firstName ||
+        route?.params?.name ||
         'there')
     : 'there';
+
+  // Debug logging to help identify the name duplication issue
+  console.log('🔍 Welcomepage DEBUG - Name resolution:', {
+    userProfile: userProfile ? {
+      firstName: userProfile.firstName,
+      full_name: userProfile.full_name,
+      name: userProfile.name
+    } : null,
+    routeParams: {
+      name: route?.params?.name,
+      userDataFirstName: route?.params?.userData?.firstName
+    },
+    finalName: name
+  });
 
   const resolveAvatarUrlFromPath = async (path) => {
     if (!path) return null;
@@ -746,6 +762,8 @@ export default function Welcomepage({ route, navigation }) {
               id: user.id,
               name: user.user_metadata?.name || user.user_metadata?.full_name,
               full_name: user.user_metadata?.full_name,
+              firstName: user.user_metadata?.given_name || user.user_metadata?.name?.split(' ')[0] || user.user_metadata?.full_name?.split(' ')[0] || '',
+              lastName: user.user_metadata?.family_name || user.user_metadata?.name?.split(' ').slice(1).join(' ') || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
               avatar_url: user.user_metadata?.avatar_url,
               email: user.email,
             });

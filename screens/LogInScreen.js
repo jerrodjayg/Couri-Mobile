@@ -597,19 +597,12 @@ export default function LogInScreen({ navigation }) {
 
         // Navigate to Welcomepage for returning users with complete data
         console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage for returning user');
-        const fullName = userToUse.first_name && userToUse.last_name 
-          ? `${userToUse.first_name} ${userToUse.last_name}`
-          : userData.user_metadata?.full_name || userData.user_metadata?.name || 'there';
-        
-        console.log('🔍 LogInScreen DEBUG - Full name for returning user:', fullName);
-        console.log('🔍 LogInScreen DEBUG - Current navigation state before replace:', navigation.getState());
-        console.log('🔍 LogInScreen DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
         
         const userDataToPass = {
           id: userToUse.id || 'temp_user',
           email: email,
-          firstName: userToUse.first_name || '',
-          lastName: userToUse.last_name || '',
+          firstName: userToUse.first_name || userData.user_metadata?.given_name || '',
+          lastName: userToUse.last_name || userData.user_metadata?.family_name || '',
           name: userToUse.first_name || userToUse.last_name ? `${userToUse.first_name || ''} ${userToUse.last_name || ''}`.trim() : '',
           full_name: userToUse.first_name && userToUse.last_name ? `${userToUse.first_name} ${userToUse.last_name}` : '',
           phone: userToUse.phone || '',
@@ -623,12 +616,17 @@ export default function LogInScreen({ navigation }) {
           isGoogleAuth: true
         };
         
+        // Use only the first name for the greeting
+        const firstName = userDataToPass.firstName || 'there';
+        console.log('🔍 LogInScreen DEBUG - First name for returning user:', firstName);
+        console.log('🔍 LogInScreen DEBUG - Current navigation state before replace:', navigation.getState());
+        console.log('🔍 LogInScreen DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
         console.log('🔍 LogInScreen DEBUG - User data to pass to Welcomepage:', userDataToPass);
         
         try {
           // Pass the complete user data to Welcomepage
           navigation.replace('Welcomepage', { 
-            name: fullName,
+            name: firstName,
             userData: userDataToPass
           });
           console.log('✅ LogInScreen DEBUG - Navigation.replace() called successfully for returning user');
@@ -713,12 +711,37 @@ export default function LogInScreen({ navigation }) {
              
              if (exists) {
                console.log('🔍 LogInScreen DEBUG - User exists in database, allowing navigation');
-               const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'there';
-               console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage with name:', fullName);
+               
+               // Prepare complete user data for Welcomepage
+               const userDataToPass = {
+                 id: existingUser.id || session.user.id,
+                 email: email,
+                 firstName: existingUser.first_name || session.user.user_metadata?.given_name || '',
+                 lastName: existingUser.last_name || session.user.user_metadata?.family_name || '',
+                 name: existingUser.first_name && existingUser.last_name ? `${existingUser.first_name} ${existingUser.last_name}` : existingUser.first_name || existingUser.last_name || '',
+                 full_name: existingUser.first_name && existingUser.last_name ? `${existingUser.first_name} ${existingUser.last_name}` : existingUser.first_name || existingUser.last_name || '',
+                 phone: existingUser.phone || '',
+                 address1: existingUser.address_line_1 || '',
+                 address2: existingUser.address_line_2 || '',
+                 city: existingUser.city || '',
+                 state: existingUser.state || '',
+                 zip: existingUser.zip_code || '',
+                 avatar_url: session.user.user_metadata?.avatar_url || existingUser.avatar_url || '',
+                 profileImageUri: session.user.user_metadata?.avatar_url || existingUser.avatar_url || '',
+                 isGoogleAuth: true
+               };
+               
+               // Use only the first name for the greeting
+               const firstName = userDataToPass.firstName || 'there';
+               console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage with firstName:', firstName);
                console.log('🔍 LogInScreen DEBUG - About to call navigation.replace...');
+               
                try {
-                 navigation.replace('Welcomepage', { name: fullName });
-                 console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful');
+                 navigation.replace('Welcomepage', { 
+                   name: firstName,
+                   userData: userDataToPass
+                 });
+                 console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful with complete user data');
                } catch (navError) {
                  console.error('❌ LogInScreen DEBUG - Navigation error:', navError);
                }
