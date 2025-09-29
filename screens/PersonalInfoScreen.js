@@ -250,7 +250,7 @@ export default function PersonalInfoScreen({ navigation, route }) {
       return;
     }
 
-    console.log('🔍 PersonalInfoScreen DEBUG - Form validation passed, navigating to CreatePassword');
+    console.log('🔍 PersonalInfoScreen DEBUG - Form validation passed, navigating to PushNoti');
     console.log('🔍 PersonalInfoScreen DEBUG - Form data being passed:', {
       firstName: form.firstName,
       lastName: form.lastName,
@@ -305,8 +305,8 @@ export default function PersonalInfoScreen({ navigation, route }) {
       googleUserData: route.params?.googleUserData || null
     });
 
-    // Navigate to CreatePassword with form data
-    navigation.navigate('CreatePassword', { 
+    // Navigate to PushNoti with form data (skipping password creation)
+    navigation.navigate('PushNoti', { 
       userInfo: form,
       savedUser: null, // No saved user yet
       isGoogleAuth: route.params?.isGoogleAuth || false,

@@ -460,7 +460,6 @@ export default function ProfileScreen({ navigation, route }) {
         state: 'CA',
         zip_code: '90210',
         created_at: new Date().toISOString(),
-        password_hash: 'TestPassword123!',
         updated_at: new Date().toISOString(),
         avatar_url: '',
         avatar_path: null,

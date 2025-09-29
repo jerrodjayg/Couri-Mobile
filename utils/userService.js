@@ -89,7 +89,7 @@ export class UserService {
       
       const { data, error } = await supabase
         .from('users')
-        .select('id, first_name, last_name, email, avatar_url, password_hash')
+        .select('id, first_name, last_name, email, avatar_url')
         .ilike('email', email.toLowerCase())
         .maybeSingle();
       

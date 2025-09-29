@@ -135,8 +135,6 @@ const upsertProfile = async (session) => {
 
 export default function LogInScreen({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingSignIn, setIsProcessingSignIn] = useState(false);
   const { signIn: signInGoogle, loading: googleLoading } = useGoogleAuth();
@@ -178,7 +176,6 @@ export default function LogInScreen({ navigation }) {
     }
             navigation.navigate('Home');
   };
-  const handlePasswordLogin = () => navigation.navigate('PasswordLogin');
 
   const handleAppleSignIn = async () => {
     try {
@@ -814,9 +811,6 @@ export default function LogInScreen({ navigation }) {
           <View style={styles.socialBox}>
             <Text style={styles.socialLabel}>or continue with</Text>
             
-            <TouchableOpacity style={styles.passwordButton} onPress={handlePasswordLogin}>
-              <Text style={styles.passwordButtonText}>Password Log In</Text>
-            </TouchableOpacity>
             
             <View style={styles.providerRow}>
               {/* Apple */}
@@ -929,24 +923,6 @@ const styles = StyleSheet.create({
   socialLabel: {
     fontSize: 14,
     marginBottom: 16,
-    color: '#000'
-  },
-  passwordButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    width: '100%',
-    borderColor: '#000',
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 50,
-    marginBottom: 20,
-    elevation: 3,
-    alignItems: 'center'
-  },
-  passwordButtonText: {
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '450',
     color: '#000'
   },
   providerRow: {
