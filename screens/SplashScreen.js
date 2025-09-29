@@ -2,13 +2,27 @@ import { supabase } from './supabaseClient';
 import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 
 export default function SplashScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    const preWarmLocationPermissions = async () => {
+      // Pre-warm location permissions for faster location detection later
+      try {
+        console.log('📍 Pre-warming location permissions...');
+        await Location.requestForegroundPermissionsAsync();
+        console.log('✅ Location permissions pre-warmed');
+      } catch (error) {
+        console.log('⚠️ Location permission pre-warm failed (non-blocking):', error);
+      }
+    };
+
     const checkSession = async () => {
       try {
+        // Pre-warm location permissions in background
+        preWarmLocationPermissions();
         // Check for user's last action first
         const lastAction = await AsyncStorage.getItem('userLastAction');
         console.log('🔍 SplashScreen: User last action:', lastAction);

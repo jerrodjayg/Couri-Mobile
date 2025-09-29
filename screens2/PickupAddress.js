@@ -172,10 +172,56 @@ export default function PickupAddress({ navigation, route }) {
         return;
       }
 
-      // Get current location
+      // Check for cached location first (much faster)
+      try {
+        const cachedLocation = await AsyncStorage.getItem('cachedLocation');
+        if (cachedLocation) {
+          const { location: cachedLoc, timestamp } = JSON.parse(cachedLocation);
+          const age = Date.now() - timestamp;
+          
+          // Use cached location if less than 5 minutes old
+          if (age < 300000) {
+            console.log('📍 Using cached location (age:', Math.round(age / 1000), 'seconds)');
+            const reverseGeocode = await Location.reverseGeocodeAsync({
+              latitude: cachedLoc.coords.latitude,
+              longitude: cachedLoc.coords.longitude,
+            });
+            
+            if (reverseGeocode.length > 0) {
+              const address = reverseGeocode[0];
+              setForm(prev => ({
+                ...prev,
+                address1: `${address.streetNumber || ''} ${address.street || ''}`.trim(),
+                city: address.city || '',
+                state: address.region || '',
+                zip: address.postalCode || '',
+              }));
+              
+              setIsGettingLocation(false);
+              return;
+            }
+          }
+        }
+      } catch (cacheError) {
+        console.log('⚠️ Cache error (non-blocking):', cacheError);
+      }
+
+      // Get current location with optimized settings for speed
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced, // Faster than High accuracy
+        maximumAge: 30000, // Use cached location if less than 30 seconds old
+        timeout: 8000, // Reduced timeout to 8 seconds
       });
+
+      // Cache the location for future use
+      try {
+        await AsyncStorage.setItem('cachedLocation', JSON.stringify({
+          location: location,
+          timestamp: Date.now()
+        }));
+      } catch (cacheError) {
+        console.log('⚠️ Failed to cache location:', cacheError);
+      }
 
       // Reverse geocode to get address
       const reverseGeocode = await Location.reverseGeocodeAsync({

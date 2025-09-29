@@ -420,14 +420,66 @@ export default function ConfirmAddress({ navigation, route }) {
         return;
       }
 
-      // Get current position
+      // Check for cached location first (much faster)
+      try {
+        const cachedLocation = await AsyncStorage.getItem('cachedLocation');
+        if (cachedLocation) {
+          const { location: cachedLoc, timestamp } = JSON.parse(cachedLocation);
+          const age = Date.now() - timestamp;
+          
+          // Use cached location if less than 5 minutes old
+          if (age < 300000) {
+            console.log('📍 Using cached location (age:', Math.round(age / 1000), 'seconds)');
+            const reverseGeocode = await Location.reverseGeocodeAsync({
+              latitude: cachedLoc.coords.latitude,
+              longitude: cachedLoc.coords.longitude,
+            });
+            
+            if (reverseGeocode && reverseGeocode.length > 0) {
+              const address = reverseGeocode[0];
+              const locationAddress = {
+                street: address.street ? `${address.street} ${address.streetNumber || ''}`.trim() : '',
+                address2: address.district || '',
+                city: address.city || '',
+                state: address.region || address.regionCode || '',
+                zipCode: address.postalCode || ''
+              };
+
+              setNewAddress({
+                street: locationAddress.street,
+                address2: locationAddress.address2,
+                city: locationAddress.city,
+                state: locationAddress.state,
+                zipCode: locationAddress.zipCode
+              });
+              
+              setIsGettingLocation(false);
+              return;
+            }
+          }
+        }
+      } catch (cacheError) {
+        console.log('⚠️ Cache error (non-blocking):', cacheError);
+      }
+
+      // Get current position with optimized settings for speed
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-        maximumAge: 10000, // Use cached location if less than 10 seconds old
-        timeout: 15000, // 15 second timeout
+        accuracy: Location.Accuracy.Balanced, // Faster than High accuracy
+        maximumAge: 30000, // Use cached location if less than 30 seconds old
+        timeout: 8000, // Reduced timeout to 8 seconds
       });
 
       console.log('📍 Current location obtained:', location.coords);
+
+      // Cache the location for future use
+      try {
+        await AsyncStorage.setItem('cachedLocation', JSON.stringify({
+          location: location,
+          timestamp: Date.now()
+        }));
+      } catch (cacheError) {
+        console.log('⚠️ Failed to cache location:', cacheError);
+      }
 
       // Reverse geocode to get address
       const reverseGeocode = await Location.reverseGeocodeAsync({
