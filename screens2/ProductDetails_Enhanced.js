@@ -15,7 +15,8 @@ export default function ProductDetails({ navigation, route }) {
     price: '$', // Keep $ prefix but remove initial price
     description: '',
     imageUrl: '',
-    images: [] // Add images array to prevent conflicts
+    images: [], // Add images array to prevent conflicts
+    sellerName: '' // Add seller name
   });
   const [isScraping, setIsScraping] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -495,6 +496,7 @@ export default function ProductDetails({ navigation, route }) {
       let productName = '';
       let price = '';
       let description = '';
+      let sellerName = '';
       
       // Check for common Facebook parameters
       if (params.get('title')) {
@@ -513,7 +515,18 @@ export default function ProductDetails({ navigation, route }) {
       
       if (params.get('description')) {
         description = params.get('description');
-      } else if (params.get('desc')) {
+      }
+      
+      // Check for seller name in URL parameters
+      if (params.get('seller')) {
+        sellerName = params.get('seller');
+      } else if (params.get('seller_name')) {
+        sellerName = params.get('seller_name');
+      } else if (params.get('by')) {
+        sellerName = params.get('by');
+      }
+      
+      if (params.get('desc')) {
         description = params.get('desc');
       }
       
@@ -545,7 +558,8 @@ export default function ProductDetails({ navigation, route }) {
           productName: productName || 'Facebook Product',
           price: formattedPrice,
           description: description || 'Product information extracted from URL parameters',
-          imageUrl: imageUrl
+          imageUrl: imageUrl,
+          sellerName: sellerName || ''
         };
         
         console.log('✅ Data extracted from URL parameters:', extractedData);
@@ -678,6 +692,44 @@ export default function ProductDetails({ navigation, route }) {
     }
   };
 
+  // Extract seller name from Facebook HTML content
+  const extractSellerFromHTML = (htmlContent) => {
+    try {
+      console.log('🔍 Extracting seller name from HTML...');
+      
+      // Common patterns for seller names on Facebook Marketplace
+      const sellerPatterns = [
+        // Pattern 1: Look for seller name in meta tags
+        /<meta[^>]*property="og:site_name"[^>]*content="([^"]+)"/i,
+        // Pattern 2: Look for seller in structured data
+        /"seller"[^}]*"name"[^}]*"([^"]+)"/i,
+        // Pattern 3: Look for seller in page title
+        /<title[^>]*>([^<]+)\s*on\s+Facebook/i,
+        // Pattern 4: Look for "by [Name]" patterns
+        /by\s+([A-Za-z\s]+?)(?:\s|$|,)/i,
+        // Pattern 5: Look for seller in description
+        /seller[:\s]*([A-Za-z\s]+?)(?:\s|$|,)/i
+      ];
+      
+      for (const pattern of sellerPatterns) {
+        const match = htmlContent.match(pattern);
+        if (match && match[1]) {
+          const sellerName = match[1].trim();
+          if (sellerName && sellerName.length > 1 && sellerName.length < 50) {
+            console.log('✅ Seller name found:', sellerName);
+            return sellerName;
+          }
+        }
+      }
+      
+      console.log('⚠️ No seller name found in HTML');
+      return '';
+    } catch (error) {
+      console.error('❌ Error extracting seller name:', error);
+      return '';
+    }
+  };
+
   // Facebook scraping function
   const scrapeFacebookData = async (url) => {
     try {
@@ -712,7 +764,8 @@ export default function ProductDetails({ navigation, route }) {
           // Don't override with mock data - use what was actually extracted
           productName: urlData.productName || 'Facebook Product',
           price: urlData.price || '$',
-          description: urlData.description || 'Product description from Facebook Marketplace'
+          description: urlData.description || 'Product description from Facebook Marketplace',
+          sellerName: urlData.sellerName || '' // Include seller name
         };
         
                  console.log('📱 Setting real extracted data:', realData);
@@ -726,7 +779,8 @@ export default function ProductDetails({ navigation, route }) {
              imageUrl: realData.imageUrl,
              productName: realData.productName,
              description: realData.description,
-             price: realData.price
+             price: realData.price,
+             sellerName: realData.sellerName
            });
            
            // Also immediately set the images array to prevent corruption
@@ -837,7 +891,8 @@ export default function ProductDetails({ navigation, route }) {
         productUrl,
         userAddress,
         userProfile,
-        extractedData: protectedData
+        extractedData: protectedData,
+        sellerName: extractedData.sellerName || '' // Pass seller name
       });
       
     } catch (error) {

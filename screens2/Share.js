@@ -14,57 +14,13 @@ import {
 } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
-import * as Linking from 'expo-linking';
-import { Buffer } from 'buffer';
 import { saveTransaction } from '../utils/transactionService';
+import { createTransactionInvitation, generateWebInvitationUrl } from '../utils/supabaseTransactionService_temp';
 
-// polyfill Buffer (RN sometimes needs it)
-if (typeof global.Buffer === 'undefined') {
-  // @ts-ignore
-  global.Buffer = Buffer;
-}
-
-/* ---------- invite link helpers ---------- */
-const toBase64Url = (s) =>
-  Buffer.from(s, 'utf8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-
-const createInviteLink = (payload) => {
-  const data = toBase64Url(JSON.stringify(payload));
-  // In Expo Go this produces exp://.../--/invite?data=...
-  return Linking.createURL('/invite', { queryParams: { data } });
-};
-
-// URL shortening function using TinyURL API
-const shortenUrl = async (longUrl) => {
-  try {
-    const response = await fetch('https://tinyurl.com/api-create.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `url=${encodeURIComponent(longUrl)}`,
-    });
-    
-    if (response.ok) {
-      const shortUrl = await response.text();
-      return shortUrl;
-    }
-  } catch (error) {
-    console.log('URL shortening failed:', error);
-  }
-  
-  // Fallback: return original URL if shortening fails
-  return longUrl;
-};
+// Web invitation system - no old invitation helpers needed
 
 export default function Share({ navigation, route }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [shortUrl, setShortUrl] = useState('');
-  const [isShortening, setIsShortening] = useState(true);
 
   const {
     productUrl,
@@ -76,6 +32,7 @@ export default function Share({ navigation, route }) {
     productTitle,
     productImage,
     offerId,
+    sellerName, // Add seller name
   } = route.params || {};
 
   // Resolve possible aliases from previous screens
@@ -83,79 +40,118 @@ export default function Share({ navigation, route }) {
     ? productTitle
     : (route?.params?.productName || '');
 
-  const resolvedImage = (productImage && productImage.trim().length > 0)
-    ? productImage
-    : (route?.params?.productImage || route?.params?.imageUrl || '');
+  const resolvedImage = productImage || route?.params?.productImage || '';
 
-  const getUserInitials = (profile) => {
-    if (profile?.full_name) {
-      const names = profile.full_name.split(' ');
-      if (names.length >= 2) return (names[0][0] + names[1][0]).toUpperCase();
-      if (names.length === 1) return names[0][0].toUpperCase();
-    }
-    if (profile?.name) {
-      const names = profile.name.split(' ');
-      if (names.length >= 2) return (names[0][0] + names[1][0]).toUpperCase();
-      if (names.length === 1) return names[0][0].toUpperCase();
-    }
-    return 'U';
-  };
-
-  // Build the payload that Welcomepage will decode & show.
+  // Web invitation system only
   const isSelling = transactionType === 'buy';
-  const invitePayload = useMemo(
-    () => ({
-      fbUrl: productUrl,
-      price: productPrice,
-      title: resolvedTitle || '',
-      image: resolvedImage || '',
-      seller: userProfile?.full_name || userProfile?.name || '',
-      buyer: userProfile?.full_name || userProfile?.name || '', // Add buyer info
-      buyerId: userProfile?.id || '', // Add buyer ID for identification
-      offerId: offerId || undefined,
-      transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique transaction ID
-    }),
-    [productUrl, productPrice, resolvedTitle, resolvedImage, userProfile, offerId]
-  );
+  
+  // State for web invitation
+  const [webInviteUrl, setWebInviteUrl] = useState('');
+  const [isCreatingWebInvite, setIsCreatingWebInvite] = useState(false);
 
-  const inviteLink = useMemo(() => createInviteLink(invitePayload), [invitePayload]);
-  const inviteLinkClean = useMemo(() => String(inviteLink).replace(/\s+/g, ''), [inviteLink]);
+  // Web invitation system - no URL shortening needed
 
-  // Generate shortened URL on component mount
-  useEffect(() => {
-    const generateShortUrl = async () => {
-      setIsShortening(true);
-      try {
-        const shortened = await shortenUrl(inviteLinkClean);
-        setShortUrl(shortened);
-      } catch (error) {
-        console.log('Error shortening URL:', error);
-        setShortUrl(inviteLinkClean);
-      } finally {
-        setIsShortening(false);
-      }
-    };
-
-    generateShortUrl();
-  }, [inviteLinkClean]);
-
-  const handleCopyMessage = async () => {
-    const linkToUse = shortUrl || inviteLinkClean;
-    const message =
-      `Please confirm our transaction in the Couri app for seamless pickup, delivery, and secure payment. ` +
-      `Join me here: ${linkToUse}`;
-
+  // Create web-based invitation
+  const createWebInvitation = async () => {
     try {
-      await Clipboard.setStringAsync(message);
-      Alert.alert('Copied!', 'Message copied to clipboard');
+      setIsCreatingWebInvite(true);
+      
+      // Create transaction in Supabase
+      const transactionData = {
+        price: productPrice,
+        title: resolvedTitle,
+        description: '', // Add description if available
+        image: resolvedImage,
+        fbUrl: productUrl,
+        source: 'Facebook Marketplace',
+        offerId: offerId,
+        userAddress: userAddress,
+        pickupAddress: pickupAddress,
+        transactionType: transactionType,
+        fbSellerName: sellerName || userProfile?.full_name || userProfile?.name || 'Facebook Seller', // Use seller name if provided
+      };
+
+      const transaction = await createTransactionInvitation(transactionData);
+      
+      // Generate web invitation URL
+      const webUrl = generateWebInvitationUrl(transaction.id);
+      setWebInviteUrl(webUrl);
+      
+      // Also save to local storage for backup
+      await saveTransaction({
+        ...transactionData,
+        id: transaction.id,
+        supabaseId: transaction.id,
+        webInviteUrl: webUrl,
+      });
+
+      console.log('✅ Web invitation created:', webUrl);
+      return webUrl;
+      
     } catch (error) {
-      Alert.alert('Error', 'Failed to copy message to clipboard');
+      console.error('❌ Error creating web invitation:', error);
+      Alert.alert('Error', 'Failed to create web invitation. Please try again.');
+      return null;
+    } finally {
+      setIsCreatingWebInvite(false);
     }
   };
 
-  const handleSentInvite = () => {
-    console.log('📤 User sent the invite', { inviteLink, invitePayload });
-    setModalVisible(true);
+  // Old copy message function removed - using web invitations only
+
+  const handleCopyWebInvite = async () => {
+    try {
+      let webUrl = webInviteUrl;
+      
+      // Create web invitation if not already created
+      if (!webUrl) {
+        webUrl = await createWebInvitation();
+        if (!webUrl) return;
+      }
+
+      const message = `You've been invited to a transaction on Couri! View and join the transaction here: ${webUrl}`;
+      
+      await Clipboard.setStringAsync(message);
+      Alert.alert('Copied!', 'Web invitation link copied to clipboard');
+    } catch (error) {
+      console.error('Error copying web invite:', error);
+      Alert.alert('Error', 'Failed to copy web invitation');
+    }
+  };
+
+  const handleShareWebInvite = async () => {
+    try {
+      let webUrl = webInviteUrl;
+      
+      // Create web invitation if not already created
+      if (!webUrl) {
+        webUrl = await createWebInvitation();
+        if (!webUrl) return;
+      }
+
+      const message = `You've been invited to a transaction on Couri! View and join the transaction here: ${webUrl}`;
+      
+      await RNShare.share({
+        message: message,
+        url: webUrl,
+        title: 'Couri Transaction Invitation'
+      });
+    } catch (error) {
+      console.error('Error sharing web invite:', error);
+      Alert.alert('Error', 'Failed to share web invitation');
+    }
+  };
+
+  const handleSentInvite = async () => {
+    // Create web invitation when user confirms they sent it
+    try {
+      await createWebInvitation();
+      console.log('📤 Web invitation created and sent');
+      setModalVisible(true);
+    } catch (error) {
+      console.error('❌ Error creating web invitation:', error);
+      Alert.alert('Error', 'Failed to create web invitation');
+    }
   };
 
   const handleModalGotIt = async () => {
@@ -186,7 +182,7 @@ export default function Share({ navigation, route }) {
         seller: userProfile?.full_name || userProfile?.name || 'Seller',
         status: 'reviewing',
         transactionType: transactionType,
-        transactionId: invitePayload.transactionId
+        transactionId: webInviteUrl ? webInviteUrl.split('/').pop() : null
       }
     });
   };
@@ -260,24 +256,41 @@ export default function Share({ navigation, route }) {
               <View style={styles.stepContent}>
                 <Text style={styles.stepDescription}>
                   {isSelling
-                    ? 'Copy and send this message to the seller:'
-                    : 'Copy the invite link & message below and send it to the buyer:'}
+                    ? 'Create a web invitation link and send it to the seller:'
+                    : 'Create a web invitation link and send it to the buyer:'}
                 </Text>
 
-                {/* Message Box */}
+                {/* Web Invitation Section */}
                 <View style={styles.messageBox}>
-                  <Text style={styles.messageText}>
-                    Please confirm our transaction in the Couri app for seamless pickup, delivery, and secure payment.{'\n'}
-                    Join me here: {isShortening ? 'Generating short link...' : (shortUrl || inviteLinkClean)}
+                  <Text style={styles.stepTitle}>Share a web invitation</Text>
+                  <Text style={styles.stepDescription}>
+                    Send a web link that works in any browser. Recipients can view the transaction and download the app to join.
                   </Text>
-
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                    <TouchableOpacity style={styles.copyButton} onPress={handleCopyMessage}>
+                  
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+                    <TouchableOpacity 
+                      style={[styles.copyButton, isCreatingWebInvite && styles.disabledButton]} 
+                      onPress={handleCopyWebInvite}
+                      disabled={isCreatingWebInvite}
+                    >
                       <View style={styles.copyIcon}>
                         <View style={styles.copySquare1} />
                         <View style={styles.copySquare2} />
                       </View>
-                      <Text style={styles.copyButtonText}>Copy message</Text>
+                      <Text style={styles.copyButtonText}>
+                        {isCreatingWebInvite ? 'Creating...' : 'Copy web link'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={[styles.shareButton, isCreatingWebInvite && styles.disabledButton]} 
+                      onPress={handleShareWebInvite}
+                      disabled={isCreatingWebInvite}
+                    >
+                      <View style={styles.shareIcon}>
+                        <Text style={styles.shareIconText}>↗</Text>
+                      </View>
+                      <Text style={styles.shareButtonText}>Share web link</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -363,7 +376,7 @@ export default function Share({ navigation, route }) {
 
             {/* Message */}
             <Text style={styles.modalMessage}>
-              As soon as the seller confirms the transaction details, we'll notify you and we'll begin delivery.
+              Your web invitation has been created! The recipient will receive a link to view the transaction details and can download the app to join.
             </Text>
 
             {/* Got it button */}
@@ -418,6 +431,11 @@ const styles = StyleSheet.create({
   copySquare1: { position: 'absolute', top: 2, left: 2, width: 12, height: 12, borderWidth: 2, borderColor: '#000', borderRadius: 2 },
   copySquare2: { position: 'absolute', top: 6, left: 6, width: 12, height: 12, backgroundColor: '#000', borderRadius: 2 },
   copyButtonText: { color: '#000', fontSize: 16, fontWeight: '600' },
+  shareButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#007AFF', borderWidth: 1, borderColor: '#007AFF', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 14, gap: 8, flex: 1 },
+  shareIcon: { width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
+  shareIconText: { fontSize: 16, color: '#fff', fontWeight: 'bold' },
+  shareButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  disabledButton: { opacity: 0.5 },
   buttonContainer: { paddingHorizontal: 24, paddingBottom: 24 },
   sentInviteButton: { backgroundColor: '#000', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 16 },
   sentInviteButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },

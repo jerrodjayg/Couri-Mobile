@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Couri – Invite</title>
+  <style>
+    :root{
+      --bg:#f8f8fb;
+      --text:#0b0b0f;
+      --muted:#6b7280;
+      --primary:#000000;
+      --accent:#e9eef6;
+      --card:#ffffff;
+      --blue:#1877F2;
+      --pill:#111111;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: #fff;
+    }
+    
+    body {
+      min-height: 100vh;
+    }
+
+    /* Full width container */
+    .preview {
+      width: 100%;
+      min-height: 100vh;
+      background: #fff;
+      position: relative;
+    }
+    
+    main {
+      padding: 120px 20px 120px;
+      width: 100%;
+    }
+
+    /* Header removed */
+
+    /* Brand */
+    .brand {
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    
+    .logo {
+      height: 32px;
+      width: auto;
+      margin-bottom: 20px;
+    }
+    
+    .logo img {
+      height: 100%;
+      width: auto;
+    }
+
+    /* Hero text */
+    .hero {
+      margin: 10px 14px 24px;
+      text-align: center;
+    }
+    
+    .hero h1 {
+      font-size: 28px;
+      line-height: 1.2;
+      margin: 6px 0 8px;
+      font-weight: 700;
+    }
+    
+    .sub {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      color: #4b5563;
+      font-size: 15px;
+    }
+    
+    .avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: inline-grid;
+      place-items: center;
+      background: #cdd7eb;
+    }
+    
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .avatar span {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    /* Item card */
+    .card {
+      margin: 16px auto 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 12px 12px 12px 14px;
+      gap: 12px;
+      max-width: 100%;
+      background: var(--card);
+    }
+    
+    .item-info {
+      flex: 1 1 auto;
+    }
+    
+    .price {
+      color: #2563eb;
+      font-weight: 800;
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+    
+    .title {
+      font-size: 14.5px;
+      line-height: 1.25;
+      color: #111;
+      margin: 0;
+    }
+    
+    .subtitle {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    
+    .thumb {
+      flex: 0 0 82px;
+      width: 82px;
+      height: 82px;
+      border-radius: 8px;
+      background: #e6e6e6;
+      overflow: hidden;
+    }
+    
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .source {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+      color: #4b5563;
+      font-size: 13px;
+      margin: 6px 0 20px;
+    }
+    
+    .fb {
+      width: 16px;
+      height: 16px;
+      display: inline-block;
+    }
+    
+    .fb svg {
+      display: block;
+    }
+
+    /* CTA buttons */
+    .btn {
+      display: block;
+      width: 100%;
+      margin: 0 auto 12px;
+      padding: 16px 18px;
+      border-radius: 26px;
+      text-align: center;
+      font-weight: 700;
+      border: 0;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    .btn.primary {
+      background: var(--pill);
+      color: #fff;
+      box-shadow: 0 6px 12px rgba(0,0,0,.18);
+    }
+    
+    .decline {
+      display: block;
+      text-align: center;
+      color: #111;
+      text-decoration: underline;
+      font-size: 15px;
+      margin-top: 2px;
+    }
+
+    /* Footer badge */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      margin-top: 0;
+      background: linear-gradient(180deg,#eef3ff, #e6ebf7);
+      padding: 20px 40px 16px;
+      z-index: 10;
+    }
+    
+    .safety {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .badge {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 3px 8px rgba(0,0,0,.06);
+    }
+    
+    .badge svg {
+      width: 22px;
+      height: 22px;
+    }
+    
+    .tag {
+      font-size: 12.4px;
+      letter-spacing: .3px;
+      color: #111;
+    }
+
+    /* Hide Squarespace elements */
+    .header-actions,
+    .site-header .sqs-block-button,
+    .site-header .sqs-button-element,
+    .site-header a[href*="waitlist"],
+    .site-header button[class*="waitlist"],
+    .sqs-block-button,
+    .sqs-button-element,
+    [data-type="button"],
+    .sqs-block-button-element,
+    .sqs-block-content a[href*="waitlist"],
+    .sqs-block-content button[class*="waitlist"] {
+      display: none !important;
+    }
+
+    /* Make header visible on this page only */
+    .site-header,
+    .header,
+    .sqs-header,
+    .sqs-site-header,
+    .Header,
+    .Header-inner,
+    .Header-nav,
+    .Header-navItem,
+    .Header-navItem a,
+    .Header-navLink,
+    .Header-navLink a,
+    .Header-title,
+    .Header-title a,
+    .Header-branding,
+    .Header-branding a {
+      background-color: #333 !important;
+      color: #fff !important;
+    }
+
+    .Header-navItem a,
+    .Header-navLink a,
+    .Header-title a,
+    .Header-branding a {
+      color: #fff !important;
+    }
+
+    /* iPhone specific optimizations */
+    @media (max-width: 414px) {
+      main {
+        padding: 110px 16px 120px;
+      }
+      
+      .footer {
+        padding: 20px 30px 16px;
+        margin-top: 0;
+      }
+      
+      .hero h1 {
+        font-size: 26px;
+        margin: 8px 0 10px;
+      }
+      
+      .logo {
+        height: 28px;
+      }
+      
+      .card {
+        padding: 14px;
+        margin: 14px auto 12px;
+      }
+      
+      .btn {
+        padding: 18px 20px;
+        font-size: 17px;
+      }
+    }
+    
+    @media (max-width: 375px) {
+      main {
+        padding: 105px 14px 120px;
+      }
+      
+      .footer {
+        padding: 20px 25px 16px;
+        margin-top: 0;
+      }
+      
+      .hero h1 {
+        font-size: 24px;
+        line-height: 1.3;
+      }
+      
+      .logo {
+        height: 26px;
+      }
+    }
+    
+    @media (max-width: 320px) {
+      main {
+        padding: 100px 12px 120px;
+      }
+      
+      .footer {
+        padding: 20px 20px 16px;
+        margin-top: 0;
+      }
+      
+      .hero h1 {
+        font-size: 22px;
+      }
+      
+      .logo {
+        height: 24px;
+      }
+      
+      .card {
+        padding: 12px;
+      }
+      
+      .btn {
+        padding: 16px 18px;
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview">
+    <main>
+      <div class="brand">
+        <div class="logo">
+          <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png" alt="Couri" />
+        </div>
+      </div>
+
+      <section class="hero">
+        <h1>You've been invited<br/>to a transaction</h1>
+        <div class="sub">
+          with <span class="inviter-name">User</span>
+          <span class="avatar">
+            <span class="avatar-initial">U</span>
+          </span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="item-info">
+          <div class="price">$0</div>
+          <p class="title">"Loading..."</p>
+          <p class="subtitle">Loading...</p>
+        </div>
+        <div class="thumb">
+          <img src="https://images.unsplash.com/photo-1526318472351-c75fcf070305?q=80&w=600&auto=format&fit=crop" alt="Painting thumbnail"/>
+        </div>
+      </section>
+
+      <div class="source">
+        <span class="fb" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 12.06C22 6.504 17.523 2 12 2S2 6.504 2 12.06C2 17.083 5.657 21.246 10.438 22v-7.02H7.898v-2.92h2.54V9.846c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.196 2.238.196v2.48h-1.26c-1.242 0-1.63.776-1.63 1.572v1.885h2.774l-.443 2.92h-2.331V22C18.343 21.246 22 17.083 22 12.06z" fill="#1877F2"/>
+          </svg>
+        </span>
+        <span class="source-text">from Facebook Marketplace</span>
+      </div>
+
+      <button class="btn primary" onclick="handleJoinTransaction()">Join Transaction</button>
+      <a class="decline" href="#" onclick="handleDecline(); return false;">Decline</a>
+    </main>
+
+    <footer class="footer">
+      <div class="safety">
+        <div class="badge" aria-hidden="true">
+          <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Mark%202%20Dark.png" alt="Mark 2 Dark" style="width: 60%; height: 60%; object-fit: contain;" />
+        </div>
+        <div class="tag">SECURE PAYMENTS, SAFE PICKUP & DELIVERY</div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ✅ Configuration with your actual credentials
+        const CONFIG = {
+          SUPABASE_URL: 'https://nfkykasruwdzpcjuufdu.supabase.co',
+          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ma3lrYXNydXdkenBjanV1ZmR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTU5OTcsImV4cCI6MjA2NTc3MTk5N30._-SBo_yqk0ABeXNHYGsKjBn2HwrFP-QCjCkJn2KqtOw',
+          APP_STORE_URL: 'https://apps.apple.com/app/couri/id6736088504'
+        };
+    
+    let transactionData = null;
+    let inviterData = null;
+
+    // Get transaction ID from URL query parameters
+    function getTransactionId() {
+      console.log('Full window.location:', window.location);
+      console.log('window.location.search:', window.location.search);
+      console.log('window.location.href:', window.location.href);
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      console.log('URLSearchParams entries:', Array.from(urlParams.entries()));
+      
+      const transactionId = urlParams.get('id') || urlParams.get('transaction_id') || urlParams.get('t');
+      console.log('Extracted transaction ID:', transactionId);
+      
+      // Also try to extract from path if not in query params
+      if (!transactionId) {
+        const pathParts = window.location.pathname.split('/');
+        console.log('Path parts:', pathParts);
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && lastPart !== 'invite1' && lastPart !== 'invite') {
+          console.log('Trying to use last path part as transaction ID:', lastPart);
+          return lastPart;
+        }
+      }
+      
+      return transactionId;
+    }
+
+        // Load transaction data from Supabase
+        async function loadTransaction() {
+          try {
+            const transactionId = getTransactionId();
+            
+            if (!transactionId) {
+              showError('Invalid transaction link - no transaction ID found in URL');
+              return;
+            }
+
+            console.log('Loading transaction:', transactionId);
+            console.log('Full URL:', window.location.href);
+            console.log('URL search params:', new URLSearchParams(window.location.search).toString());
+            console.log('Supabase URL:', CONFIG.SUPABASE_URL);
+            console.log('Supabase Key (first 20 chars):', CONFIG.SUPABASE_ANON_KEY.substring(0, 20));
+
+        // Fetch transaction data from Supabase
+        const { data: transactions, error: transactionError } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .eq('id', transactionId);
+
+        if (transactionError) {
+          console.error('Error fetching transaction:', transactionError);
+          showError('Database error: ' + transactionError.message);
+          return;
+        }
+
+        if (!transactions || transactions.length === 0) {
+          showError('Transaction not found. ID: ' + transactionId);
+          return;
+        }
+
+        if (transactions.length > 1) {
+          showError('Multiple transactions found with same ID: ' + transactionId);
+          return;
+        }
+
+        const transaction = transactions[0];
+
+        console.log('Raw transaction data:', transaction);
+
+        // Extract data from metadata
+        transactionData = {
+          ...transaction,
+          amount: transaction.metadata?.amount || transaction.metadata?.price || 280, // Default fallback
+          item_title: transaction.metadata?.item_title || transaction.metadata?.title || 'Untitled Item',
+          item_description: transaction.metadata?.item_description || transaction.metadata?.description || '',
+          item_image: transaction.metadata?.item_image || transaction.metadata?.image || null,
+          source: transaction.metadata?.source || 'Facebook Marketplace',
+          transaction_type: transaction.metadata?.transaction_type || 'buy'
+        };
+        
+        // Extract inviter data from metadata
+        inviterData = {
+          user_metadata: {
+            full_name: transaction.metadata?.userAddress?.full_name || 
+                      transaction.metadata?.userAddress?.name || 
+                      transaction.metadata?.inviter_name || 
+                      'User'
+          }
+        };
+
+        console.log('Processed transaction data:', transactionData);
+        console.log('Inviter data:', inviterData);
+
+        displayTransaction();
+        
+      } catch (error) {
+        console.error('Error loading transaction:', error);
+        showError('Failed to load transaction: ' + error.message);
+      }
+    }
+
+        // Display transaction data
+        function displayTransaction() {
+          if (!transactionData) return;
+
+          console.log('Displaying transaction:', transactionData);
+          console.log('Inviter data:', inviterData);
+
+          // Update inviter info with real data
+          const inviterName = transactionData.metadata?.inviter_name || 
+                             transactionData.metadata?.userAddress?.full_name || 
+                             transactionData.metadata?.userAddress?.name || 
+                             'Unknown User';
+          
+          console.log('Inviter name:', inviterName);
+          
+          // Safely update elements if they exist
+          const inviterNameSpan = document.querySelector('.inviter-name');
+          if (inviterNameSpan) {
+            inviterNameSpan.textContent = inviterName;
+          }
+          
+          const avatarInitialSpan = document.querySelector('.avatar-initial');
+          if (avatarInitialSpan && inviterName) {
+            avatarInitialSpan.textContent = inviterName.charAt(0).toUpperCase();
+          }
+
+          // Update product info
+          const priceEl = document.querySelector('.price');
+          if (priceEl) {
+            console.log('💰 Web page - transactionData.amount:', transactionData.amount);
+            const displayPrice = transactionData.amount || transactionData.metadata?.amount || 0;
+            console.log('💰 Web page - displayPrice:', displayPrice);
+            priceEl.textContent = `$${displayPrice}`;
+          }
+          
+          const titleEl = document.querySelector('.title');
+          if (titleEl) {
+            titleEl.textContent = `"${transactionData.item_title || 'Untitled Item'}"`;
+          }
+          
+          // Show Facebook seller name or item description
+          const subtitleEl = document.querySelector('.subtitle');
+          if (subtitleEl) {
+            const fbSellerName = transactionData.metadata?.fb_seller_name;
+            if (fbSellerName && fbSellerName !== 'Facebook Seller') {
+              subtitleEl.textContent = fbSellerName;
+            } else if (transactionData.item_description) {
+              subtitleEl.textContent = transactionData.item_description;
+            } else {
+              subtitleEl.textContent = 'Facebook Marketplace Item';
+            }
+          }
+
+          // Update product image
+          const thumbImg = document.querySelector('.thumb img');
+          if (thumbImg) {
+            if (transactionData.item_image) {
+              thumbImg.src = transactionData.item_image;
+              thumbImg.style.display = 'block';
+            } else {
+              thumbImg.style.display = 'none';
+            }
+          }
+
+          // Update source
+          const sourceTextSpan = document.querySelector('.source .source-text');
+          if (sourceTextSpan) {
+            sourceTextSpan.textContent = `from ${transactionData.source || 'Facebook Marketplace'}`;
+          }
+        }
+
+    // Handle join transaction
+    function handleJoinTransaction() {
+      console.log('Join transaction clicked');
+      
+      // Update transaction status to accepted
+      updateTransactionStatus('accepted');
+      
+      // Try to open app with deep link first
+      const deepLinkUrl = `couri://transaction/${transactionData?.id}`;
+      
+      // Create a hidden iframe to try the deep link
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = deepLinkUrl;
+      document.body.appendChild(iframe);
+      
+      // Clean up iframe after a short delay
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+      
+      // Fallback to app store after a delay
+      setTimeout(() => {
+        console.log('Redirecting to App Store...');
+        window.location.href = CONFIG.APP_STORE_URL;
+      }, 1500);
+    }
+
+    // Handle decline
+    function handleDecline() {
+      console.log('Transaction declined');
+      
+      // Update transaction status to declined
+      updateTransactionStatus('declined');
+      
+      // Show declined page
+      showDeclinedPage();
+    }
+
+    // Update transaction status in Supabase
+    async function updateTransactionStatus(status) {
+      try {
+        const transactionId = getTransactionId();
+        if (!transactionId) return;
+
+        const { error } = await supabaseClient
+          .from('transactions')
+          .update({ 
+            status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', transactionId);
+
+        if (error) {
+          console.error('Error updating transaction status:', error);
+        } else {
+          console.log(`Transaction ${status} successfully`);
+        }
+      } catch (error) {
+        console.error('Error updating transaction:', error);
+      }
+    }
+
+    // Show declined page
+    function showDeclinedPage() {
+      document.body.innerHTML = `
+        <div class="preview">
+          <main>
+            <div class="brand">
+              <div class="logo">
+                <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png" alt="Couri" />
+              </div>
+            </div>
+            <section class="hero">
+              <h1>You've declined this transaction</h1>
+              <div class="sub">This transaction is closed. You'll be able to join future requests anytime!</div>
+            </section>
+            ${transactionData ? `
+              <section class="card">
+                <div class="item-info">
+                  <div class="price">$${transactionData.amount}</div>
+                  <p class="title">"${transactionData.item_title}"</p>
+                  ${transactionData.item_description ? `<p class="subtitle">${transactionData.item_description}</p>` : ''}
+                </div>
+                ${transactionData.item_image ? `<div class="thumb"><img src="${transactionData.item_image}" alt="Item" /></div>` : ''}
+              </section>
+            ` : ''}
+          </main>
+        </div>
+      `;
+    }
+
+        // Show error message
+        function showError(message) {
+          console.error('Error:', message);
+          document.body.innerHTML = `
+            <div class="preview">
+              <main>
+                <div class="brand">
+                  <div class="logo">
+                    <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png" alt="Couri" />
+                  </div>
+                </div>
+                <section class="hero">
+                  <h1>Error</h1>
+                  <div class="sub">${message}</div>
+                </section>
+              </main>
+            </div>
+          `;
+        }
+
+    // Load Supabase and initialize
+    function loadSupabase() {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      script.onload = () => {
+        console.log('Supabase loaded');
+        window.supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        loadTransaction();
+      };
+      script.onerror = () => {
+        console.error('Failed to load Supabase');
+        showError('Failed to load required scripts');
+      };
+      document.head.appendChild(script);
+    }
+
+        // Test function to help debug
+        function testUrlParsing() {
+          console.log('=== URL PARSING TEST ===');
+          console.log('Current URL:', window.location.href);
+          console.log('Search params:', window.location.search);
+          console.log('Pathname:', window.location.pathname);
+          
+          const urlParams = new URLSearchParams(window.location.search);
+          console.log('All URL params:', Object.fromEntries(urlParams.entries()));
+          
+          // Test different ways to get transaction ID
+          console.log('Method 1 (id):', urlParams.get('id'));
+          console.log('Method 2 (transaction_id):', urlParams.get('transaction_id'));
+          console.log('Method 3 (t):', urlParams.get('t'));
+          
+          // Test path-based extraction
+          const pathParts = window.location.pathname.split('/');
+          console.log('Path parts:', pathParts);
+          console.log('Last path part:', pathParts[pathParts.length - 1]);
+          
+          console.log('=== END TEST ===');
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+          console.log('Page loaded, initializing...');
+          testUrlParsing(); // Run test first
+          loadSupabase();
+        });
+  </script>
+</body>
+</html>

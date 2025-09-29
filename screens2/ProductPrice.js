@@ -20,6 +20,7 @@ import { supabase } from '../screens/supabaseClient';
 export default function ProductPrice({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [productPrice, setProductPrice] = useState('');
+  const [sellerName, setSellerName] = useState(''); // Add seller name state
   const { user, customUser, setCustomUser } = useUser();
 
   // Safely read/normalize params
@@ -30,6 +31,7 @@ export default function ProductPrice({ navigation, route }) {
     productImage: incomingImage,
     productName,
     imageUrl,
+    sellerName: incomingSellerName,
   } = params;
 
   const productTitle = incomingTitle || productName || '';
@@ -38,7 +40,12 @@ export default function ProductPrice({ navigation, route }) {
   useEffect(() => {
     // Load cached user profile for header avatar
     loadUserProfile();
-  }, [url]);
+    
+    // Set seller name if provided
+    if (incomingSellerName) {
+      setSellerName(incomingSellerName);
+    }
+  }, [url, incomingSellerName]);
 
   const loadUserProfile = async () => {
     try {
@@ -115,6 +122,7 @@ export default function ProductPrice({ navigation, route }) {
       productPrice: productPrice,
       productTitle: productTitle,
       productImage: productImage,
+      sellerName: sellerName, // Add seller name
     });
   };
 

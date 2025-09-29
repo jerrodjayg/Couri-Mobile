@@ -1,0 +1,15 @@
+warning: in the working copy of '.expo/devices.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/.expo/devices.json b/.expo/devices.json[m
+[1mindex 21bb06b..5efff6c 100644[m
+[1m--- a/.expo/devices.json[m
+[1m+++ b/.expo/devices.json[m
+[36m@@ -1,8 +1,3 @@[m
+ {[m
+[31m-  "devices": [[m
+[31m-    {[m
+[31m-      "installationId": "8e5bd5e0-a6db-4f3a-b601-0eaf27ddb069",[m
+[31m-      "lastUsed": 1755221822101[m
+[31m-    }[m
+[31m-  ][m
+[32m+[m[32m  "devices": [][m
+ }[m

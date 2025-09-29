@@ -68,6 +68,7 @@ export default function App() {
     const handleDeepLink = async (url) => {
       console.log('🔗 Deep link received:', url);
       
+      // Handle OAuth callbacks
       if (url && url.includes('code=')) {
         console.log('🔑 OAuth callback detected with authorization code');
         
@@ -91,6 +92,30 @@ export default function App() {
           }
         } catch (error) {
           console.error('❌ Error handling OAuth callback:', error);
+        }
+      }
+      
+      // Handle transaction deep links (couri://transaction/transaction-id)
+      else if (url && url.includes('couri://transaction/')) {
+        console.log('💼 Transaction deep link detected');
+        
+        try {
+          const urlObj = new URL(url);
+          const pathSegments = urlObj.pathname.split('/');
+          const transactionId = pathSegments[pathSegments.length - 1];
+          
+          if (transactionId && navigationRef.current) {
+            console.log('💼 Navigating to transaction:', transactionId);
+            
+            // Navigate to a transaction details screen
+            // You might want to create a TransactionDetailsScreen component
+            navigationRef.current.navigate('TransactionDetails', { 
+              transactionId: transactionId,
+              fromDeepLink: true 
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error handling transaction deep link:', error);
         }
       }
     };
