@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import imagePreloader from '../utils/imagePreloader';
 
 export default function SplashScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -19,10 +20,22 @@ export default function SplashScreen({ navigation }) {
       }
     };
 
+    const preloadCriticalAssets = async () => {
+      // Preload critical images for faster app performance
+      try {
+        console.log('🖼️ Preloading critical images...');
+        await imagePreloader.preloadCriticalImages();
+        console.log('✅ Critical images preloaded');
+      } catch (error) {
+        console.log('⚠️ Image preloading failed (non-blocking):', error);
+      }
+    };
+
     const checkSession = async () => {
       try {
-        // Pre-warm location permissions in background
+        // Pre-warm location permissions and images in background
         preWarmLocationPermissions();
+        preloadCriticalAssets();
         // Check for user's last action first
         const lastAction = await AsyncStorage.getItem('userLastAction');
         console.log('🔍 SplashScreen: User last action:', lastAction);

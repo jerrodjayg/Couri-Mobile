@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
+import OptimizedImage from '../components/OptimizedImage';
+import imagePreloader from '../utils/imagePreloader';
 
 export default function PlaidConnect({ navigation, route }) {
   const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
@@ -16,6 +18,22 @@ export default function PlaidConnect({ navigation, route }) {
   
   // Debug: Log the current state
   console.log('🖼️ PlaidConnect - plaidLogoError state:', plaidLogoError);
+
+  // Preload Plaid-specific images when component mounts
+  useEffect(() => {
+    const preloadPlaidImages = async () => {
+      const plaidImages = [
+        'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo.png',
+        'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo2.png',
+        'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/assets/plaid-logo.png',
+        userProfile?.avatar_url
+      ].filter(Boolean);
+
+      await imagePreloader.preloadScreenImages('PlaidConnect', plaidImages);
+    };
+
+    preloadPlaidImages();
+  }, [userProfile?.avatar_url]);
 
   const getUserInitials = (profile) => {
     if (profile?.full_name) {
@@ -76,23 +94,33 @@ export default function PlaidConnect({ navigation, route }) {
         
         {/* Plaid Logo */}
         <View style={styles.plaidLogoContainer}>
-          <Image 
+          <OptimizedImage 
             source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo.png' }} 
             style={styles.plaidHeaderLogo}
+            showLoadingIndicator={false}
           />
           <Text style={styles.plaidText}>PLAID</Text>
-          <Image 
+          <OptimizedImage 
             source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo2.png' }} 
             style={styles.plaidHeaderLogo2}
+            showLoadingIndicator={false}
           />
         </View>
         
         {/* Profile Section */}
         <TouchableOpacity onPress={() => navigation.navigate('MyAccount', { userData: userProfile })} style={styles.profileContainer}>
           {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
-            <Image 
+            <OptimizedImage 
               source={{ uri: userProfile.avatar_url }} 
               style={styles.profileImage}
+              showLoadingIndicator={false}
+              placeholder={
+                <View style={styles.profilePlaceholder}>
+                  <Text style={styles.profileInitials}>
+                    {userProfile ? getUserInitials(userProfile) : 'U'}
+                  </Text>
+                </View>
+              }
             />
           ) : (
             <View style={styles.profilePlaceholder}>
@@ -117,9 +145,10 @@ export default function PlaidConnect({ navigation, route }) {
                 />
               </View>
               <View style={styles.plaidCircle}>
-                <Image 
+                <OptimizedImage 
                   source={plaidLogoError ? require('../assets/plaid-logo.png') : { uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/assets/plaid-logo.png' }} 
                   style={styles.plaidLogoImage}
+                  showLoadingIndicator={false}
                   onError={(error) => {
                     console.log('❌ Plaid logo failed to load from Supabase:', error);
                     console.log('🔄 Switching to local asset fallback...');

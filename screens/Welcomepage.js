@@ -6,6 +6,8 @@ import { UserService } from '../utils/userService';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { Buffer } from 'buffer';
+import OptimizedImage from '../components/OptimizedImage';
+import imagePreloader from '../utils/imagePreloader';
 import {
   Animated,
   View,
@@ -487,6 +489,21 @@ export default function Welcomepage({ route, navigation }) {
   const [invite, setInvite] = useState(null); // 👈 incoming invite payload
   const [transactionData, setTransactionData] = useState(null); // 👈 transaction data from Share.js
   const [successModalVisible, setSuccessModalVisible] = useState(false); // 👈 success modal for accepted transaction
+
+  // Preload Welcomepage-specific images when component mounts
+  useEffect(() => {
+    const preloadWelcomepageImages = async () => {
+      const welcomepageImages = [
+        userProfile?.avatar_url
+      ].filter(Boolean);
+
+      await imagePreloader.preloadScreenImages('Welcomepage', welcomepageImages);
+    };
+
+    if (userProfile?.avatar_url) {
+      preloadWelcomepageImages();
+    }
+  }, [userProfile?.avatar_url]);
 
   // All other hooks must be called in the same order every time
   const { user, customUser, setCustomUser } = useUser();
@@ -983,7 +1000,16 @@ export default function Welcomepage({ route, navigation }) {
 
           <TouchableOpacity onPress={userProfile ? () => navigation.navigate('MyAccount', { userData: userProfile }) : () => navigation.navigate('Login')} style={styles.profileContainer}>
             {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
-              <Image source={{ uri: userProfile.avatar_url }} style={styles.profileImage} />
+              <OptimizedImage 
+                source={{ uri: userProfile.avatar_url }} 
+                style={styles.profileImage}
+                showLoadingIndicator={false}
+                placeholder={
+                  <View style={styles.profilePlaceholder}>
+                    <Text style={styles.profileInitials}>{userProfile ? getUserInitials() : '?'}</Text>
+                  </View>
+                }
+              />
             ) : (
               <View style={styles.profilePlaceholder}>
                 <Text style={styles.profileInitials}>{userProfile ? getUserInitials() : '?'}</Text>
