@@ -16,6 +16,7 @@ import Welcomepage from './screens/Welcomepage';
 import CodeVerify from './screens/CodeVerify';
 import AccountSetupScreen from './screens/AccountSetupScreen';
 import MyAccountScreen from './screens/MyAccountScreen';
+import LoginSecurityScreen from './Couri-Mobile/screens/LoginSecurityScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import PersonalInfoScreen from './screens/PersonalInfoScreen';
 import PushNotiScreen from './screens/PushNotiScreen';
@@ -157,6 +158,7 @@ export default function App() {
  <Stack.Screen name="Welcomepage" component={Welcomepage} />
  <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen} />
  <Stack.Screen name="MyAccount" component={MyAccountScreen} />
+ <Stack.Screen name="LoginSecurity" component={LoginSecurityScreen} />
  <Stack.Screen name="Profile" component={ProfileScreen} />
  <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
  <Stack.Screen name="PushNoti" component={PushNotiScreen} />

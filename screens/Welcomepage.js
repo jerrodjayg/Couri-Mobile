@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserService } from '../utils/userService';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
+import { Linking as RNLinking } from 'react-native';
 import { Buffer } from 'buffer';
 import OptimizedImage from '../components/OptimizedImage';
 import imagePreloader from '../utils/imagePreloader';
@@ -20,6 +21,7 @@ import {
   Alert,
   Modal,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 
 // polyfill (RN sometimes needs this)
@@ -988,241 +990,232 @@ export default function Welcomepage({ route, navigation }) {
     );
   }
 
+  // Check if we should make the screen scrollable (when there's transaction data)
+  const shouldBeScrollable = transactionData !== null;
+
+  const renderContent = () => (
+    <>
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <View>
+          <Image source={require('../assets/Logo_Dark.png')} style={styles.logo} resizeMode="contain" />
+        </View>
+
+        <TouchableOpacity onPress={userProfile ? () => navigation.navigate('MyAccount', { userData: userProfile }) : () => navigation.navigate('Login')} style={styles.profileContainer}>
+          {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+            <OptimizedImage 
+              source={{ uri: userProfile.avatar_url }} 
+              style={styles.profileImage}
+              showLoadingIndicator={false}
+              placeholder={
+                <View style={styles.profilePlaceholder}>
+                  <Text style={styles.profileInitials}>{userProfile ? getUserInitials() : '?'}</Text>
+                </View>
+              }
+            />
+          ) : (
+            <View style={styles.profilePlaceholder}>
+              <Text style={styles.profileInitials}>{userProfile ? getUserInitials() : '?'}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* White Block */}
+      <View style={styles.whiteBlock}>
+        <View style={styles.whiteBlockInner}>
+          <View style={styles.welcomeRow}>
+            <Animated.Text
+              style={[
+                styles.wave,
+                {
+                  transform: [
+                    {
+                      rotate: waveAnim.interpolate({
+                        inputRange: [-15, 15],
+                        outputRange: ['-15deg', '15deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              👋🏻
+            </Animated.Text>
+            <Text style={styles.welcomeText}>WELCOME, {name.toUpperCase()}!</Text>
+          </View>
+
+          {/* Headline / subheadline switch when invite exists, transaction data exists, or new Google user */}
+          <Text style={styles.headline}>
+            {invite ? "You've been invited to a transaction" : 
+             transactionData ? "The seller is reviewing your transaction" :
+             "Let's get started."}
+          </Text>
+
+          {/* Status message for transaction review */}
+          {transactionData && (
+            <Text style={styles.transactionStatusText}>
+              {transactionData.status === 'accepted' 
+                ? 'Your transaction was accepted! Driver is on the way.' 
+                : "We'll notify you as soon as it's confirmed."}
+            </Text>
+          )}
+
+          {/* NEW: inviter row directly under headline, outside the card */}
+          {invite ? (
+            <InviterRow seller={invite?.seller} sellerAvatar={invite?.sellerAvatar} />
+          ) : transactionData ? null : (
+            <Text style={styles.subheadline}>You don't have any active Couri transactions.</Text>
+          )}
+
+          {/* Transaction review card OR invite preview OR placeholder */}
+          {transactionData ? (
+            <>
+              <TransactionReviewCard
+                transactionData={transactionData}
+                onViewDetails={() => {
+                  // TODO: Navigate to transaction details screen
+                  console.log('View transaction details');
+                }}
+                onCancel={() => {
+                  setTransactionData(null);
+                  // TODO: Handle transaction cancellation
+                  console.log('Cancel transaction');
+                }}
+              />
+              
+              {/* Buttons outside the card */}
+              <TouchableOpacity 
+                style={styles.viewDetailsButton} 
+                onPress={() => {
+                  // TODO: Navigate to transaction details screen
+                  console.log('View transaction details');
+                }}
+              >
+                <Text style={styles.viewDetailsText}>View Transaction Details</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.cancelTransactionButton} 
+                onPress={() => {
+                  setTransactionData(null);
+                  // TODO: Handle transaction cancellation
+                  console.log('Cancel transaction');
+                }}
+              >
+                <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
+              </TouchableOpacity>
+
+            </>
+          ) : invite ? (
+            <InvitePreviewCard
+              invite={invite}
+              onPress={() => setConfirmVisible(true)}
+            />
+          ) : (
+            <View style={styles.placeholderBox} />
+          )}
+
+          {/* CTA switches label & behavior */}
+          {userProfile ? (
+            !invite && !transactionData && (
+              <TouchableOpacity
+                style={styles.beginButton}
+                onPress={() => setModalVisible(true)}
+              >
+                <Text style={styles.beginButtonText}>
+                  + Begin a Transaction
+                </Text>
+              </TouchableOpacity>
+            )
+          ) : (
+            !transactionData && (
+              <TouchableOpacity style={styles.beginButton} onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.beginButtonText}>Sign In to Continue</Text>
+              </TouchableOpacity>
+            )
+          )}
+        </View>
+      </View>
+
+      {/* Pink Section */}
+      <View style={styles.pinkBackground}>
+        <View style={styles.infoBlock}>
+          <Image source={require('../assets/mark2_dark.png')} style={styles.infoLogoImage} resizeMode="contain" />
+          <Text style={styles.infoTitle}>Couri is transforming{'\n'}peer-to-peer transactions.</Text>
+          <Text style={styles.infoSub}>Check out how it works.</Text>
+
+          <TouchableOpacity 
+            style={styles.learnMoreButton} 
+            onPress={() => RNLinking.openURL('https://gocouri.com')}
+          >
+            <Text style={styles.learnMoreText}>Learn More</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+
+      {/* Modals */}
+      <CouriModal
+        key={modalVisible ? 'open' : 'closed'}
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setTimeout(() => {}, 300);
+        }}
+        onGetStarted={(option) => {
+          setModalVisible(false);
+          navigation.navigate('URL', { type: option, userProfile });
+        }}
+      />
+
+      <ConfirmInviteModal
+        visible={confirmVisible}
+        invite={invite}
+        onClose={() => setConfirmVisible(false)}
+        onAccept={async () => {
+          try {
+            // TODO: send accept to backend here
+            setConfirmVisible(false);
+            console.log('🎉 Person 2 accepted invite, transactionId:', invite?.transactionId);
+            // Simulate triggering success modal on Person 1's screen
+            // In a real app, this would be handled via push notifications or real-time updates
+            setTimeout(async () => {
+              console.log('⏰ Triggering transaction accepted after 1 second delay');
+              await triggerTransactionAccepted(invite?.transactionId);
+            }, 1000);
+            Alert.alert('Invitation accepted', 'The buyer will be notified.');
+          } catch (e) {
+            Alert.alert('Something went wrong', 'Please try again.');
+          }
+        }}
+      />
+
+      <TransactionAcceptedModal
+        visible={successModalVisible}
+        onClose={() => setSuccessModalVisible(false)}
+      />
+    </>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.wrapper}>
-        {/* Top Bar */}
-        <View style={styles.topBar}>
-          <View>
-            <Image source={require('../assets/Logo_Dark.png')} style={styles.logo} resizeMode="contain" />
+      {shouldBeScrollable ? (
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.wrapper}>
+            {renderContent()}
           </View>
-
-          <TouchableOpacity onPress={userProfile ? () => navigation.navigate('MyAccount', { userData: userProfile }) : () => navigation.navigate('Login')} style={styles.profileContainer}>
-            {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
-              <OptimizedImage 
-                source={{ uri: userProfile.avatar_url }} 
-                style={styles.profileImage}
-                showLoadingIndicator={false}
-                placeholder={
-                  <View style={styles.profilePlaceholder}>
-                    <Text style={styles.profileInitials}>{userProfile ? getUserInitials() : '?'}</Text>
-                  </View>
-                }
-              />
-            ) : (
-              <View style={styles.profilePlaceholder}>
-                <Text style={styles.profileInitials}>{userProfile ? getUserInitials() : '?'}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        <View style={styles.wrapper}>
+          {renderContent()}
         </View>
-
-        {/* White Block */}
-        <View style={styles.whiteBlock}>
-          <View style={styles.whiteBlockInner}>
-            <View style={styles.welcomeRow}>
-              <Animated.Text
-                style={[
-                  styles.wave,
-                  {
-                    transform: [
-                      {
-                        rotate: waveAnim.interpolate({
-                          inputRange: [-15, 15],
-                          outputRange: ['-15deg', '15deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                👋🏻
-              </Animated.Text>
-              <Text style={styles.welcomeText}>WELCOME, {name.toUpperCase()}!</Text>
-            </View>
-
-            {/* Headline / subheadline switch when invite exists, transaction data exists, or new Google user */}
-            <Text style={styles.headline}>
-              {invite ? "You've been invited to a transaction" : 
-               transactionData ? "The seller is reviewing your transaction" :
-               "Let's get started."}
-            </Text>
-
-            {/* Status message for transaction review */}
-            {transactionData && (
-              <Text style={styles.transactionStatusText}>
-                {transactionData.status === 'accepted' 
-                  ? 'Your transaction was accepted! Driver is on the way.' 
-                  : "We'll notify you as soon as it's confirmed."}
-              </Text>
-            )}
-
-            {/* NEW: inviter row directly under headline, outside the card */}
-            {invite ? (
-              <InviterRow seller={invite?.seller} sellerAvatar={invite?.sellerAvatar} />
-            ) : transactionData ? null : (
-              <Text style={styles.subheadline}>You don't have any active Couri transactions.</Text>
-            )}
-
-            {/* Transaction review card OR invite preview OR placeholder */}
-            {transactionData ? (
-              <>
-                <TransactionReviewCard
-                  transactionData={transactionData}
-                  onViewDetails={() => {
-                    // TODO: Navigate to transaction details screen
-                    console.log('View transaction details');
-                  }}
-                  onCancel={() => {
-                    setTransactionData(null);
-                    // TODO: Handle transaction cancellation
-                    console.log('Cancel transaction');
-                  }}
-                />
-                
-                {/* Buttons outside the card */}
-                <TouchableOpacity 
-                  style={styles.viewDetailsButton} 
-                  onPress={() => {
-                    // TODO: Navigate to transaction details screen
-                    console.log('View transaction details');
-                  }}
-                >
-                  <Text style={styles.viewDetailsText}>View Transaction Details</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.cancelTransactionButton} 
-                  onPress={() => {
-                    setTransactionData(null);
-                    // TODO: Handle transaction cancellation
-                    console.log('Cancel transaction');
-                  }}
-                >
-                  <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
-                </TouchableOpacity>
-
-                {/* Debug button - remove in production */}
-                <TouchableOpacity 
-                  style={[styles.viewDetailsButton, { backgroundColor: '#FF6B6B', marginTop: 10 }]} 
-                  onPress={() => {
-                    console.log('🧪 Manual test - triggering success modal');
-                    setSuccessModalVisible(true);
-                  }}
-                >
-                  <Text style={styles.viewDetailsText}>Test Success Modal</Text>
-                </TouchableOpacity>
-              </>
-            ) : invite ? (
-              <InvitePreviewCard
-                invite={invite}
-                onPress={() => setConfirmVisible(true)}
-              />
-            ) : (
-              <View style={styles.placeholderBox} />
-            )}
-
-            {/* CTA switches label & behavior */}
-            {userProfile ? (
-              !invite && !transactionData && (
-                <TouchableOpacity
-                  style={styles.beginButton}
-                  onPress={() => setModalVisible(true)}
-                >
-                  <Text style={styles.beginButtonText}>
-                    + Begin a Transaction
-                  </Text>
-                </TouchableOpacity>
-              )
-            ) : (
-              !transactionData && (
-                <TouchableOpacity style={styles.beginButton} onPress={() => navigation.navigate('Login')}>
-                  <Text style={styles.beginButtonText}>Sign In to Continue</Text>
-                </TouchableOpacity>
-              )
-            )}
-          </View>
-        </View>
-
-        {/* Pink Section */}
-        <View style={styles.pinkBackground}>
-          <View style={styles.infoBlock}>
-            <Image source={require('../assets/mark2_dark.png')} style={styles.infoLogoImage} resizeMode="contain" />
-            <Text style={styles.infoTitle}>Couri is transforming{'\n'}peer-to-peer transactions.</Text>
-            <Text style={styles.infoSub}>Check out how it works.</Text>
-
-            <TouchableOpacity style={styles.learnMoreButton} onPress={() => {}}>
-              <Text style={styles.learnMoreText}>Learn More</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Sign Out / Delete */}
-        <View style={styles.signOutContainer}>
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.deleteAccountButton, loading && styles.deleteAccountButtonDisabled]}
-            onPress={() => {
-              Alert.alert(
-                'Delete Account',
-                'Are you sure you want to delete your account? This action cannot be undone and will remove all your data permanently.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Delete', style: 'destructive', onPress: handleDeleteAccount },
-                ]
-              );
-            }}
-            disabled={loading}
-          >
-            <Text style={styles.deleteAccountText}>{loading ? 'Deleting...' : 'Delete Account'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Modals */}
-        <CouriModal
-          key={modalVisible ? 'open' : 'closed'}
-          visible={modalVisible}
-          onClose={() => {
-            setModalVisible(false);
-            setTimeout(() => {}, 300);
-          }}
-          onGetStarted={(option) => {
-            setModalVisible(false);
-            navigation.navigate('URL', { type: option, userProfile });
-          }}
-        />
-
-        <ConfirmInviteModal
-          visible={confirmVisible}
-          invite={invite}
-          onClose={() => setConfirmVisible(false)}
-          onAccept={async () => {
-            try {
-              // TODO: send accept to backend here
-              setConfirmVisible(false);
-              console.log('🎉 Person 2 accepted invite, transactionId:', invite?.transactionId);
-              // Simulate triggering success modal on Person 1's screen
-              // In a real app, this would be handled via push notifications or real-time updates
-              setTimeout(async () => {
-                console.log('⏰ Triggering transaction accepted after 1 second delay');
-                await triggerTransactionAccepted(invite?.transactionId);
-              }, 1000);
-              Alert.alert('Invitation accepted', 'The buyer will be notified.');
-            } catch (e) {
-              Alert.alert('Something went wrong', 'Please try again.');
-            }
-          }}
-        />
-
-        <TransactionAcceptedModal
-          visible={successModalVisible}
-          onClose={() => setSuccessModalVisible(false)}
-        />
-      </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1233,6 +1226,8 @@ export default function Welcomepage({ route, navigation }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
   wrapper: { flex: 1, justifyContent: 'space-between' },
+  scrollContainer: { flex: 1 },
+  scrollContentContainer: { flexGrow: 1 },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1299,19 +1294,13 @@ const styles = StyleSheet.create({
   },
   beginButton: { backgroundColor: '#000', paddingVertical: 19, paddingHorizontal: 33, borderRadius: 50, marginTop: 20 },
   beginButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  pinkBackground: { backgroundColor: '#FDEAFF', alignItems: 'center', paddingBottom: 30, paddingTop: 16 },
+  pinkBackground: { backgroundColor: '#FDEAFF', alignItems: 'center', paddingBottom: 30, paddingTop: 16, borderBottomWidth: 1, borderBottomColor: '#000' },
   infoBlock: { width: '100%', paddingVertical: 12, paddingHorizontal: 24, alignItems: 'center' },
   infoLogoImage: { width: 50, height: 50, marginBottom: 12 },
   infoTitle: { fontSize: 28, fontWeight: '300', textAlign: 'center', marginBottom: 8 },
   infoSub: { fontSize: 14, color: '#444', marginBottom: 20 },
-  learnMoreButton: { backgroundColor: '#fff', borderRadius: 50, paddingVertical: 19, paddingHorizontal: 33, borderWidth: 1, borderColor: '#000' },
+  learnMoreButton: { backgroundColor: '#fff', borderRadius: 50, paddingVertical: 19, paddingHorizontal: 33, borderWidth: 2, borderColor: '#000' },
   learnMoreText: { fontSize: 16, fontWeight: '600', textAlign: 'center', color: '#000' },
-  signOutContainer: { paddingHorizontal: 24, paddingVertical: 20, alignItems: 'center' },
-  signOutButton: { backgroundColor: '#FF6B6B', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 50, borderWidth: 1, borderColor: '#FF6B6B' },
-  signOutText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  deleteAccountButton: { backgroundColor: '#FF0000', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 50, borderWidth: 1, borderColor: '#FF0000', marginTop: 12 },
-  deleteAccountText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  deleteAccountButtonDisabled: { opacity: 0.7 },
 });
 
 const modalStyles = StyleSheet.create({

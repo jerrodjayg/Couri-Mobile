@@ -267,7 +267,7 @@ export default function Share({ navigation, route }) {
                     Send a web link that works in any browser. Recipients can view the transaction and download the app to join.
                   </Text>
                   
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+                  <View style={{ marginTop: 15 }}>
                     <TouchableOpacity 
                       style={[styles.copyButton, isCreatingWebInvite && styles.disabledButton]} 
                       onPress={handleCopyWebInvite}
@@ -280,17 +280,6 @@ export default function Share({ navigation, route }) {
                       <Text style={styles.copyButtonText}>
                         {isCreatingWebInvite ? 'Creating...' : 'Copy web link'}
                       </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={[styles.shareButton, isCreatingWebInvite && styles.disabledButton]} 
-                      onPress={handleShareWebInvite}
-                      disabled={isCreatingWebInvite}
-                    >
-                      <View style={styles.shareIcon}>
-                        <Text style={styles.shareIconText}>↗</Text>
-                      </View>
-                      <Text style={styles.shareButtonText}>Share web link</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
