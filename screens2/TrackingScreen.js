@@ -253,6 +253,37 @@ export default function TrackingScreen({ navigation, route }) {
             let pickupMarker;
             let loadingElement = document.getElementById('loading');
             
+            // Helper function to send messages to React Native
+            function sendToReactNative(type, level, message) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: type,
+                  level: level,
+                  message: message
+                }));
+              }
+            }
+            
+            // Override console.log to send messages to React Native
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            
+            console.log = function(...args) {
+              originalLog.apply(console, args);
+              sendToReactNative('console', 'log', args.join(' '));
+            };
+            
+            console.error = function(...args) {
+              originalError.apply(console, args);
+              sendToReactNative('console', 'error', args.join(' '));
+            };
+            
+            console.warn = function(...args) {
+              originalWarn.apply(console, args);
+              sendToReactNative('console', 'warn', args.join(' '));
+            };
+            
             // Comprehensive debugging
             console.log('🔍 DEBUG: Starting Google Maps initialization...');
             console.log('🔍 DEBUG: User location:', { lat: ${userLat}, lng: ${userLng} });
@@ -314,6 +345,23 @@ export default function TrackingScreen({ navigation, route }) {
                 });
             }
             
+            // Test JavaScript execution
+            console.log('🔍 DEBUG: JavaScript execution test - WebView is working');
+            sendToReactNative('debug', 'info', 'JavaScript execution test - WebView is working');
+            
+            // Test basic HTTP request
+            console.log('🔍 DEBUG: Testing basic HTTP request...');
+            fetch('https://httpbin.org/get')
+              .then(response => response.json())
+              .then(data => {
+                console.log('✅ DEBUG: Basic HTTP request successful');
+                sendToReactNative('debug', 'success', 'Basic HTTP request successful');
+              })
+              .catch(error => {
+                console.error('❌ DEBUG: Basic HTTP request failed:', error);
+                sendToReactNative('error', 'error', 'Basic HTTP request failed: ' + error.message);
+              });
+            
             // Run network test
             testNetworkConnectivity();
             
@@ -351,15 +399,15 @@ export default function TrackingScreen({ navigation, route }) {
                 console.log('✅ DEBUG: Google Maps API loaded successfully');
                 console.log('🔍 DEBUG: Available Google Maps objects:', Object.keys(window.google.maps));
                 
-                const userLocation = { lat: ${userLat}, lng: ${userLng} };
-                const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
-                
+              const userLocation = { lat: ${userLat}, lng: ${userLng} };
+              const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
+              
                 console.log('🔍 DEBUG: Creating map with locations:', { userLocation, pickupLocation });
                 console.log('🔍 DEBUG: Map container element:', document.getElementById("map"));
                 
                 map = new google.maps.Map(document.getElementById("map"), {
-                  zoom: 13,
-                  center: userLocation,
+                zoom: 13,
+                center: userLocation,
                   mapTypeId: 'roadmap',
                   mapTypeControl: true,
                   streetViewControl: true,
@@ -380,15 +428,15 @@ export default function TrackingScreen({ navigation, route }) {
                 
                 // User location marker (Delivery Person)
                 userMarker = new google.maps.Marker({
-                  position: userLocation,
-                  map: map,
+                position: userLocation,
+                map: map,
                   title: "Your Location (Driver)",
-                  icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
                     scale: 15,
-                    fillColor: '#FFE8FD',
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
+                  fillColor: '#FFE8FD',
+                  fillOpacity: 1,
+                  strokeColor: '#FFFFFF',
                     strokeWeight: 4
                   },
                   label: {
@@ -398,12 +446,12 @@ export default function TrackingScreen({ navigation, route }) {
                 });
                 
                 // Pickup location marker (Customer)
-                if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
+              if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
                   pickupMarker = new google.maps.Marker({
-                    position: pickupLocation,
-                    map: map,
+                  position: pickupLocation,
+                  map: map,
                     title: "Pickup Location (Customer)",
-                    icon: {
+                  icon: {
                       path: google.maps.SymbolPath.CIRCLE,
                       scale: 12,
                       fillColor: '#FF4444',
@@ -697,7 +745,22 @@ export default function TrackingScreen({ navigation, route }) {
               console.log('✅ DEBUG: WebView loaded successfully');
             }}
             onMessage={(event) => {
-              console.log('🔍 DEBUG: WebView message:', event.nativeEvent.data);
+              const data = event.nativeEvent.data;
+              console.log('🔍 DEBUG: WebView message:', data);
+              
+              // Parse and display WebView console messages
+              try {
+                const message = JSON.parse(data);
+                if (message.type === 'console') {
+                  console.log('🌐 WebView Console:', message.level, message.message);
+                } else if (message.type === 'debug') {
+                  console.log('🌐 WebView Debug:', message.message);
+                } else if (message.type === 'error') {
+                  console.error('🌐 WebView Error:', message.message);
+                }
+              } catch (e) {
+                console.log('🌐 WebView Raw Message:', data);
+              }
             }}
             onLoadProgress={(syntheticEvent) => {
               console.log('🔍 DEBUG: WebView load progress:', syntheticEvent.nativeEvent.progress);
