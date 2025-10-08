@@ -12,7 +12,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
@@ -29,7 +29,7 @@ export default function TrackingScreen({ navigation, route }) {
   });
   const [userLocation, setUserLocation] = useState(null);
   const [pickupAddress, setPickupAddress] = useState(null);
-  const [mapHtml, setMapHtml] = useState('');
+  const [locationError, setLocationError] = useState(null);
   
   // Modal animation
   const [modalHeight, setModalHeight] = useState(MODAL_MIN_HEIGHT);
@@ -106,102 +106,93 @@ export default function TrackingScreen({ navigation, route }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Location permission denied');
+        setLocationError('Location permission denied');
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      // Get current location with high accuracy
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
       });
+      
+      setLocationError(null);
     } catch (error) {
       console.error('Error getting location:', error);
+      setLocationError('Unable to get current location');
     }
   };
+
+  // Set up real-time location tracking
+  useEffect(() => {
+    let locationSubscription;
+    
+    const startLocationTracking = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError('Location permission denied');
+          return;
+        }
+
+        // Get initial location
+        await getCurrentLocation();
+
+        // Start watching position for real-time updates
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000, // Update every 5 seconds
+            distanceInterval: 10, // Update when moved 10 meters
+          },
+          (location) => {
+            setUserLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            });
+            setLocationError(null);
+          }
+        );
+      } catch (error) {
+        console.error('Error setting up location tracking:', error);
+        setLocationError('Location tracking failed');
+      }
+    };
+
+    startLocationTracking();
+
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+  }, []);
 
   // Calculate pricing
   const deliveryFee = productDetails.price * 0.0893; // 8.93%
   const totalPrice = productDetails.price + deliveryFee;
 
-  // Generate HTML for map placeholder (Google Maps temporarily disabled)
-  const generateMapHtml = () => {
-    const userLat = userLocation?.latitude || 37.78825;
-    const userLng = userLocation?.longitude || -122.4324;
-    const pickupLat = pickupAddress?.latitude || userLat;
-    const pickupLng = pickupAddress?.longitude || userLng;
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            body, html { 
-              margin: 0; 
-              padding: 0; 
-              height: 100%; 
-              background-color: #f5f5f5;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            }
-            .map-placeholder {
-              text-align: center;
-              color: #666;
-              padding: 20px;
-            }
-            .map-icon {
-              font-size: 48px;
-              margin-bottom: 16px;
-            }
-            .map-title {
-              font-size: 18px;
-              font-weight: 600;
-              margin-bottom: 8px;
-              color: #333;
-            }
-            .map-subtitle {
-              font-size: 14px;
-              color: #666;
-              line-height: 1.4;
-            }
-            .coordinates {
-              margin-top: 16px;
-              font-size: 12px;
-              color: #999;
-              background: #f0f0f0;
-              padding: 8px 12px;
-              border-radius: 6px;
-              display: inline-block;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="map-placeholder">
-            <div class="map-icon">🗺️</div>
-            <div class="map-title">Map Loading</div>
-            <div class="map-subtitle">
-              Tracking delivery location<br>
-              Your location and pickup point
-            </div>
-            <div class="coordinates">
-              📍 Your Location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}<br>
-              📦 Pickup: ${pickupLat.toFixed(4)}, ${pickupLng.toFixed(4)}
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
+  // Get initial map region
+  const getInitialRegion = () => {
+    if (userLocation) {
+      return userLocation;
+    }
+    return {
+      latitude: 37.78825,
+      longitude: -122.4324,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
   };
 
-  // Update map HTML when locations change
-  useEffect(() => {
-    if (userLocation) {
-      setMapHtml(generateMapHtml());
-    }
-  }, [userLocation, pickupAddress]);
 
   // Pan responder for modal
   const panResponder = useRef(
@@ -289,20 +280,60 @@ export default function TrackingScreen({ navigation, route }) {
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        {mapHtml ? (
-          <WebView
+        {userLocation ? (
+          <MapView
+            provider={PROVIDER_GOOGLE}
             style={styles.map}
-            source={{ html: mapHtml }}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            startInLoadingState={true}
-            scalesPageToFit={true}
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-          />
+            initialRegion={getInitialRegion()}
+            region={userLocation}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+            showsCompass={true}
+            showsScale={true}
+            showsTraffic={false}
+            showsIndoors={false}
+            mapType="standard"
+            userLocationAnnotationTitle="Your Location"
+          >
+            {/* User location marker */}
+            <Marker
+              coordinate={{
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+              }}
+              title="Your Location"
+              description="Current position"
+              pinColor="#FFE8FD"
+            >
+              <View style={styles.userMarker}>
+                <View style={styles.userMarkerInner} />
+              </View>
+            </Marker>
+
+            {/* Pickup location marker */}
+            {pickupAddress && pickupAddress.latitude && pickupAddress.longitude && 
+             (pickupAddress.latitude !== userLocation.latitude || pickupAddress.longitude !== userLocation.longitude) && (
+              <Marker
+                coordinate={{
+                  latitude: pickupAddress.latitude,
+                  longitude: pickupAddress.longitude,
+                }}
+                title="Pickup Location"
+                description={pickupAddress.address || "Pickup point"}
+                pinColor="red"
+              />
+            )}
+          </MapView>
+        ) : locationError ? (
+          <View style={[styles.map, styles.errorContainer]}>
+            <Text style={styles.errorText}>{locationError}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={getCurrentLocation}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <View style={[styles.map, styles.loadingContainer]}>
-            <Text style={styles.loadingText}>Loading map...</Text>
+            <Text style={styles.loadingText}>Getting your location...</Text>
           </View>
         )}
       </View>
@@ -433,6 +464,53 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#666',
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  userMarker: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFE8FD',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userMarkerInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF69B4',
   },
   modal: {
     position: 'absolute',
