@@ -253,7 +253,7 @@ export default function TrackingScreen({ navigation, route }) {
             
             function initMap() {
               try {
-                console.log('Initializing Google Maps...');
+                console.log('Initializing Google Maps with Directions...');
                 
                 if (!window.google || !window.google.maps) {
                   showError('Google Maps API not loaded');
@@ -261,54 +261,144 @@ export default function TrackingScreen({ navigation, route }) {
                 }
                 
                 const userLocation = { lat: ${userLat}, lng: ${userLng} };
+                const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
                 
                 map = new google.maps.Map(document.getElementById("map"), {
-                  zoom: 15,
+                  zoom: 13,
                   center: userLocation,
                   mapTypeId: 'roadmap',
                   mapTypeControl: true,
                   streetViewControl: true,
                   fullscreenControl: true,
                   zoomControl: true,
-                  gestureHandling: 'greedy'
+                  gestureHandling: 'greedy',
+                  styles: [
+                    {
+                      "featureType": "poi",
+                      "stylers": [{ "visibility": "on" }]
+                    },
+                    {
+                      "featureType": "transit",
+                      "stylers": [{ "visibility": "on" }]
+                    }
+                  ]
                 });
                 
-                // User location marker
+                // User location marker (Delivery Person)
                 userMarker = new google.maps.Marker({
                   position: userLocation,
                   map: map,
-                  title: "Your Location",
+                  title: "Your Location (Driver)",
                   icon: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
+                    scale: 15,
                     fillColor: '#FFE8FD',
                     fillOpacity: 1,
                     strokeColor: '#FFFFFF',
                     strokeWeight: 4
+                  },
+                  label: {
+                    text: '🚗',
+                    fontSize: '20px'
                   }
                 });
                 
-                // Pickup location marker if different
-                const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
+                // Pickup location marker (Customer)
                 if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
                   pickupMarker = new google.maps.Marker({
                     position: pickupLocation,
                     map: map,
-                    title: "Pickup Location",
+                    title: "Pickup Location (Customer)",
                     icon: {
                       path: google.maps.SymbolPath.CIRCLE,
-                      scale: 10,
+                      scale: 12,
                       fillColor: '#FF4444',
                       fillOpacity: 1,
                       strokeColor: '#FFFFFF',
                       strokeWeight: 3
+                    },
+                    label: {
+                      text: '📍',
+                      fontSize: '18px'
                     }
                   });
+                  
+                  // Draw delivery route using Directions API
+                  const directionsService = new google.maps.DirectionsService();
+                  const directionsRenderer = new google.maps.DirectionsRenderer({
+                    suppressMarkers: true, // We'll use our custom markers
+                    polylineOptions: {
+                      strokeColor: '#007AFF',
+                      strokeWeight: 5,
+                      strokeOpacity: 0.8
+                    },
+                    directionsText: true
+                  });
+                  
+                  directionsRenderer.setMap(map);
+                  
+                  // Calculate route
+                  directionsService.route({
+                    origin: userLocation,
+                    destination: pickupLocation,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    avoidHighways: false,
+                    avoidTolls: false
+                  }, (result, status) => {
+                    if (status === 'OK') {
+                      directionsRenderer.setDirections(result);
+                      
+                      // Display route information
+                      const route = result.routes[0];
+                      const leg = route.legs[0];
+                      
+                      console.log('Route calculated:');
+                      console.log('Distance:', leg.distance.text);
+                      console.log('Duration:', leg.duration.text);
+                      
+                      // Update UI with route info (you can customize this)
+                      const routeInfo = document.createElement('div');
+                      routeInfo.innerHTML = \`
+                        <div style="
+                          position: absolute;
+                          top: 10px;
+                          left: 10px;
+                          background: rgba(255,255,255,0.9);
+                          padding: 10px;
+                          border-radius: 8px;
+                          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                          font-size: 14px;
+                          z-index: 1000;
+                        ">
+                          <div style="font-weight: bold; margin-bottom: 5px;">🚗 Delivery Route</div>
+                          <div>📏 Distance: \${leg.distance.text}</div>
+                          <div>⏱️ Time: \${leg.duration.text}</div>
+                        </div>
+                      \`;
+                      document.body.appendChild(routeInfo);
+                      
+                    } else {
+                      console.error('Directions request failed:', status);
+                      showError('Could not calculate route: ' + status);
+                    }
+                  });
+                  
+                  // Fit map to show both locations
+                  const bounds = new google.maps.LatLngBounds();
+                  bounds.extend(userLocation);
+                  bounds.extend(pickupLocation);
+                  map.fitBounds(bounds);
+                  
+                } else {
+                  // If same location, just center on user
+                  map.setCenter(userLocation);
+                  map.setZoom(15);
                 }
                 
                 // Hide loading
                 loadingElement.style.display = 'none';
-                console.log('Google Maps initialized successfully');
+                console.log('Google Maps with Directions initialized successfully');
                 
               } catch (error) {
                 console.error('Error initializing map:', error);
@@ -326,7 +416,7 @@ export default function TrackingScreen({ navigation, route }) {
           <script 
             async 
             defer 
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap&v=3.52"
+            src="https://maps.googleapis.com/maps/api/js?key=YOUR_NEW_API_KEY_HERE&callback=initMap&libraries=geometry,places&v=3.52"
             onerror="window.gm_authFailure()"
           ></script>
         </body>
