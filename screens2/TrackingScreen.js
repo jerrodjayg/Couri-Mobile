@@ -209,143 +209,126 @@ export default function TrackingScreen({ navigation, route }) {
               top: 50%;
               left: 50%;
               transform: translate(-50%, -50%);
-              background: rgba(255,255,255,0.9);
+              background: rgba(255,255,255,0.95);
               padding: 20px;
               border-radius: 10px;
               text-align: center;
               z-index: 1000;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .error {
+              color: #ff4444;
+              font-weight: bold;
+            }
+            .coordinates {
+              font-size: 12px;
+              color: #666;
+              margin-top: 10px;
             }
           </style>
         </head>
         <body>
           <div id="map"></div>
-          <div class="loading" id="loading">Loading map...</div>
+          <div class="loading" id="loading">
+            <div>🗺️ Loading Google Maps...</div>
+            <div class="coordinates">
+              📍 Your Location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}
+            </div>
+          </div>
           <script>
             let map;
             let userMarker;
             let pickupMarker;
+            let loadingElement = document.getElementById('loading');
+            
+            // Error handling
+            window.gm_authFailure = function() {
+              loadingElement.innerHTML = '<div class="error">❌ Google Maps API Error</div><div>Please check your internet connection</div>';
+              console.error('Google Maps API authentication failed');
+            };
+            
+            function showError(message) {
+              loadingElement.innerHTML = '<div class="error">❌ ' + message + '</div>';
+            }
             
             function initMap() {
-              const userLocation = { lat: ${userLat}, lng: ${userLng} };
-              
-              map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 15,
-                center: userLocation,
-                mapTypeId: 'roadmap',
-                styles: [
-                  {
-                    "featureType": "poi",
-                    "stylers": [{ "visibility": "on" }]
-                  },
-                  {
-                    "featureType": "transit",
-                    "stylers": [{ "visibility": "on" }]
-                  }
-                ],
-                mapTypeControl: true,
-                streetViewControl: true,
-                fullscreenControl: true,
-                zoomControl: true
-              });
-              
-              // User location marker with custom styling
-              userMarker = new google.maps.Marker({
-                position: userLocation,
-                map: map,
-                title: "Your Location",
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 12,
-                  fillColor: '#FFE8FD',
-                  fillOpacity: 1,
-                  strokeColor: '#FFFFFF',
-                  strokeWeight: 4
-                },
-                animation: google.maps.Animation.DROP
-              });
-              
-              // Pickup location marker
-              const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
-              if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
-                pickupMarker = new google.maps.Marker({
-                  position: pickupLocation,
+              try {
+                console.log('Initializing Google Maps...');
+                
+                if (!window.google || !window.google.maps) {
+                  showError('Google Maps API not loaded');
+                  return;
+                }
+                
+                const userLocation = { lat: ${userLat}, lng: ${userLng} };
+                
+                map = new google.maps.Map(document.getElementById("map"), {
+                  zoom: 15,
+                  center: userLocation,
+                  mapTypeId: 'roadmap',
+                  mapTypeControl: true,
+                  streetViewControl: true,
+                  fullscreenControl: true,
+                  zoomControl: true,
+                  gestureHandling: 'greedy'
+                });
+                
+                // User location marker
+                userMarker = new google.maps.Marker({
+                  position: userLocation,
                   map: map,
-                  title: "Pickup Location",
+                  title: "Your Location",
                   icon: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 10,
-                    fillColor: '#FF4444',
+                    scale: 12,
+                    fillColor: '#FFE8FD',
                     fillOpacity: 1,
                     strokeColor: '#FFFFFF',
-                    strokeWeight: 3
-                  },
-                  animation: google.maps.Animation.DROP
-                });
-                
-                // Draw route between user and pickup
-                const directionsService = new google.maps.DirectionsService();
-                const directionsRenderer = new google.maps.DirectionsRenderer({
-                  suppressMarkers: true,
-                  polylineOptions: {
-                    strokeColor: '#007AFF',
-                    strokeWeight: 4,
-                    strokeOpacity: 0.8
+                    strokeWeight: 4
                   }
                 });
                 
-                directionsRenderer.setMap(map);
-                
-                directionsService.route({
-                  origin: userLocation,
-                  destination: pickupLocation,
-                  travelMode: google.maps.TravelMode.DRIVING
-                }, (result, status) => {
-                  if (status === 'OK') {
-                    directionsRenderer.setDirections(result);
-                  }
-                });
-              }
-              
-              // Hide loading
-              document.getElementById('loading').style.display = 'none';
-              
-              // Enable real-time updates
-              if (navigator.geolocation) {
-                const watchId = navigator.geolocation.watchPosition(
-                  (position) => {
-                    const newPos = {
-                      lat: position.coords.latitude,
-                      lng: position.coords.longitude
-                    };
-                    
-                    // Update user marker position
-                    if (userMarker) {
-                      userMarker.setPosition(newPos);
+                // Pickup location marker if different
+                const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
+                if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
+                  pickupMarker = new google.maps.Marker({
+                    position: pickupLocation,
+                    map: map,
+                    title: "Pickup Location",
+                    icon: {
+                      path: google.maps.SymbolPath.CIRCLE,
+                      scale: 10,
+                      fillColor: '#FF4444',
+                      fillOpacity: 1,
+                      strokeColor: '#FFFFFF',
+                      strokeWeight: 3
                     }
-                    
-                    // Update map center to follow user
-                    map.setCenter(newPos);
-                    
-                    console.log('Location updated:', newPos);
-                  },
-                  (error) => {
-                    console.log('Geolocation error:', error);
-                  },
-                  {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 1000
-                  }
-                );
+                  });
+                }
+                
+                // Hide loading
+                loadingElement.style.display = 'none';
+                console.log('Google Maps initialized successfully');
+                
+              } catch (error) {
+                console.error('Error initializing map:', error);
+                showError('Failed to initialize map: ' + error.message);
               }
             }
             
-            // Handle map errors
-            function gm_authFailure() {
-              document.getElementById('loading').innerHTML = 'Map failed to load. Please check your internet connection.';
-            }
+            // Fallback if Google Maps fails to load
+            setTimeout(function() {
+              if (!window.google || !window.google.maps) {
+                showError('Google Maps failed to load. Check your internet connection.');
+              }
+            }, 10000);
           </script>
-          <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap&libraries=geometry,places"></script>
+          <script 
+            async 
+            defer 
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap&v=3.52"
+            onerror="window.gm_authFailure()"
+          ></script>
         </body>
       </html>
     `;
@@ -455,13 +438,22 @@ export default function TrackingScreen({ navigation, route }) {
             scalesPageToFit={true}
             allowsInlineMediaPlayback={true}
             mediaPlaybackRequiresUserAction={false}
+            mixedContentMode="compatibility"
             onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
               console.warn('WebView error: ', nativeEvent);
+              setLocationError('WebView failed to load: ' + nativeEvent.description);
             }}
             onHttpError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
               console.warn('WebView HTTP error: ', nativeEvent);
+              setLocationError('HTTP error: ' + nativeEvent.statusCode);
+            }}
+            onLoadEnd={() => {
+              console.log('WebView loaded successfully');
+            }}
+            onMessage={(event) => {
+              console.log('WebView message:', event.nativeEvent.data);
             }}
           />
         ) : locationError ? (
