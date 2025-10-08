@@ -170,14 +170,38 @@ export default function CreateAccountScreen({ navigation }) {
  const handlePhoneChange = (text) => setPhone(formatPhoneNumber(text));
 
   const handleContinue = async () => {
+ console.log('🔍 CreateAccountScreen DEBUG - Continue button clicked');
+ console.log('🔍 CreateAccountScreen DEBUG - Phone number entered:', phone);
+ console.log('🔍 CreateAccountScreen DEBUG - Phone length:', phone?.length || 0);
+ console.log('🔍 CreateAccountScreen DEBUG - Phone trimmed length:', phone?.trim()?.length || 0);
+ 
  if (!phone || phone.trim().length === 0) {
+ console.log('❌ CreateAccountScreen DEBUG - Validation failed: No phone number entered');
  Alert.alert('Error', 'Please enter your mobile number');
  return;
  }
  if (phone.length < 10) {
+ console.log('❌ CreateAccountScreen DEBUG - Validation failed: Phone number too short');
  Alert.alert('Error', 'Please enter a valid phone number');
  return;
  }
+ 
+ console.log('✅ CreateAccountScreen DEBUG - Validation passed, navigating to PersonalInfoScreen');
+ console.log('🔍 CreateAccountScreen DEBUG - Navigation parameters:', { 
+ phone: phone,
+ userInfo: {
+ firstName: '',
+ lastName: '',
+ email: '',
+ phone: phone,
+ fullAddress: '',
+ address1: '',
+ address2: '',
+ city: '',
+ state: '',
+ zip: ''
+ }
+ });
  
  // Navigate to PersonalInfoScreen with the phone number
  navigation.navigate('PersonalInfo', { 
@@ -187,6 +211,7 @@ export default function CreateAccountScreen({ navigation }) {
  lastName: '',
  email: '',
  phone: phone,
+ fullAddress: '',
  address1: '',
  address2: '',
  city: '',
@@ -241,8 +266,8 @@ const handleGoogleSignIn = async () => {
         try {
           await UserService.saveGoogleAuthUser(userData, {
             email: userData.email,
-            firstName: userData.user_metadata?.first_name || userData.user_metadata?.name?.split(' ')[0] || '',
-            lastName: userData.user_metadata?.last_name || userData.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+            firstName: userData.user_metadata?.first_name || (userData.user_metadata?.name?.split(' ') || [])[0] || '',
+            lastName: userData.user_metadata?.last_name || (userData.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '',
           }); 
           console.log('✅ User data saved to database successfully');
         } catch (dbError) {
@@ -254,8 +279,8 @@ const handleGoogleSignIn = async () => {
         navigation.replace('PersonalInfo', {
           phone: '',
           userInfo: {
-            firstName: userData.user_metadata?.full_name?.split(' ')[0] || userData.user_metadata?.name?.split(' ')[0] || '',
-            lastName: userData.user_metadata?.full_name?.split(' ').slice(1).join(' ') || userData.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+            firstName: (userData.user_metadata?.full_name?.split(' ') || [])[0] || (userData.user_metadata?.name?.split(' ') || [])[0] || '',
+            lastName: (userData.user_metadata?.full_name?.split(' ') || []).slice(1).join(' ') || (userData.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '',
             email: userData.email || '',
             phone: '',
             address1: '',
@@ -273,6 +298,10 @@ const handleGoogleSignIn = async () => {
       
       // If no user data in result, try to get from Supabase session
       console.log('🔄 No user data in result, checking Supabase session...');
+      
+      // Wait a bit longer for session to be established
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -282,8 +311,8 @@ const handleGoogleSignIn = async () => {
           try {
             await UserService.saveGoogleAuthUser(session.user, {
               email: session.user.email,
-              firstName: session.user.user_metadata?.first_name || session.user.user_metadata?.name?.split(' ')[0] || '',
-              lastName: session.user.user_metadata?.last_name || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+              firstName: session.user.user_metadata?.first_name || (session.user.user_metadata?.name?.split(' ') || [])[0] || '',
+              lastName: session.user.user_metadata?.last_name || (session.user.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '',
             });
             console.log('✅ User data saved to database successfully');
           } catch (dbError) {
@@ -295,10 +324,11 @@ const handleGoogleSignIn = async () => {
           navigation.replace('PersonalInfo', {
             phone: '',
             userInfo: {
-              firstName: session.user.user_metadata?.full_name?.split(' ')[0] || session.user.user_metadata?.name?.split(' ')[0] || '',
-              lastName: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+              firstName: (session.user.user_metadata?.full_name?.split(' ') || [])[0] || (session.user.user_metadata?.name?.split(' ') || [])[0] || '',
+              lastName: (session.user.user_metadata?.full_name?.split(' ') || []).slice(1).join(' ') || (session.user.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '',
               email: session.user.email || '',
               phone: '',
+              fullAddress: '',
               address1: '',
               address2: '',
               city: '',
@@ -310,12 +340,22 @@ const handleGoogleSignIn = async () => {
             isGoogleSignUp: true
           });
           return;
+        } else {
+          console.log('❌ No session found in Supabase');
         }
       } catch (sessionError) {
         console.error('❌ Error checking Supabase session:', sessionError);
       }
       
       // If we get here, we couldn't find any user data
+      // Check if this is a case where we need to let LogInScreen handle it
+      if (result.needsSessionCheck) {
+        console.log('🔄 Result indicates session check needed, navigating to LogInScreen for handling');
+        // Navigate to LogInScreen which has better session handling
+        navigation.replace('LogIn');
+        return;
+      }
+      
       console.log('❌ No user data found in any location');
       Alert.alert('Error', 'Google sign-in completed but no user data was found. Please try again.');
       
@@ -361,8 +401,8 @@ const handleGoogleSignIn = async () => {
  // ✅ Navigate to PersonalInfoScreen (first screen in the sequence) for Facebook auth users too
  navigation.replace('PersonalInfo', { 
  userInfo: {
- firstName: fullName?.split(' ')[0] || '',
- lastName: fullName?.split(' ').slice(1).join(' ') || '',
+ firstName: (fullName?.split(' ') || [])[0] || '',
+ lastName: (fullName?.split(' ') || []).slice(1).join(' ') || '',
  email: session.user.email || '',
  phone: '', // Will be filled in PersonalInfoScreen
  address1: '',
@@ -441,8 +481,8 @@ const handleGoogleSignIn = async () => {
        console.log('✅ Navigating to PersonalInfoScreen...');
        navigation.replace('PersonalInfo', { 
          userInfo: {
-           firstName: fullName?.split(' ')[0] || '',
-           lastName: fullName?.split(' ').slice(1).join(' ') || '',
+           firstName: (fullName?.split(' ') || [])[0] || '',
+           lastName: (fullName?.split(' ') || []).slice(1).join(' ') || '',
            email: session.user.email || '',
            phone: '', // Will be filled in PersonalInfoScreen
            address1: '',

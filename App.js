@@ -16,7 +16,7 @@ import Welcomepage from './screens/Welcomepage';
 import CodeVerify from './screens/CodeVerify';
 import AccountSetupScreen from './screens/AccountSetupScreen';
 import MyAccountScreen from './screens/MyAccountScreen';
-import LoginSecurityScreen from './Couri-Mobile/screens/LoginSecurityScreen';
+import LoginSecurityScreen from './screens/LoginSecurityScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import PersonalInfoScreen from './screens/PersonalInfoScreen';
 import PushNotiScreen from './screens/PushNotiScreen';
@@ -33,6 +33,9 @@ import URL from './screens2/URL';
 import ProductPrice from './screens2/ProductPrice';
 import ConfirmAddress from './screens2/ConfirmAddress';
 import PickupAddress from './screens2/PickupAddress';
+import TrackingScreen from './screens2/TrackingScreen';
+import ConfirmAvailability from './screens2/ConfirmAvailability';
+import DelayArrival from './screens2/delayArrival';
 import Payment from './screens2/Payment';
 import PlaidConnect from './screens2/PlaidConnect';
 import Share from './screens2/Share';
@@ -175,6 +178,9 @@ export default function App() {
         <Stack.Screen name="ProductDetails" component={ProductDetails} />
         <Stack.Screen name="ProductPrice" component={ProductPrice} />
         <Stack.Screen name="PickupAddress" component={PickupAddress} />
+        <Stack.Screen name="TrackingScreen" component={TrackingScreen} />
+        <Stack.Screen name="ConfirmAvailability" component={ConfirmAvailability} />
+        <Stack.Screen name="delayArrival" component={DelayArrival} />
         <Stack.Screen name="ConfirmAddress" component={ConfirmAddress} />
         <Stack.Screen name="Payment" component={Payment} />
         <Stack.Screen name="PlaidConnect" component={PlaidConnect} />

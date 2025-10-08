@@ -22,6 +22,7 @@ export default function AccountSetupScreen({ navigation, route }) {
     lastName: '',
     email: '',
     mobileNumber: '',
+    fullAddress: '',
     addressLine1: '',
     addressLine2: '',
     city: '',
@@ -42,6 +43,7 @@ export default function AccountSetupScreen({ navigation, route }) {
     }
   };
 
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -49,10 +51,7 @@ export default function AccountSetupScreen({ navigation, route }) {
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.mobileNumber.trim()) newErrors.mobileNumber = 'Mobile number is required';
-    if (!formData.addressLine1.trim()) newErrors.addressLine1 = 'Address is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.state.trim()) newErrors.state = 'State is required';
-    if (!formData.zip.trim()) newErrors.zip = 'Zip code is required';
+    if (!formData.fullAddress.trim()) newErrors.fullAddress = 'Address is required';
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,6 +80,7 @@ export default function AccountSetupScreen({ navigation, route }) {
           first_name: formData.firstName,
           last_name: formData.lastName,
           phone: formData.mobileNumber,
+          full_address: formData.fullAddress,
           address_line_1: formData.addressLine1,
           address_line_2: formData.addressLine2,
           city: formData.city,
@@ -102,6 +102,7 @@ export default function AccountSetupScreen({ navigation, route }) {
           lastName: formData.lastName,
           email: formData.email,
           phone: formData.mobileNumber,
+          fullAddress: formData.fullAddress,
           address1: formData.addressLine1,
           address2: formData.addressLine2,
           city: formData.city,
@@ -180,19 +181,35 @@ export default function AccountSetupScreen({ navigation, route }) {
                 Only assigned Couri Drivers will see your address.
               </Text>
               
-              {renderInputField('addressLine1', 'Address Line 1')}
-              {renderInputField('addressLine2', 'Address Line 2', 'default', false)}
-              {renderInputField('city', 'City')}
-              
-              {/* State and Zip in same row */}
-              <View style={styles.rowContainer}>
-                <View style={[styles.halfWidth, styles.rightMargin]}>
-                  {renderInputField('state', 'State')}
-                </View>
-                <View style={styles.halfWidth}>
-                  {renderInputField('zip', 'Zip')}
-                </View>
+              {/* Address Input */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Address*</Text>
+                <TextInput
+                  style={[styles.input, errors.fullAddress && styles.inputError]}
+                  placeholder="Enter your address"
+                  placeholderTextColor="#000"
+                  value={formData.fullAddress}
+                  onChangeText={(text) => updateFormData('fullAddress', text)}
+                />
+                {errors.fullAddress && (
+                  <Text style={styles.errorText}>{errors.fullAddress}</Text>
+                )}
               </View>
+
+              {/* Display parsed address components as read-only */}
+              {formData.addressLine1 && (
+                <View style={styles.parsedAddressContainer}>
+                  <Text style={styles.parsedAddressLabel}>Parsed Address:</Text>
+                  <Text style={styles.parsedAddressText}>
+                    {formData.addressLine1}
+                    {formData.city && `, ${formData.city}`}
+                    {formData.state && `, ${formData.state}`}
+                    {formData.zip && ` ${formData.zip}`}
+                  </Text>
+                </View>
+              )}
+
+              {renderInputField('addressLine2', 'Address Line 2 (Optional)', 'default', false)}
             </View>
 
             {/* Terms and Privacy */}

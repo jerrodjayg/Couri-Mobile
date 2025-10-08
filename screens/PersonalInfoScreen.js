@@ -22,49 +22,77 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function PersonalInfoScreen({ navigation, route }) {
+  console.log('🔍 PersonalInfoScreen DEBUG - Component mounting');
+  console.log('🔍 PersonalInfoScreen DEBUG - Route params:', route?.params);
+  console.log('🔍 PersonalInfoScreen DEBUG - Supabase client:', typeof supabase);
+  console.log('🔍 PersonalInfoScreen DEBUG - Supabase client methods:', Object.keys(supabase || {}));
+  
   const [selectedPlace, setSelectedPlace] = useState(null);
+  console.log('🔍 PersonalInfoScreen DEBUG - selectedPlace state initialized');
+  
   const { userInfo, phone } = route.params || {};
+  console.log('🔍 PersonalInfoScreen DEBUG - Destructuring completed');
+  
+  console.log('🔍 PersonalInfoScreen DEBUG - User info from params:', userInfo);
+  console.log('🔍 PersonalInfoScreen DEBUG - Phone from params:', phone);
 
-  // Test Supabase connection on component mount
+  // Test Supabase connection on component mount - TEMPORARILY DISABLED FOR DEBUGGING
   useEffect(() => {
-    const testConnection = async () => {
+    console.log('🔍 PersonalInfoScreen DEBUG - First useEffect starting (Supabase test disabled)');
+    // Temporarily disabled Supabase connection test to isolate the filter error
+    /*
+    try {
+      console.log('🔍 PersonalInfoScreen DEBUG - First useEffect starting');
+      const testConnection = async () => {
       try {
+        console.log('🔍 PersonalInfoScreen DEBUG - Inside testConnection function');
         console.log('Testing Supabase connection...');
         console.log('Supabase URL:', supabase.supabaseUrl);
         
         // First test basic connection
+        console.log('🔍 PersonalInfoScreen DEBUG - About to make Supabase query');
         const { data: testData, error: testError } = await supabase
           .from('users')
           .select('*')
           .limit(1);
+        console.log('🔍 PersonalInfoScreen DEBUG - Supabase query completed');
         
         if (testError) {
-          console.error('Supabase connection test failed:', testError);
+          console.error('🔍 PersonalInfoScreen DEBUG - Supabase connection test failed:', testError);
           console.error('Error code:', testError.code);
           console.error('Error message:', testError.message);
         } else {
-          console.log('Supabase connection test successful');
+          console.log('🔍 PersonalInfoScreen DEBUG - Supabase connection test successful');
           console.log('Test data:', testData);
         }
       } catch (err) {
-        console.error('Supabase connection test error:', err);
+        console.error('🔍 PersonalInfoScreen DEBUG - Supabase connection test error:', err);
       }
     };
     
-    testConnection();
+      console.log('🔍 PersonalInfoScreen DEBUG - About to call testConnection');
+      testConnection();
+      console.log('🔍 PersonalInfoScreen DEBUG - testConnection called');
+    } catch (error) {
+      console.error('🔍 PersonalInfoScreen DEBUG - Error in first useEffect:', error);
+    }
+    */
   }, []);
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to initialize form state');
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: phone || '',
+    fullAddress: '',
     address1: '',
     address2: '',
     city: '',
     state: '',
     zip: '',
   });
+  console.log('🔍 PersonalInfoScreen DEBUG - Form state initialized');
 
   // Phone number formatting function (same as LogInScreen and CreateAccountScreen)
   const formatPhoneNumber = (text) => {
@@ -77,47 +105,58 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
   // Populate form with userInfo from route params if it exists
   useEffect(() => {
-    console.log('🔍 PersonalInfoScreen DEBUG - Component mounted');
-    console.log('🔍 PersonalInfoScreen DEBUG - Route params:', route?.params);
-    console.log('🔍 PersonalInfoScreen DEBUG - User info from params:', userInfo);
-    console.log('🔍 PersonalInfoScreen DEBUG - Phone from params:', phone);
-    
-    if (userInfo) {
-      console.log('🔍 PersonalInfoScreen DEBUG - Setting form with user info');
-      setForm({
-        firstName: userInfo.firstName || '',
-        lastName: userInfo.lastName || '',
-        email: userInfo.email || '',
-        phone: userInfo.phone || phone || '',
-        address1: userInfo.address1 || '',
-        address2: userInfo.address2 || '',
-        city: userInfo.city || '',
-        state: userInfo.state || '',
-        zip: userInfo.zip || '',
-      });
+    try {
+      console.log('🔍 PersonalInfoScreen DEBUG - Component mounted');
+      console.log('🔍 PersonalInfoScreen DEBUG - Route params:', route?.params);
+      console.log('🔍 PersonalInfoScreen DEBUG - User info from params:', userInfo);
+      console.log('🔍 PersonalInfoScreen DEBUG - Phone from params:', phone);
+      
+      if (userInfo) {
+        console.log('🔍 PersonalInfoScreen DEBUG - Setting form with user info');
+        console.log('🔍 PersonalInfoScreen DEBUG - userInfo keys:', Object.keys(userInfo || {}));
+        setForm({
+          firstName: userInfo.firstName || '',
+          lastName: userInfo.lastName || '',
+          email: userInfo.email || '',
+          phone: userInfo.phone || phone || '',
+          fullAddress: userInfo.fullAddress || '',
+          address1: userInfo.address1 || '',
+          address2: userInfo.address2 || '',
+          city: userInfo.city || '',
+          state: userInfo.state || '',
+          zip: userInfo.zip || '',
+        });
+        console.log('🔍 PersonalInfoScreen DEBUG - Form set successfully');
+      }
+    } catch (error) {
+      console.error('❌ PersonalInfoScreen DEBUG - Error in useEffect:', error);
     }
     
     // If this is a Google auth user, pre-fill some fields and make email read-only
-    if (route.params?.isGoogleAuth && userInfo?.email) {
-      console.log('✅ Google auth user detected, pre-filling form');
-      console.log('🔍 PersonalInfoScreen DEBUG - Google auth user data:', route.params?.googleUserData);
-      
-      // Pre-fill with Google user data if available
-      if (route.params?.googleUserData) {
-        const googleData = route.params.googleUserData;
-        console.log('🔍 PersonalInfoScreen DEBUG - Processing Google user data:', googleData);
+    try {
+      if (route.params?.isGoogleAuth && userInfo?.email) {
+        console.log('✅ Google auth user detected, pre-filling form');
+        console.log('🔍 PersonalInfoScreen DEBUG - Google auth user data:', route.params?.googleUserData);
         
-        // Use the names that were already processed in CreateAccountScreen
-        // Don't re-extract names to avoid duplication
-        setForm(prev => ({
-          ...prev,
-          firstName: userInfo.firstName || '',
-          lastName: userInfo.lastName || '',
-          email: googleData.email || userInfo.email || '',
-        }));
-        
-        console.log('🔍 PersonalInfoScreen DEBUG - Form updated with Google data');
+        // Pre-fill with Google user data if available
+        if (route.params?.googleUserData) {
+          const googleData = route.params.googleUserData;
+          console.log('🔍 PersonalInfoScreen DEBUG - Processing Google user data:', googleData);
+          
+          // Use the names that were already processed in CreateAccountScreen
+          // Don't re-extract names to avoid duplication
+          setForm(prev => ({
+            ...prev,
+            firstName: userInfo.firstName || '',
+            lastName: userInfo.lastName || '',
+            email: googleData.email || userInfo.email || '',
+          }));
+          
+          console.log('🔍 PersonalInfoScreen DEBUG - Form updated with Google data');
+        }
       }
+    } catch (error) {
+      console.error('❌ PersonalInfoScreen DEBUG - Error in Google auth section:', error);
     }
   }, [userInfo, phone, route.params?.isGoogleAuth, route.params?.googleUserData]);
 
@@ -126,95 +165,27 @@ export default function PersonalInfoScreen({ navigation, route }) {
     console.log('🔍 PersonalInfoScreen DEBUG - Current form state:', form);
   }, [form]);
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to initialize error state');
   const [error, setError] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  console.log('🔍 PersonalInfoScreen DEBUG - Error state initialized');
 
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to define handleChange function');
   const handleChange = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
     setError('');
-
-    // Only fetch Smarty suggestions if editing address1
-    if (name === 'address1') {
-      // Clear any existing timeout
-      if (window.suggestionTimeout) {
-        clearTimeout(window.suggestionTimeout);
-      }
-      
-      // Add a small delay to prevent too many API calls
-      window.suggestionTimeout = setTimeout(() => {
-        fetchSuggestions(value);
-      }, 300);
-    }
   };
+  console.log('🔍 PersonalInfoScreen DEBUG - handleChange function defined');
 
-  const fetchSuggestions = async (input) => {
-    if (!input || input.trim().length < 3) {
-      setSuggestions([]);
-      setIsLoadingSuggestions(false);
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-
-    try {
-      const SMARTY_AUTH_ID = 'af0d27eb-c903-f64d-47eb-c8c06d7819e7';
-      const SMARTY_AUTH_TOKEN = '9NOFpSJMo87AMyFoHs3R';
-
-      const encodedInput = encodeURIComponent(input.trim());
-      const url = `https://us-autocomplete.api.smarty.com/lookup?search=${encodedInput}&auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&max_suggestions=10`;
-
-      console.log('Calling:', url);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error('Smarty API error:', response.status, response.statusText, errText);
-        setSuggestions([]);
-        return;
-      }
-
-      const data = await response.json();
-      console.log('Smarty API response:', data);
-
-      if (data && data.suggestions) {
-        setSuggestions(data.suggestions);
-      } else {
-        setSuggestions([]);
-      }
-    } catch (error) {
-      console.error('Smarty API error:', error);
-      setSuggestions([]);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
-
-
-  const handleSuggestionPress = (suggestion) => {
-    setSuggestions([]);
-
-    setForm((prev) => ({
-      ...prev,
-      address1: suggestion.street_line || '',
-      city: suggestion.city || '',
-      state: suggestion.state || '',
-      zip: suggestion.zipcode || '',
-    }));
-  };
 
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to define allRequiredFieldsFilled function');
   const allRequiredFieldsFilled = () => {
-    const required = ['firstName', 'lastName', 'email', 'phone', 'address1', 'city', 'state', 'zip'];
+    console.log('🔍 PersonalInfoScreen DEBUG - Inside allRequiredFieldsFilled function');
+    const required = ['firstName', 'lastName', 'email', 'phone', 'fullAddress', 'city', 'state', 'zip'];
+    console.log('🔍 PersonalInfoScreen DEBUG - Required array created:', required);
     
     console.log('🔍 PersonalInfoScreen DEBUG - Checking required fields:');
     required.forEach(field => {
@@ -228,9 +199,11 @@ export default function PersonalInfoScreen({ navigation, route }) {
     
     return allFilled;
   };
+  console.log('🔍 PersonalInfoScreen DEBUG - allRequiredFieldsFilled function defined');
 
 
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to define onContinue function');
   const onContinue = async () => {
     console.log('🔍 PersonalInfoScreen DEBUG - onContinue called');
     console.log('🔍 PersonalInfoScreen DEBUG - Current form data:', form);
@@ -313,7 +286,9 @@ export default function PersonalInfoScreen({ navigation, route }) {
       googleUserData: route.params?.googleUserData || null
     });
   };
+  console.log('🔍 PersonalInfoScreen DEBUG - onContinue function defined');
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to define renderError function');
   const renderError = () => {
     if (!error) return null;
 
@@ -341,7 +316,9 @@ export default function PersonalInfoScreen({ navigation, route }) {
       </View>
     );
   };
+  console.log('🔍 PersonalInfoScreen DEBUG - renderError function defined');
 
+  console.log('🔍 PersonalInfoScreen DEBUG - About to render component');
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
@@ -397,39 +374,12 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
           <Text style={styles.sectionTitle}>Home Address</Text>
 
-          <TextInput placeholder="Address Line 1*" 
-            value={form.address1} 
-            onChangeText={(text) => handleChange('address1', text)} 
-            style={styles.input} />
-          
-          {isLoadingSuggestions && (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Loading suggestions...</Text>
-            </View>
-          )}
-
-{suggestions.length > 0 && (
-            <View style={styles.suggestionsContainer}>
-              <View style={styles.suggestionsList}>
-                {suggestions.map((item, index) => (
-                  <TouchableOpacity 
-                    key={`${item.street_line}-${item.city}-${item.state}-${index}`}
-                    onPress={() => handleSuggestionPress(item)} 
-                    style={[
-                      styles.suggestionItem,
-                      index === suggestions.length - 1 && styles.suggestionItemLast
-                    ]}
-                  >
-                    <Text style={styles.suggestionText}>
-                      {item.street_line}
-                      {item.city && item.state && `, ${item.city}, ${item.state}`}
-                      {item.zipcode && ` ${item.zipcode}`}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
+          <TextInput 
+            placeholder="Full Address*" 
+            value={form.fullAddress} 
+            onChangeText={(text) => handleChange('fullAddress', text)} 
+            style={styles.input} 
+          />
 
           <TextInput placeholder="Address Line 2 (Optional)" value={form.address2} onChangeText={(text) => handleChange('address2', text)} style={styles.input} />
           <TextInput placeholder="City*" value={form.city} onChangeText={(text) => handleChange('city', text)} style={styles.input} />
@@ -513,21 +463,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#fff',
     overflow: 'hidden',
-  },
-  suggestionsContainer: {
-    marginBottom: 16,
-    position: 'relative',
-    zIndex: 1000,
-  },
-  loadingContainer: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
   },
   readOnlyInput: {
     backgroundColor: '#f5f5f5',

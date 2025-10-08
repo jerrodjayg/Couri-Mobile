@@ -356,15 +356,15 @@ export default function LogInScreen({ navigation }) {
               
               try {
                 console.log('🔍 LogInScreen DEBUG - Creating exchange promise...');
-                // Add timeout to prevent hanging
+                // Add timeout to prevent hanging - increased to 30 seconds
                 const exchangePromise = supabase.auth.exchangeCodeForSession(code);
                 console.log('🔍 LogInScreen DEBUG - Exchange promise created, starting race with timeout...');
                 
                 const timeoutPromise = new Promise((_, reject) => 
                   setTimeout(() => {
-                    console.log('🔍 LogInScreen DEBUG - Timeout reached (10 seconds)');
+                    console.log('🔍 LogInScreen DEBUG - Timeout reached (30 seconds)');
                     reject(new Error('Code exchange timeout'));
-                  }, 10000)
+                  }, 30000)
                 );
                 
                 console.log('🔍 LogInScreen DEBUG - Racing exchange promise with timeout...');
@@ -426,10 +426,10 @@ export default function LogInScreen({ navigation }) {
       // Check if this email already exists in our DB (users table)
       console.log('🔍 LogInScreen DEBUG - Checking if user exists in database...');
       
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging - increased to 15 seconds
       const checkUserPromise = UserService.checkUserExists(email);
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database check timeout')), 10000)
+        setTimeout(() => reject(new Error('Database check timeout')), 15000)
       );
       
       let exists, existingUser;

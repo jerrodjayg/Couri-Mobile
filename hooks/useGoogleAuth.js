@@ -94,10 +94,10 @@ export function useGoogleAuth() {
             // Wait a bit for the session to be established
             await new Promise(resolve => setTimeout(resolve, 2000));
             
-            // Check for session with timeout
+            // Check for session with a more generous timeout
             const sessionPromise = supabase.auth.getSession();
             const sessionTimeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Session check timeout')), 5000)
+              setTimeout(() => reject(new Error('Session check timeout')), 10000)
             );
             
             try {
@@ -113,7 +113,7 @@ export function useGoogleAuth() {
                 return { 
                   type: 'success', 
                   url: redirectUrl,
-                  session: sessionData.session  // FIX: Return sessionData.session directly, not wrapped
+                  session: sessionData.session
                 };
               } else {
                 console.log('❌ Session not established, trying to exchange code manually...');
@@ -146,15 +146,15 @@ export function useGoogleAuth() {
                 console.log('🔑 Attempting manual code exchange with code:', code.substring(0, 10) + '...');
                 console.log('🔍 useGoogleAuth DEBUG - Creating exchange promise...');
                 
-                // Add timeout to prevent hanging - increased to 15 seconds
+                // Add timeout to prevent hanging - increased to 30 seconds
                 const exchangePromise = supabase.auth.exchangeCodeForSession(code);
                 console.log('🔍 useGoogleAuth DEBUG - Exchange promise created');
                 
                 const timeoutPromise = new Promise((_, reject) => 
                   setTimeout(() => {
-                    console.log('🔍 useGoogleAuth DEBUG - Exchange timeout reached (15 seconds)');
+                    console.log('🔍 useGoogleAuth DEBUG - Exchange timeout reached (30 seconds)');
                     reject(new Error('Code exchange timeout'));
-                  }, 15000)
+                  }, 30000)
                 );
                 
                 console.log('🔍 useGoogleAuth DEBUG - Racing exchange promise with timeout...');
@@ -198,10 +198,12 @@ export function useGoogleAuth() {
               // If code exchange fails, still return success with the redirect URL
               // The LogInScreen will handle the session check
               console.log('🔄 Code exchange failed, returning success to let LogInScreen handle session');
+              console.log('🔍 useGoogleAuth DEBUG - Returning success with URL:', redirectUrl);
               return { 
                 type: 'success', 
                 url: redirectUrl,
-                message: 'OAuth completed, session will be established by app'
+                message: 'OAuth completed, session will be established by app',
+                needsSessionCheck: true
               };
             }
           } else {

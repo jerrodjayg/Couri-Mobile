@@ -146,19 +146,19 @@ export class UserService {
       console.log('🔍 saveGoogleAuthUser: Starting with user:', googleUser.email);
       
       // Filter out camelCase fields that don't match database schema
-      const { firstName, lastName, ...filteredAdditionalData } = additionalData;
+      const { firstName, lastName, ...filteredAdditionalData } = additionalData || {};
       
       // Prepare the payload
       const payload = {
         email: googleUser.email || '',
-        first_name: (firstName || additionalData.firstName || googleUser.user_metadata?.first_name || googleUser.user_metadata?.name?.split(' ')[0] || '').toString(),
-        last_name: (lastName || additionalData.lastName || googleUser.user_metadata?.last_name || googleUser.user_metadata?.name?.split(' ').slice(1).join(' ') || '').toString(),
-        phone: (additionalData.phone || googleUser.phone || '').toString(), // Ensure phone is never null
-        address_line_1: (additionalData.address1 || additionalData.address_line_1 || '').toString(), // Ensure address fields are never null
-        address_line_2: (additionalData.address2 || additionalData.address_line_2 || '').toString(), // Ensure address fields are never null
-        city: (additionalData.city || '').toString(), // Ensure city is never null
-        state: (additionalData.state || '').toString(), // Ensure state is never null
-        zip_code: (additionalData.zip || additionalData.zip_code || '').toString(), // Ensure zip is never null
+        first_name: (firstName || (additionalData || {}).firstName || googleUser.user_metadata?.first_name || (googleUser.user_metadata?.name?.split(' ') || [])[0] || '').toString(),
+        last_name: (lastName || (additionalData || {}).lastName || googleUser.user_metadata?.last_name || (googleUser.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '').toString(),
+        phone: ((additionalData || {}).phone || googleUser.phone || '').toString(), // Ensure phone is never null
+        address_line_1: ((additionalData || {}).address1 || (additionalData || {}).address_line_1 || '').toString(), // Ensure address fields are never null
+        address_line_2: ((additionalData || {}).address2 || (additionalData || {}).address_line_2 || '').toString(), // Ensure address fields are never null
+        city: ((additionalData || {}).city || '').toString(), // Ensure city is never null
+        state: ((additionalData || {}).state || '').toString(), // Ensure state is never null
+        zip_code: ((additionalData || {}).zip || (additionalData || {}).zip_code || '').toString(), // Ensure zip is never null
         avatar_url: googleUser.user_metadata?.avatar_url || googleUser.user_metadata?.picture || null, // Use null if no avatar
         auth_user_id: googleUser.id || null, // Use null instead of empty string for UUID field
         created_at: new Date().toISOString(), // Ensure created_at is set for new users

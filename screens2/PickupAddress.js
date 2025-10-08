@@ -13,6 +13,7 @@ import {
   FlatList,
   ActivityIndicator,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -20,6 +21,7 @@ import axios from 'axios';
 
 export default function PickupAddress({ navigation, route }) {
   const [form, setForm] = useState({
+    fullAddress: '',
     address1: '',
     address2: '',
     city: '',
@@ -28,10 +30,7 @@ export default function PickupAddress({ navigation, route }) {
   });
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const { 
     productUrl, 
@@ -42,7 +41,7 @@ export default function PickupAddress({ navigation, route }) {
     userAddress,
     transactionType,
     userProfile
-  } = route.params || {};o
+  } = route.params || {};
 
   // Pre-populate form with user's current address or default pickup address if available
   useEffect(() => {
@@ -81,80 +80,9 @@ export default function PickupAddress({ navigation, route }) {
   }, [userAddress]);
 
   const handleChange = (field, value) => {
-    setForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Trigger address suggestions if editing address1
-    if (field === 'address1') {
-      if (value.length > 2) {
-        fetchSuggestions(value);
-        setShowSuggestions(true);
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
-    }
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  // Address autocomplete using Smarty API
-  const fetchSuggestions = async (input) => {
-    if (!input || input.trim().length < 3) {
-      setSuggestions([]);
-      setIsLoadingSuggestions(false);
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-
-    try {
-      const SMARTY_AUTH_ID = 'af0d27eb-c903-f64d-47eb-c8c06d7819e7';
-      const SMARTY_AUTH_TOKEN = '9NOFpSJMo87AMyFoHs3R';
-
-      const encodedInput = encodeURIComponent(input.trim());
-      const url = `https://us-autocomplete.api.smarty.com/lookup?search=${encodedInput}&auth-id=${SMARTY_AUTH_ID}&auth-token=${SMARTY_AUTH_TOKEN}&max_suggestions=5`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        console.error('Smarty API error:', response.status, response.statusText);
-        setSuggestions([]);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data && data.suggestions) {
-        setSuggestions(data.suggestions);
-      } else {
-        setSuggestions([]);
-      }
-    } catch (error) {
-      console.error('Smarty API error:', error);
-      setSuggestions([]);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
-
-  // Handle suggestion selection
-  const handleSuggestionPress = (suggestion) => {
-    setForm(prev => ({
-      ...prev,
-      address1: suggestion.street_line,
-      city: suggestion.city,
-      state: suggestion.state,
-      zip: suggestion.zipcode,
-    }));
-    setSuggestions([]);
-    setShowSuggestions(false);
-  };
 
   // Get current location and reverse geocode
   const getCurrentLocation = async () => {
@@ -259,8 +187,8 @@ export default function PickupAddress({ navigation, route }) {
   };
 
   const validateForm = () => {
-    if (!form.address1.trim()) {
-      Alert.alert('Error', 'Address Line 1 is required');
+    if (!form.fullAddress.trim()) {
+      Alert.alert('Error', 'Address is required');
       return false;
     }
     if (!form.city.trim()) {
@@ -305,11 +233,14 @@ export default function PickupAddress({ navigation, route }) {
       
       console.log('✅ Pickup address saved:', pickupAddress);
       
-      // Navigate back to ConfirmAddress with the new pickup address
-      navigation.navigate('ConfirmAddress', {
+      // Navigate to TrackingScreen with the pickup address and product details
+      navigation.navigate('TrackingScreen', {
         ...(route.params || {}), // ✅ forward everything (title/image, etc.)
         productUrl,
         productPrice,
+        productTitle,
+        productDescription,
+        productImage,
         userAddress,
         pickupAddress,
         transactionType,
@@ -370,47 +301,16 @@ export default function PickupAddress({ navigation, route }) {
               {isGettingLocation ? 'Getting Location...' : 'Use Current Location'}
             </Text>
           </TouchableOpacity>
-          {/* Address Line 1 */}
+          {/* Address Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Address Line 1</Text>
+            <Text style={styles.inputLabel}>Address*</Text>
             <TextInput
               style={styles.input}
-              value={form.address1}
-              onChangeText={(text) => handleChange('address1', text)}
-              placeholder="Enter address"
+              placeholder="Enter your address"
               placeholderTextColor="#9CA3AF"
+              value={form.fullAddress}
+              onChangeText={(text) => handleChange('fullAddress', text)}
             />
-            
-            {/* Address Suggestions */}
-            {showSuggestions && suggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                {isLoadingSuggestions ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#000" />
-                    <Text style={styles.loadingText}>Finding addresses...</Text>
-                  </View>
-                ) : (
-                  <FlatList
-                    data={suggestions}
-                    keyExtractor={(item, index) => `${item.street_line}-${index}`}
-                    renderItem={({ item }) => (
-                      <TouchableWithoutFeedback onPress={() => handleSuggestionPress(item)}>
-                        <View style={styles.suggestionItem}>
-                          <Text style={styles.suggestionText}>
-                            {item.street_line}
-                          </Text>
-                          <Text style={styles.suggestionSubtext}>
-                            {item.city}, {item.state} {item.zipcode}
-                          </Text>
-                        </View>
-                      </TouchableWithoutFeedback>
-                    )}
-                    style={styles.suggestionsList}
-                    showsVerticalScrollIndicator={false}
-                  />
-                )}
-              </View>
-            )}
           </View>
 
           {/* Address Line 2 (Optional) */}
@@ -632,53 +532,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  // Address suggestions styles
-  suggestionsContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    marginTop: 4,
-    maxHeight: 200,
-    zIndex: 1000,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  suggestionsList: {
-    maxHeight: 200,
-  },
-  suggestionItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  suggestionText: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  suggestionSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#6B7280',
   },
 });

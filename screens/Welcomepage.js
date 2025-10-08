@@ -270,11 +270,26 @@ const CouriModal = ({ visible, onClose, onGetStarted }) => {
 const TransactionReviewCard = ({ transactionData, onViewDetails, onCancel }) => {
   return (
     <View style={transactionCardStyles.container}>
+      {/* Warning message for scheduled deliveries */}
+      {transactionData?.deliveryStatus === 'scheduled' && (
+        <View style={transactionCardStyles.warningContainer}>
+          <Text style={transactionCardStyles.warningIcon}>⚠️</Text>
+          <Text style={transactionCardStyles.warningText}>
+            You must be home to meet your Couri driver
+          </Text>
+        </View>
+      )}
+
       <View style={transactionCardStyles.content}>
         <View style={transactionCardStyles.details}>
           <Text style={transactionCardStyles.productTitle}>
             "{transactionData?.productTitle || 'Product'}"
           </Text>
+          {transactionData?.productDescription && (
+            <Text style={transactionCardStyles.productDescription}>
+              {transactionData.productDescription}
+            </Text>
+          )}
         </View>
         
         <View style={transactionCardStyles.imageContainer}>
@@ -341,6 +356,32 @@ const transactionCardStyles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '600',
     color: '#000',
+    marginBottom: 4,
+  },
+  productDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3cd',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ffc107',
+  },
+  warningIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#856404',
+    fontWeight: '500',
+    flex: 1,
   },
 });
 
@@ -372,6 +413,59 @@ const TransactionAcceptedModal = ({ visible, onClose }) => {
           {/* Got it button */}
           <TouchableOpacity style={successModalStyles.gotItButton} onPress={onClose}>
             <Text style={successModalStyles.gotItText}>Got it</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+/* -----------------------------
+   Transaction Details Modal
+-------------------------------*/
+const TransactionDetailsModal = ({ visible, onClose, transactionData, navigation }) => {
+  // Determine if user is buyer or seller based on transaction type
+  const isBuyer = transactionData?.transactionType === 'sell';
+  
+  const handleGotIt = () => {
+    onClose();
+    // Navigate to ConfirmAvailability page
+    navigation.navigate('ConfirmAvailability', {
+      transactionData
+    });
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={transactionDetailsModalStyles.overlay}>
+        <View style={transactionDetailsModalStyles.modalContent}>
+          {/* Close button */}
+          <TouchableOpacity 
+            style={transactionDetailsModalStyles.closeButton}
+            onPress={onClose}
+          >
+            <Text style={transactionDetailsModalStyles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Title */}
+          <Text style={transactionDetailsModalStyles.title}>
+            How long will transaction review take?
+          </Text>
+
+          {/* Description */}
+          <Text style={transactionDetailsModalStyles.description}>
+            {isBuyer 
+              ? "We've notified the seller that your transaction is awaiting review. Most sellers review within an hour, but it depends on how quickly they respond. If it's been a while, consider nudging them on the original platform where you contacted them."
+              : "We've notified the buyer that your transaction is awaiting review. Most buyers review within an hour, but it depends on how quickly they respond. If it's been a while, consider nudging them on the original platform where you contacted them."
+            }
+          </Text>
+
+          {/* Action button */}
+          <TouchableOpacity 
+            style={transactionDetailsModalStyles.actionButton}
+            onPress={handleGotIt}
+          >
+            <Text style={transactionDetailsModalStyles.actionButtonText}>Got it</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -445,6 +539,63 @@ const successModalStyles = StyleSheet.create({
   },
 });
 
+const transactionDetailsModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 32,
+    minHeight: 300,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  description: {
+    fontSize: 16,
+    color: '#000',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  actionButton: {
+    backgroundColor: '#000',
+    borderRadius: 50,
+    paddingVertical: 16,
+    alignItems: 'center',
+    width: '100%',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
 /* -----------------------------
    Accept/Decline modal (same screen)
 ------------------------------*/
@@ -491,6 +642,7 @@ export default function Welcomepage({ route, navigation }) {
   const [invite, setInvite] = useState(null); // 👈 incoming invite payload
   const [transactionData, setTransactionData] = useState(null); // 👈 transaction data from Share.js
   const [successModalVisible, setSuccessModalVisible] = useState(false); // 👈 success modal for accepted transaction
+  const [transactionDetailsModalVisible, setTransactionDetailsModalVisible] = useState(false); // 👈 transaction details modal
 
   // Preload Welcomepage-specific images when component mounts
   useEffect(() => {
@@ -1056,9 +1208,25 @@ export default function Welcomepage({ route, navigation }) {
           {transactionData && (
             <Text style={styles.transactionStatusText}>
               {transactionData.status === 'accepted' 
-                ? 'Your transaction was accepted! Driver is on the way.' 
+                ? (transactionData.deliveryStatus === 'scheduled' 
+                    ? 'A driver will arrive tomorrow' 
+                    : 'Your transaction was accepted! Driver is on the way.')
                 : "We'll notify you as soon as it's confirmed."}
             </Text>
+          )}
+
+          {/* Delivery time for scheduled deliveries */}
+          {transactionData && transactionData.deliveryStatus === 'scheduled' && transactionData.deliveryTime && (
+            <Text style={styles.deliveryTimeText}>
+              Expected arrival between {transactionData.deliveryTime}.
+            </Text>
+          )}
+
+          {/* No longer available link for scheduled deliveries */}
+          {transactionData && transactionData.deliveryStatus === 'scheduled' && (
+            <TouchableOpacity style={styles.noLongerAvailableLink}>
+              <Text style={styles.noLongerAvailableText}>No longer available?</Text>
+            </TouchableOpacity>
           )}
 
           {/* NEW: inviter row directly under headline, outside the card */}
@@ -1088,23 +1256,25 @@ export default function Welcomepage({ route, navigation }) {
               <TouchableOpacity 
                 style={styles.viewDetailsButton} 
                 onPress={() => {
-                  // TODO: Navigate to transaction details screen
-                  console.log('View transaction details');
+                  setTransactionDetailsModalVisible(true);
                 }}
               >
                 <Text style={styles.viewDetailsText}>View Transaction Details</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={styles.cancelTransactionButton} 
-                onPress={() => {
-                  setTransactionData(null);
-                  // TODO: Handle transaction cancellation
-                  console.log('Cancel transaction');
-                }}
-              >
-                <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
-              </TouchableOpacity>
+              {/* Only show cancel button if not scheduled for delivery */}
+              {transactionData.deliveryStatus !== 'scheduled' && (
+                <TouchableOpacity 
+                  style={styles.cancelTransactionButton} 
+                  onPress={() => {
+                    setTransactionData(null);
+                    // TODO: Handle transaction cancellation
+                    console.log('Cancel transaction');
+                  }}
+                >
+                  <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
+                </TouchableOpacity>
+              )}
 
             </>
           ) : invite ? (
@@ -1195,6 +1365,13 @@ export default function Welcomepage({ route, navigation }) {
         visible={successModalVisible}
         onClose={() => setSuccessModalVisible(false)}
       />
+
+      <TransactionDetailsModal
+        visible={transactionDetailsModalVisible}
+        onClose={() => setTransactionDetailsModalVisible(false)}
+        transactionData={transactionData}
+        navigation={navigation}
+      />
     </>
   );
 
@@ -1267,6 +1444,9 @@ const styles = StyleSheet.create({
   headline: { fontSize: 35, fontWeight: '400', textAlign: 'center', marginTop: 20, marginBottom: 6 },
   subheadline: { fontSize: 16, color: '#444', textAlign: 'center', marginBottom: 20 },
   transactionStatusText: { fontSize: 16, color: '#444', textAlign: 'center', marginBottom: 20 },
+  deliveryTimeText: { fontSize: 16, color: '#444', textAlign: 'center', marginBottom: 8 },
+  noLongerAvailableLink: { alignItems: 'center', marginBottom: 20 },
+  noLongerAvailableText: { fontSize: 16, color: '#007AFF', textDecorationLine: 'underline' },
   placeholderBox: { width: '95%', height: 140, backgroundColor: '#eee', borderRadius: 8, marginBottom: 20 },
   viewDetailsButton: {
     backgroundColor: '#000',

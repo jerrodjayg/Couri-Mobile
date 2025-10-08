@@ -19,18 +19,28 @@
     },
 
     "ios": {
+      "config":{
+        "googleMapsApiKey": "AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw"
+      },
       "useAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.jerrod",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to camera to take profile photos.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos."
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select profile photos.",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to show your current position on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to show your current position on the map."
       },
       "runtimeVersion": { "policy": "appVersion" }
     },
 
     "android": {
+      "config":{
+        "googleMaps": {
+          "apiKey": "AIzaSyAefIF36UbqayA10CzzBSKq3eI_j3e_9Ak"
+        }
+      },
       "package": "com.anonymous.jerrod",
       "permissions": [
         "android.permission.CAMERA",
@@ -38,7 +48,9 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "intentFilters": [
         {
@@ -55,12 +67,12 @@
       "expo-apple-authentication",
       "expo-web-browser",
       "expo-notifications",
-
+      "expo-location",
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you select profile photos.",
-          "cameraPermission": "The app accesses your camera to let you take profile photos."
+          "photosPermission": "This app accesses your photos to let you select profile photos.",
+          "cameraPermission": "This app accesses your camera to let you take profile photos."
         }
       ]
     ],
