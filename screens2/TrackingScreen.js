@@ -124,7 +124,7 @@ export default function TrackingScreen({ navigation, route }) {
   const deliveryFee = productDetails.price * 0.0893; // 8.93%
   const totalPrice = productDetails.price + deliveryFee;
 
-  // Generate HTML for embedded Google Maps
+  // Generate HTML for map placeholder (Google Maps temporarily disabled)
   const generateMapHtml = () => {
     const userLat = userLocation?.latitude || 37.78825;
     const userLng = userLocation?.longitude || -122.4324;
@@ -137,52 +137,60 @@ export default function TrackingScreen({ navigation, route }) {
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body, html { margin: 0; padding: 0; height: 100%; }
-            #map { width: 100%; height: 100%; }
+            body, html { 
+              margin: 0; 
+              padding: 0; 
+              height: 100%; 
+              background-color: #f5f5f5;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            .map-placeholder {
+              text-align: center;
+              color: #666;
+              padding: 20px;
+            }
+            .map-icon {
+              font-size: 48px;
+              margin-bottom: 16px;
+            }
+            .map-title {
+              font-size: 18px;
+              font-weight: 600;
+              margin-bottom: 8px;
+              color: #333;
+            }
+            .map-subtitle {
+              font-size: 14px;
+              color: #666;
+              line-height: 1.4;
+            }
+            .coordinates {
+              margin-top: 16px;
+              font-size: 12px;
+              color: #999;
+              background: #f0f0f0;
+              padding: 8px 12px;
+              border-radius: 6px;
+              display: inline-block;
+            }
           </style>
         </head>
         <body>
-          <div id="map"></div>
-          <script>
-            function initMap() {
-              const userLocation = { lat: ${userLat}, lng: ${userLng} };
-              const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
-              
-              const map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 13,
-                center: userLocation,
-                mapTypeId: 'roadmap'
-              });
-              
-              // User location marker with custom dot
-              const userMarker = new google.maps.Marker({
-                position: userLocation,
-                map: map,
-                title: "Your Location",
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 10,
-                  fillColor: '#FFE8FD',
-                  fillOpacity: 1,
-                  strokeColor: '#FFFFFF',
-                  strokeWeight: 3
-                }
-              });
-              
-              // Pickup location marker
-              if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
-                const pickupMarker = new google.maps.Marker({
-                  position: pickupLocation,
-                  map: map,
-                  title: "Pickup Location",
-                  icon: {
-                    url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
-                  }
-                });
-              }
-            }
-          </script>
-          <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap"></script>
+          <div class="map-placeholder">
+            <div class="map-icon">🗺️</div>
+            <div class="map-title">Map Loading</div>
+            <div class="map-subtitle">
+              Tracking delivery location<br>
+              Your location and pickup point
+            </div>
+            <div class="coordinates">
+              📍 Your Location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}<br>
+              📦 Pickup: ${pickupLat.toFixed(4)}, ${pickupLng.toFixed(4)}
+            </div>
+          </div>
         </body>
       </html>
     `;
