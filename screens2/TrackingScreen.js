@@ -278,6 +278,8 @@ export default function TrackingScreen({ navigation, route }) {
             // Test network connectivity
             function testNetworkConnectivity() {
               console.log('🔍 DEBUG: Testing network connectivity...');
+              
+              // Test 1: Check if we can reach Google Maps API
               fetch('https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw')
                 .then(response => {
                   console.log('✅ DEBUG: Network test successful, status:', response.status);
@@ -291,10 +293,42 @@ export default function TrackingScreen({ navigation, route }) {
                   console.error('❌ DEBUG: Network test failed:', error);
                   console.error('❌ DEBUG: This could mean no internet connection or firewall blocking');
                 });
+                
+              // Test 2: Check if API key is valid by testing Geocoding API
+              fetch('https://maps.googleapis.com/maps/api/geocode/json?address=New+York&key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw')
+                .then(response => response.json())
+                .then(data => {
+                  console.log('🔍 DEBUG: Geocoding API test response:', data.status);
+                  if (data.status === 'OK') {
+                    console.log('✅ DEBUG: API key is valid and working');
+                  } else if (data.status === 'REQUEST_DENIED') {
+                    console.error('❌ DEBUG: API key is invalid or restricted:', data.error_message);
+                  } else if (data.status === 'OVER_QUERY_LIMIT') {
+                    console.error('❌ DEBUG: API quota exceeded');
+                  } else {
+                    console.error('❌ DEBUG: API test failed with status:', data.status);
+                  }
+                })
+                .catch(error => {
+                  console.error('❌ DEBUG: Geocoding API test failed:', error);
+                });
             }
             
             // Run network test
             testNetworkConnectivity();
+            
+            // Check if Google Maps script loads
+            window.addEventListener('load', function() {
+              console.log('🔍 DEBUG: Window load event fired');
+              setTimeout(function() {
+                if (!window.google) {
+                  console.error('❌ DEBUG: Google Maps script failed to load after 5 seconds');
+                  showError('Google Maps script failed to load. Check API key and internet connection.');
+                } else {
+                  console.log('✅ DEBUG: Google Maps script loaded successfully');
+                }
+              }, 5000);
+            });
             
             function initMap() {
               try {
@@ -490,7 +524,32 @@ export default function TrackingScreen({ navigation, route }) {
             // Fallback if Google Maps fails to load
             setTimeout(function() {
               if (!window.google || !window.google.maps) {
-                showError('Google Maps failed to load. Check your internet connection.');
+                console.error('❌ DEBUG: Google Maps failed to load after 10 seconds');
+                showError('Google Maps failed to load. Check your internet connection and API key.');
+                
+                // Show a simple fallback map
+                const mapContainer = document.getElementById('map');
+                if (mapContainer) {
+                  mapContainer.innerHTML = \`
+                    <div style="
+                      width: 100%;
+                      height: 100%;
+                      background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+                      display: flex;
+                      flex-direction: column;
+                      justify-content: center;
+                      align-items: center;
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    ">
+                      <div style="font-size: 48px; margin-bottom: 20px;">🗺️</div>
+                      <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Map Unavailable</div>
+                      <div style="font-size: 14px; color: #666; text-align: center; padding: 0 20px;">
+                        Google Maps failed to load.<br>
+                        Your location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}
+                      </div>
+                    </div>
+                  \`;
+                }
               }
             }, 10000);
           </script>
