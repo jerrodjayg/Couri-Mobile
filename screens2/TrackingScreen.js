@@ -12,7 +12,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
@@ -30,6 +30,7 @@ export default function TrackingScreen({ navigation, route }) {
   const [userLocation, setUserLocation] = useState(null);
   const [pickupAddress, setPickupAddress] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [mapHtml, setMapHtml] = useState('');
   
   // Modal animation
   const [modalHeight, setModalHeight] = useState(MODAL_MIN_HEIGHT);
@@ -180,18 +181,182 @@ export default function TrackingScreen({ navigation, route }) {
   const deliveryFee = productDetails.price * 0.0893; // 8.93%
   const totalPrice = productDetails.price + deliveryFee;
 
-  // Get initial map region
-  const getInitialRegion = () => {
-    if (userLocation) {
-      return userLocation;
-    }
-    return {
-      latitude: 37.78825,
-      longitude: -122.4324,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    };
+  // Generate HTML for live Google Maps with WebView
+  const generateMapHtml = () => {
+    const userLat = userLocation?.latitude || 37.78825;
+    const userLng = userLocation?.longitude || -122.4324;
+    const pickupLat = pickupAddress?.latitude || userLat;
+    const pickupLng = pickupAddress?.longitude || userLng;
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body, html { 
+              margin: 0; 
+              padding: 0; 
+              height: 100%; 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            #map { 
+              width: 100%; 
+              height: 100%; 
+            }
+            .loading {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: rgba(255,255,255,0.9);
+              padding: 20px;
+              border-radius: 10px;
+              text-align: center;
+              z-index: 1000;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="map"></div>
+          <div class="loading" id="loading">Loading map...</div>
+          <script>
+            let map;
+            let userMarker;
+            let pickupMarker;
+            
+            function initMap() {
+              const userLocation = { lat: ${userLat}, lng: ${userLng} };
+              
+              map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 15,
+                center: userLocation,
+                mapTypeId: 'roadmap',
+                styles: [
+                  {
+                    "featureType": "poi",
+                    "stylers": [{ "visibility": "on" }]
+                  },
+                  {
+                    "featureType": "transit",
+                    "stylers": [{ "visibility": "on" }]
+                  }
+                ],
+                mapTypeControl: true,
+                streetViewControl: true,
+                fullscreenControl: true,
+                zoomControl: true
+              });
+              
+              // User location marker with custom styling
+              userMarker = new google.maps.Marker({
+                position: userLocation,
+                map: map,
+                title: "Your Location",
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 12,
+                  fillColor: '#FFE8FD',
+                  fillOpacity: 1,
+                  strokeColor: '#FFFFFF',
+                  strokeWeight: 4
+                },
+                animation: google.maps.Animation.DROP
+              });
+              
+              // Pickup location marker
+              const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
+              if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
+                pickupMarker = new google.maps.Marker({
+                  position: pickupLocation,
+                  map: map,
+                  title: "Pickup Location",
+                  icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#FF4444',
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 3
+                  },
+                  animation: google.maps.Animation.DROP
+                });
+                
+                // Draw route between user and pickup
+                const directionsService = new google.maps.DirectionsService();
+                const directionsRenderer = new google.maps.DirectionsRenderer({
+                  suppressMarkers: true,
+                  polylineOptions: {
+                    strokeColor: '#007AFF',
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8
+                  }
+                });
+                
+                directionsRenderer.setMap(map);
+                
+                directionsService.route({
+                  origin: userLocation,
+                  destination: pickupLocation,
+                  travelMode: google.maps.TravelMode.DRIVING
+                }, (result, status) => {
+                  if (status === 'OK') {
+                    directionsRenderer.setDirections(result);
+                  }
+                });
+              }
+              
+              // Hide loading
+              document.getElementById('loading').style.display = 'none';
+              
+              // Enable real-time updates
+              if (navigator.geolocation) {
+                const watchId = navigator.geolocation.watchPosition(
+                  (position) => {
+                    const newPos = {
+                      lat: position.coords.latitude,
+                      lng: position.coords.longitude
+                    };
+                    
+                    // Update user marker position
+                    if (userMarker) {
+                      userMarker.setPosition(newPos);
+                    }
+                    
+                    // Update map center to follow user
+                    map.setCenter(newPos);
+                    
+                    console.log('Location updated:', newPos);
+                  },
+                  (error) => {
+                    console.log('Geolocation error:', error);
+                  },
+                  {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 1000
+                  }
+                );
+              }
+            }
+            
+            // Handle map errors
+            function gm_authFailure() {
+              document.getElementById('loading').innerHTML = 'Map failed to load. Please check your internet connection.';
+            }
+          </script>
+          <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap&libraries=geometry,places"></script>
+        </body>
+      </html>
+    `;
   };
+
+  // Update map HTML when locations change
+  useEffect(() => {
+    if (userLocation) {
+      setMapHtml(generateMapHtml());
+    }
+  }, [userLocation, pickupAddress]);
 
 
   // Pan responder for modal
@@ -280,50 +445,25 @@ export default function TrackingScreen({ navigation, route }) {
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        {userLocation ? (
-          <MapView
-            provider={PROVIDER_GOOGLE}
+        {mapHtml ? (
+          <WebView
             style={styles.map}
-            initialRegion={getInitialRegion()}
-            region={userLocation}
-            showsUserLocation={true}
-            showsMyLocationButton={true}
-            showsCompass={true}
-            showsScale={true}
-            showsTraffic={false}
-            showsIndoors={false}
-            mapType="standard"
-            userLocationAnnotationTitle="Your Location"
-          >
-            {/* User location marker */}
-            <Marker
-              coordinate={{
-                latitude: userLocation.latitude,
-                longitude: userLocation.longitude,
-              }}
-              title="Your Location"
-              description="Current position"
-              pinColor="#FFE8FD"
-            >
-              <View style={styles.userMarker}>
-                <View style={styles.userMarkerInner} />
-              </View>
-            </Marker>
-
-            {/* Pickup location marker */}
-            {pickupAddress && pickupAddress.latitude && pickupAddress.longitude && 
-             (pickupAddress.latitude !== userLocation.latitude || pickupAddress.longitude !== userLocation.longitude) && (
-              <Marker
-                coordinate={{
-                  latitude: pickupAddress.latitude,
-                  longitude: pickupAddress.longitude,
-                }}
-                title="Pickup Location"
-                description={pickupAddress.address || "Pickup point"}
-                pinColor="red"
-              />
-            )}
-          </MapView>
+            source={{ html: mapHtml }}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            scalesPageToFit={true}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView error: ', nativeEvent);
+            }}
+            onHttpError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView HTTP error: ', nativeEvent);
+            }}
+          />
         ) : locationError ? (
           <View style={[styles.map, styles.errorContainer]}>
             <Text style={styles.errorText}>{locationError}</Text>
@@ -487,30 +627,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-  userMarker: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FFE8FD',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userMarkerInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF69B4',
   },
   modal: {
     position: 'absolute',
