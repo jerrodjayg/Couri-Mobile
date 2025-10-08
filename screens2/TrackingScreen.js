@@ -105,15 +105,26 @@ export default function TrackingScreen({ navigation, route }) {
 
   const getCurrentLocation = async () => {
     try {
+      console.log('🔍 DEBUG: Requesting location permission...');
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('🔍 DEBUG: Location permission status:', status);
+      
       if (status !== 'granted') {
+        console.error('❌ DEBUG: Location permission denied');
         setLocationError('Location permission denied');
         return;
       }
 
+      console.log('🔍 DEBUG: Getting current location with high accuracy...');
       // Get current location with high accuracy
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
+      });
+      
+      console.log('✅ DEBUG: Location obtained:', {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        accuracy: location.coords.accuracy
       });
       
       setUserLocation({
@@ -125,8 +136,9 @@ export default function TrackingScreen({ navigation, route }) {
       
       setLocationError(null);
     } catch (error) {
-      console.error('Error getting location:', error);
-      setLocationError('Unable to get current location');
+      console.error('❌ DEBUG: Error getting location:', error);
+      console.error('❌ DEBUG: Error details:', error.message);
+      setLocationError('Unable to get current location: ' + error.message);
     }
   };
 
@@ -241,27 +253,75 @@ export default function TrackingScreen({ navigation, route }) {
             let pickupMarker;
             let loadingElement = document.getElementById('loading');
             
-            // Error handling
+            // Comprehensive debugging
+            console.log('🔍 DEBUG: Starting Google Maps initialization...');
+            console.log('🔍 DEBUG: User location:', { lat: ${userLat}, lng: ${userLng} });
+            console.log('🔍 DEBUG: Pickup location:', { lat: ${pickupLat}, lng: ${pickupLng} });
+            console.log('🔍 DEBUG: API Key:', 'AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw');
+            
+            // Error handling with detailed logging
             window.gm_authFailure = function() {
-              loadingElement.innerHTML = '<div class="error">❌ Google Maps API Error</div><div>Please check your internet connection</div>';
-              console.error('Google Maps API authentication failed');
+              console.error('❌ DEBUG: Google Maps API authentication failed');
+              console.error('❌ DEBUG: This usually means:');
+              console.error('   - API key is invalid or expired');
+              console.error('   - API key restrictions are blocking this domain');
+              console.error('   - Billing is not enabled on the Google Cloud project');
+              console.error('   - Required APIs are not enabled');
+              loadingElement.innerHTML = '<div class="error">❌ Google Maps API Error</div><div>Check console for details</div>';
             };
             
             function showError(message) {
+              console.error('❌ DEBUG: Error:', message);
               loadingElement.innerHTML = '<div class="error">❌ ' + message + '</div>';
             }
             
+            // Test network connectivity
+            function testNetworkConnectivity() {
+              console.log('🔍 DEBUG: Testing network connectivity...');
+              fetch('https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw')
+                .then(response => {
+                  console.log('✅ DEBUG: Network test successful, status:', response.status);
+                  if (response.status === 200) {
+                    console.log('✅ DEBUG: Google Maps API endpoint is accessible');
+                  } else {
+                    console.error('❌ DEBUG: Google Maps API returned status:', response.status);
+                  }
+                })
+                .catch(error => {
+                  console.error('❌ DEBUG: Network test failed:', error);
+                  console.error('❌ DEBUG: This could mean no internet connection or firewall blocking');
+                });
+            }
+            
+            // Run network test
+            testNetworkConnectivity();
+            
             function initMap() {
               try {
-                console.log('Initializing Google Maps with Directions...');
+                console.log('🔍 DEBUG: initMap() called');
+                console.log('🔍 DEBUG: window.google exists:', !!window.google);
+                console.log('🔍 DEBUG: window.google.maps exists:', !!(window.google && window.google.maps));
                 
-                if (!window.google || !window.google.maps) {
-                  showError('Google Maps API not loaded');
+                if (!window.google) {
+                  console.error('❌ DEBUG: window.google is undefined - API script failed to load');
+                  showError('Google Maps API script failed to load');
                   return;
                 }
                 
+                if (!window.google.maps) {
+                  console.error('❌ DEBUG: window.google.maps is undefined - Maps library failed to load');
+                  showError('Google Maps library failed to load');
+                  return;
+                }
+                
+                console.log('✅ DEBUG: Google Maps API loaded successfully');
+                console.log('🔍 DEBUG: Available Google Maps objects:', Object.keys(window.google.maps));
+                
                 const userLocation = { lat: ${userLat}, lng: ${userLng} };
                 const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
+                
+                console.log('🔍 DEBUG: Creating map with locations:', { userLocation, pickupLocation });
+                console.log('🔍 DEBUG: Map container element:', document.getElementById("map"));
                 
                 map = new google.maps.Map(document.getElementById("map"), {
                   zoom: 13,
@@ -324,6 +384,14 @@ export default function TrackingScreen({ navigation, route }) {
                   });
                   
                   // Draw delivery route using Directions API
+                  console.log('🔍 DEBUG: Initializing Directions API...');
+                  
+                  if (!google.maps.DirectionsService) {
+                    console.error('❌ DEBUG: DirectionsService not available - Directions API not loaded');
+                    showError('Directions API not available');
+                    return;
+                  }
+                  
                   const directionsService = new google.maps.DirectionsService();
                   const directionsRenderer = new google.maps.DirectionsRenderer({
                     suppressMarkers: true, // We'll use our custom markers
@@ -336,8 +404,10 @@ export default function TrackingScreen({ navigation, route }) {
                   });
                   
                   directionsRenderer.setMap(map);
+                  console.log('✅ DEBUG: Directions renderer created and attached to map');
                   
                   // Calculate route
+                  console.log('🔍 DEBUG: Calculating route from', userLocation, 'to', pickupLocation);
                   directionsService.route({
                     origin: userLocation,
                     destination: pickupLocation,
@@ -345,16 +415,21 @@ export default function TrackingScreen({ navigation, route }) {
                     avoidHighways: false,
                     avoidTolls: false
                   }, (result, status) => {
+                    console.log('🔍 DEBUG: Directions API response - Status:', status);
+                    
                     if (status === 'OK') {
+                      console.log('✅ DEBUG: Route calculated successfully');
                       directionsRenderer.setDirections(result);
                       
                       // Display route information
                       const route = result.routes[0];
                       const leg = route.legs[0];
                       
-                      console.log('Route calculated:');
-                      console.log('Distance:', leg.distance.text);
-                      console.log('Duration:', leg.duration.text);
+                      console.log('✅ DEBUG: Route details:');
+                      console.log('   Distance:', leg.distance.text);
+                      console.log('   Duration:', leg.duration.text);
+                      console.log('   Start address:', leg.start_address);
+                      console.log('   End address:', leg.end_address);
                       
                       // Update UI with route info (you can customize this)
                       const routeInfo = document.createElement('div');
@@ -379,7 +454,13 @@ export default function TrackingScreen({ navigation, route }) {
                       document.body.appendChild(routeInfo);
                       
                     } else {
-                      console.error('Directions request failed:', status);
+                      console.error('❌ DEBUG: Directions request failed with status:', status);
+                      console.error('❌ DEBUG: Common status codes:');
+                      console.error('   - REQUEST_DENIED: API key restrictions or billing issues');
+                      console.error('   - INVALID_REQUEST: Invalid parameters');
+                      console.error('   - OVER_QUERY_LIMIT: Quota exceeded');
+                      console.error('   - NOT_FOUND: Address not found');
+                      console.error('   - ZERO_RESULTS: No route found');
                       showError('Could not calculate route: ' + status);
                     }
                   });
@@ -416,8 +497,9 @@ export default function TrackingScreen({ navigation, route }) {
           <script 
             async 
             defer 
-            src="https://maps.googleapis.com/maps/api/js?key=YOUR_NEW_API_KEY_HERE&callback=initMap&libraries=geometry,places&v=3.52"
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap&libraries=geometry,places&v=3.52"
             onerror="window.gm_authFailure()"
+            onload="console.log('Google Maps script loaded successfully')"
           ></script>
         </body>
       </html>
@@ -426,8 +508,16 @@ export default function TrackingScreen({ navigation, route }) {
 
   // Update map HTML when locations change
   useEffect(() => {
+    console.log('🔍 DEBUG: useEffect triggered - userLocation:', userLocation);
+    console.log('🔍 DEBUG: useEffect triggered - pickupAddress:', pickupAddress);
+    
     if (userLocation) {
-      setMapHtml(generateMapHtml());
+      console.log('🔍 DEBUG: Generating map HTML with userLocation:', userLocation);
+      const html = generateMapHtml();
+      console.log('🔍 DEBUG: Map HTML generated, length:', html.length);
+      setMapHtml(html);
+    } else {
+      console.log('🔍 DEBUG: No userLocation available, not generating map HTML');
     }
   }, [userLocation, pickupAddress]);
 
@@ -531,19 +621,27 @@ export default function TrackingScreen({ navigation, route }) {
             mixedContentMode="compatibility"
             onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
-              console.warn('WebView error: ', nativeEvent);
+              console.error('❌ DEBUG: WebView error:', nativeEvent);
+              console.error('❌ DEBUG: Error details:', nativeEvent.description);
               setLocationError('WebView failed to load: ' + nativeEvent.description);
             }}
             onHttpError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
-              console.warn('WebView HTTP error: ', nativeEvent);
+              console.error('❌ DEBUG: WebView HTTP error:', nativeEvent);
+              console.error('❌ DEBUG: HTTP status:', nativeEvent.statusCode);
               setLocationError('HTTP error: ' + nativeEvent.statusCode);
             }}
+            onLoadStart={() => {
+              console.log('🔍 DEBUG: WebView started loading');
+            }}
             onLoadEnd={() => {
-              console.log('WebView loaded successfully');
+              console.log('✅ DEBUG: WebView loaded successfully');
             }}
             onMessage={(event) => {
-              console.log('WebView message:', event.nativeEvent.data);
+              console.log('🔍 DEBUG: WebView message:', event.nativeEvent.data);
+            }}
+            onLoadProgress={(syntheticEvent) => {
+              console.log('🔍 DEBUG: WebView load progress:', syntheticEvent.nativeEvent.progress);
             }}
           />
         ) : locationError ? (
