@@ -1021,19 +1021,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: '0%',
     color: '#000000',
+    marginLeft: 11,
   },
   stepTextSecond: {
     position: 'absolute',
     left: '25%',
     color: '#000000',
+    marginLeft: 17,
   },
   stepTextThird: {
     position: 'absolute',
     left: '50%',
+    marginLeft: 19,
   },
   stepTextFourth: {
     position: 'absolute',
     left: '75%',
+    marginLeft: 35,
   },
   mainContent: {
     flex: 1,

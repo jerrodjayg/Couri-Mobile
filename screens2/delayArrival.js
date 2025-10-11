@@ -21,33 +21,44 @@ export default function DelayArrival({ navigation, route }) {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     
+    // Time slots: 9 AM to 6 PM with 1-hour intervals
+    // 9-10 AM, 10-11 AM, 11 AM-12 PM, 12-1 PM, 1-2 PM, 2-3 PM, 3-4 PM, 4-5 PM, 5-6 PM
+    
+    const slots = [];
+    let id = 1;
+
     // Calculate the next available hour (rounded up)
     let nextHour = currentHour;
     if (currentMinute > 0) {
       nextHour = currentHour + 1;
     }
-    
-    const slots = [];
-    let id = 1;
 
-    // Generate today's slots (from next available hour to 8 PM)
-    for (let hour = nextHour; hour <= 20; hour++) {
-      const startHour = hour;
-      const endHour = hour + 1;
-      
-      const startTime = formatTime(startHour, 0);
-      const endTime = formatTime(endHour, 0);
-      
-      slots.push({
-        id: id.toString(),
-        label: `${startTime} - ${endTime}`,
-        value: `${startHour}:00-${endHour}:00`,
-        isToday: true
-      });
-      id++;
+    // If current time is within business hours (9 AM - 5 PM), show remaining today's slots
+    if (currentHour >= 9 && currentHour < 17) {
+      // Generate remaining today's slots (from next available hour to 5 PM, ending at 6 PM)
+      for (let hour = nextHour; hour <= 17; hour++) {
+        // Skip if we've already passed this hour
+        if (hour < 9) continue;
+        if (hour > 17) break;
+        
+        const startHour = hour;
+        const endHour = hour + 1;
+        
+        const startTime = formatTime(startHour, 0);
+        const endTime = formatTime(endHour, 0);
+        
+        slots.push({
+          id: id.toString(),
+          label: `${startTime} - ${endTime}`,
+          value: `${startHour}:00-${endHour}:00`,
+          isToday: true
+        });
+        id++;
+      }
     }
 
-    // Generate tomorrow's slots (9 AM to 6 PM)
+    // Always show tomorrow's slots (9 AM to 6 PM)
+    // Last slot starts at 5 PM and ends at 6 PM (hour 17 to 18)
     for (let hour = 9; hour <= 17; hour++) {
       const startHour = hour;
       const endHour = hour + 1;
@@ -83,16 +94,29 @@ export default function DelayArrival({ navigation, route }) {
     setSelectedTime(time);
   };
 
-  const handleConfirmTime = () => {
+  const handleConfirmTime = async () => {
     if (selectedTime) {
-      // Navigate back to Welcomepage with updated transaction data
-      navigation.navigate('Welcomepage', {
-        transactionData: {
-          ...transactionData,
-          status: 'delayed',
-          deliveryTime: selectedTime.label,
-          deliveryStatus: 'scheduled'
-        }
+      try {
+        // Track that user confirmed time range
+        await AsyncStorage.setItem('userJourney_timeConfirmed', 'true');
+        await AsyncStorage.setItem('userJourney_confirmationCompleted', 'true');
+        console.log('✅ User journey: Time range confirmed - confirmation flow completed');
+      } catch (error) {
+        console.error('Error tracking user journey:', error);
+      }
+      
+      // Navigate to TrackingScreen with updated transaction data
+      navigation.navigate('TrackingScreen', {
+        ...transactionData,
+        status: 'delayed',
+        deliveryTime: selectedTime.label,
+        deliveryStatus: 'scheduled',
+        userAddress: transactionData?.userAddress || route.params?.userAddress,
+        productPrice: transactionData?.productPrice || route.params?.productPrice,
+        productTitle: transactionData?.productTitle || route.params?.productTitle,
+        productDescription: transactionData?.productDescription || route.params?.productDescription,
+        pickupAddress: transactionData?.pickupAddress || route.params?.pickupAddress,
+        userProfile: transactionData?.userProfile || route.params?.userProfile
       });
     }
   };

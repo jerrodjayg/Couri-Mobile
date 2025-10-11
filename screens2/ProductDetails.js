@@ -2239,21 +2239,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: '0%',
     color: '#000000',
+    marginLeft: 11,
   },
   stepTextSecond: {
     position: 'absolute',
     left: '25%',
     color: '#9CA3AF',
+    marginLeft: 17,
   },
   stepTextThird: {
     position: 'absolute',
     left: '50%',
     color: '#9CA3AF',
+    marginLeft: 19,
   },
   stepTextFourth: {
     position: 'absolute',
     left: '75%',
     color: '#9CA3AF',
+    marginLeft: 35,
   },
   mainContent: {
     flex: 1,
@@ -2761,6 +2765,7 @@ const styles = StyleSheet.create({
      justifyContent: 'center',
      alignItems: 'center',
      marginLeft: 8,
+     marginRight: 6,
    },
    clearPriceButtonText: {
      fontSize: 18,

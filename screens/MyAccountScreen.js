@@ -48,30 +48,17 @@ export default function MyAccountScreen({ navigation, route }) {
           
           // Merge tempUserData with existing merged data
           mergedUserData = { ...mergedUserData, ...parsedData };
-          
-          // Update userProfile with profile picture if available
-          // BUT only if user didn't skip photo upload
-          if (!mergedUserData.hasSkippedPhoto && (mergedUserData.avatar_url || mergedUserData.profileImageUri)) {
-            setUserProfile(prev => ({
-              ...prev,
-              id: mergedUserData.id || 'temp_user',
-              name: mergedUserData.name || mergedUserData.full_name || mergedUserData.firstName,
-              full_name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
-              avatar_url: mergedUserData.avatar_url || mergedUserData.profileImageUri,
-              email: mergedUserData.email
-            }));
-          } else if (mergedUserData.hasSkippedPhoto) {
-            // User explicitly skipped photo - show initials
-            setUserProfile(prev => ({
-              ...prev,
-              id: mergedUserData.id || 'temp_user',
-              name: mergedUserData.name || mergedUserData.full_name || mergedUserData.firstName,
-              full_name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
-              avatar_url: '', // Force empty to show initials
-              email: mergedUserData.email
-            }));
-          }
         }
+        
+        // Always update userProfile with the merged data
+        const avatarUrl = mergedUserData.avatar_url || mergedUserData.profileImageUri;
+        setUserProfile({
+          id: mergedUserData.id || 'temp_user',
+          name: mergedUserData.name || mergedUserData.full_name || mergedUserData.firstName || 'User',
+          full_name: mergedUserData.full_name || mergedUserData.name || `${mergedUserData.firstName || ''} ${mergedUserData.lastName || ''}`.trim(),
+          avatar_url: avatarUrl ? `${avatarUrl}?v=${Date.now()}` : '',
+          email: mergedUserData.email
+        });
         
         // Fallback to user context if no AsyncStorage data
         if (user && !tempUserData && !userProfileData) {
@@ -100,16 +87,33 @@ export default function MyAccountScreen({ navigation, route }) {
     useCallback(() => {
       const refreshProfilePicture = async () => {
         try {
-          // Check for updated profile picture in tempUserData
+          // Check for updated profile picture in both storage locations
           const tempUserData = await AsyncStorage.getItem('tempUserData');
+          const userProfileData = await AsyncStorage.getItem('userProfileData');
+          
+          let mergedData = {};
+          
+          if (userProfileData) {
+            mergedData = { ...JSON.parse(userProfileData) };
+          }
+          
           if (tempUserData) {
-            const parsedData = JSON.parse(tempUserData);
-            if (parsedData.avatar_url || parsedData.profileImageUri) {
-              setUserProfile(prev => ({
-                ...prev,
-                avatar_url: parsedData.avatar_url || parsedData.profileImageUri
-              }));
-            }
+            const parsedTemp = JSON.parse(tempUserData);
+            mergedData = { ...mergedData, ...parsedTemp };
+          }
+          
+          const avatarUrl = mergedData.avatar_url || mergedData.profileImageUri;
+          
+          if (avatarUrl) {
+            console.log('✅ MyAccount - Refreshing profile picture:', avatarUrl);
+            setUserProfile(prev => ({
+              ...prev,
+              id: mergedData.id || prev?.id || 'temp_user',
+              name: mergedData.name || mergedData.full_name || mergedData.firstName || prev?.name || 'User',
+              full_name: mergedData.full_name || mergedData.name || prev?.full_name || 'User',
+              avatar_url: `${avatarUrl}?v=${Date.now()}`,
+              email: mergedData.email || prev?.email
+            }));
           }
         } catch (error) {
           console.log('⚠️ Error refreshing profile picture:', error);
@@ -220,10 +224,11 @@ export default function MyAccountScreen({ navigation, route }) {
           <TouchableOpacity style={styles.profileSection} onPress={handleViewProfile}>
             <View style={styles.profileInfo}>
               <View style={styles.profileImageContainer}>
-                {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+                {userProfile?.avatar_url && userProfile.avatar_url !== '' && !userProfile.avatar_url.includes('undefined') ? (
                   <Image 
                     source={{ uri: userProfile.avatar_url }} 
                     style={styles.profileImage}
+                    key={userProfile.avatar_url}
                   />
                 ) : (
                   <View style={styles.profileImagePlaceholder}>

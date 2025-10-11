@@ -427,7 +427,15 @@ const TransactionDetailsModal = ({ visible, onClose, transactionData, navigation
   // Determine if user is buyer or seller based on transaction type
   const isBuyer = transactionData?.transactionType === 'sell';
   
-  const handleGotIt = () => {
+  const handleGotIt = async () => {
+    try {
+      // Track that user clicked "Got it" in the transaction details modal
+      await AsyncStorage.setItem('userJourney_gotItClicked', 'true');
+      console.log('✅ User journey: Got it clicked in transaction details modal');
+    } catch (error) {
+      console.error('Error tracking user journey:', error);
+    }
+    
     onClose();
     // Navigate to ConfirmAvailability page
     navigation.navigate('ConfirmAvailability', {
@@ -1002,6 +1010,12 @@ export default function Welcomepage({ route, navigation }) {
         await AsyncStorage.removeItem('tempUserData');
         await AsyncStorage.removeItem('userProfileData');
         await AsyncStorage.setItem('userLastAction', 'sign_out');
+        // Clear user journey tracking
+        await AsyncStorage.removeItem('userJourney_gotItClicked');
+        await AsyncStorage.removeItem('userJourney_yesAvailable');
+        await AsyncStorage.removeItem('userJourney_noAvailable');
+        await AsyncStorage.removeItem('userJourney_timeConfirmed');
+        await AsyncStorage.removeItem('userJourney_confirmationCompleted');
       } catch {}
       if (setCustomUser) setCustomUser(null);
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
@@ -1017,6 +1031,12 @@ export default function Welcomepage({ route, navigation }) {
         await AsyncStorage.removeItem('tempUserData');
         await AsyncStorage.removeItem('userProfileData');
         await AsyncStorage.setItem('userLastAction', 'delete_account');
+        // Clear user journey tracking
+        await AsyncStorage.removeItem('userJourney_gotItClicked');
+        await AsyncStorage.removeItem('userJourney_yesAvailable');
+        await AsyncStorage.removeItem('userJourney_noAvailable');
+        await AsyncStorage.removeItem('userJourney_timeConfirmed');
+        await AsyncStorage.removeItem('userJourney_confirmationCompleted');
       } catch {}
       if (setCustomUser) setCustomUser(null);
       try {
@@ -1255,8 +1275,38 @@ export default function Welcomepage({ route, navigation }) {
               {/* Buttons outside the card */}
               <TouchableOpacity 
                 style={styles.viewDetailsButton} 
-                onPress={() => {
-                  setTransactionDetailsModalVisible(true);
+                onPress={async () => {
+                  try {
+                    // Check if user has completed the confirmation flow
+                    const confirmationCompleted = await AsyncStorage.getItem('userJourney_confirmationCompleted');
+                    console.log('🔍 User journey check - confirmationCompleted:', confirmationCompleted);
+                    
+                    // If user has completed confirmation flow OR transaction is accepted/scheduled/confirmed, go directly to TrackingScreen
+                    if (confirmationCompleted === 'true' || 
+                        transactionData.status === 'accepted' || 
+                        transactionData.deliveryStatus === 'scheduled' || 
+                        transactionData.deliveryStatus === 'confirmed') {
+                      
+                      console.log('✅ User journey: Going directly to TrackingScreen');
+                      navigation.navigate('TrackingScreen', {
+                        ...transactionData,
+                        userAddress: transactionData.userAddress,
+                        productPrice: transactionData.productPrice,
+                        productTitle: transactionData.productTitle,
+                        productDescription: transactionData.productDescription,
+                        pickupAddress: transactionData.pickupAddress,
+                        userProfile: userProfile
+                      });
+                    } else {
+                      // Otherwise show the modal for pending transactions
+                      console.log('✅ User journey: Showing transaction details modal');
+                      setTransactionDetailsModalVisible(true);
+                    }
+                  } catch (error) {
+                    console.error('Error checking user journey:', error);
+                    // Fallback to showing modal if there's an error
+                    setTransactionDetailsModalVisible(true);
+                  }
                 }}
               >
                 <Text style={styles.viewDetailsText}>View Transaction Details</Text>
@@ -1415,17 +1465,34 @@ const styles = StyleSheet.create({
   },
   logoContainer: { width: 70, height: 30, justifyContent: 'center', alignItems: 'center' },
   logo: { width: 70, height: 30 },
-  profileContainer: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
-  profileImage: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: '#000' },
+  profileContainer: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImage: { 
+    width: '100%', 
+    height: '100%',
+    borderRadius: 20,
+  },
   profilePlaceholder: {
-    width: 40,
-    height: 40,
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
     backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileInitials: { color: '#444444', fontWeight: 'bold', fontSize: 16 },
+  profileInitials: { 
+    color: '#444444', 
+    fontWeight: 'bold', 
+    fontSize: 16,
+  },
   whiteBlock: {
     width: '100%',
     paddingTop: 20,

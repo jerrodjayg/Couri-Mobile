@@ -13,6 +13,7 @@ import {
   TextInput,
   ActivityIndicator,
   TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
@@ -169,28 +170,15 @@ export default function ProfileScreen({ navigation, route }) {
           fullAddress: `${addressData.street}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`,
         });
         
-        // Update userProfile with profile picture if available
-        // BUT only if user didn't skip photo upload
-        if (!mergedUserData.hasSkippedPhoto && (mergedUserData.avatar_url || mergedUserData.profileImageUri)) {
-          setUserProfile(prev => ({
-            ...prev,
-            id: mergedUserData.id || 'temp_user',
-            name: mergedUserData.name || mergedUserData.full_name,
-            full_name: mergedUserData.full_name || mergedUserData.name,
-            avatar_url: mergedUserData.avatar_url || mergedUserData.profileImageUri,
-            email: mergedUserData.email
-          }));
-        } else if (mergedUserData.hasSkippedPhoto) {
-          // User explicitly skipped photo - show initials
-          setUserProfile(prev => ({
-            ...prev,
-            id: mergedUserData.id || 'temp_user',
-            name: mergedUserData.name || mergedUserData.full_name,
-            full_name: mergedUserData.full_name || mergedUserData.name,
-            avatar_url: '', // Force empty to show initials
-            email: mergedUserData.email
-          }));
-        }
+        // Always update userProfile with the merged data
+        const avatarUrl = mergedUserData.avatar_url || mergedUserData.profileImageUri;
+        setUserProfile({
+          id: mergedUserData.id || 'temp_user',
+          name: mergedUserData.name || mergedUserData.full_name || 'User',
+          full_name: mergedUserData.full_name || mergedUserData.name || 'User',
+          avatar_url: avatarUrl ? `${avatarUrl}?v=${Date.now()}` : '',
+          email: mergedUserData.email
+        });
         
         // Fallback to user context if no AsyncStorage data
         if (user && !tempUserData && !userProfileData) {
@@ -226,10 +214,46 @@ export default function ProfileScreen({ navigation, route }) {
     fetchUserProfile();
   }, [user, route?.params?.userData]);
 
-  // Simplified focus effect to prevent infinite re-renders
+  // Refresh profile picture when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 ProfileScreen - Screen focused');
+      const refreshProfilePicture = async () => {
+        try {
+          console.log('🔄 ProfileScreen - Screen focused, refreshing profile picture');
+          // Check for updated profile picture in both storage locations
+          const tempUserData = await AsyncStorage.getItem('tempUserData');
+          const userProfileData = await AsyncStorage.getItem('userProfileData');
+          
+          let mergedData = {};
+          
+          if (userProfileData) {
+            mergedData = { ...JSON.parse(userProfileData) };
+          }
+          
+          if (tempUserData) {
+            const parsedTemp = JSON.parse(tempUserData);
+            mergedData = { ...mergedData, ...parsedTemp };
+          }
+          
+          const avatarUrl = mergedData.avatar_url || mergedData.profileImageUri;
+          
+          if (avatarUrl) {
+            console.log('✅ ProfileScreen - Refreshing profile picture:', avatarUrl);
+            setUserProfile(prev => ({
+              ...prev,
+              id: mergedData.id || prev?.id || 'temp_user',
+              name: mergedData.name || mergedData.full_name || prev?.name || 'User',
+              full_name: mergedData.full_name || mergedData.name || prev?.full_name || 'User',
+              avatar_url: `${avatarUrl}?v=${Date.now()}`,
+              email: mergedData.email || prev?.email
+            }));
+          }
+        } catch (error) {
+          console.log('⚠️ Error refreshing profile picture in ProfileScreen:', error);
+        }
+      };
+
+      refreshProfilePicture();
     }, [])
   );
 
@@ -887,10 +911,9 @@ export default function ProfileScreen({ navigation, route }) {
       transparent={true}
       onRequestClose={handleCancelEdit}
     >
-      <TouchableWithoutFeedback onPress={handleCancelEdit}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={styles.modalContainer}>
+          <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Edit {editingField}</Text>
             <TouchableOpacity onPress={handleCancelEdit}>
@@ -911,7 +934,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.firstName}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, firstName: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, firstName: text})}
                     placeholder="Enter first name"
                     placeholderTextColor="#9CA3AF"
                     blurOnSubmit={false}
@@ -924,7 +947,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.lastName}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, lastName: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, lastName: text})}
                     placeholder="Enter last name"
                     placeholderTextColor="#9CA3AF"
                     blurOnSubmit={false}
@@ -941,7 +964,7 @@ export default function ProfileScreen({ navigation, route }) {
                 <TextInput
                   style={styles.textInput}
                   value={editFormData.phone}
-                  onChangeText={(text) => setEditFormData(prev => ({ ...prev, phone: text }))}
+                  onChangeText={(text) => setEditFormData({...editFormData, phone: text})}
                   placeholder="Enter phone number"
                   placeholderTextColor="#9CA3AF"
                   keyboardType="phone-pad"
@@ -957,7 +980,7 @@ export default function ProfileScreen({ navigation, route }) {
                 <TextInput
                   style={styles.textInput}
                   value={editFormData.email}
-                  onChangeText={(text) => setEditFormData(prev => ({ ...prev, email: text }))}
+                  onChangeText={(text) => setEditFormData({...editFormData, email: text})}
                   placeholder="Enter email address"
                   placeholderTextColor="#9CA3AF"
                   keyboardType="email-address"
@@ -975,7 +998,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.address1}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, address1: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, address1: text})}
                     placeholder="Enter street address"
                     placeholderTextColor="#9CA3AF"
                     blurOnSubmit={false}
@@ -988,7 +1011,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.address2}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, address2: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, address2: text})}
                     placeholder="Apartment, suite, etc."
                     placeholderTextColor="#9CA3AF"
                     blurOnSubmit={false}
@@ -1001,7 +1024,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.city}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, city: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, city: text})}
                     placeholder="Enter city"
                     placeholderTextColor="#9CA3AF"
                     blurOnSubmit={false}
@@ -1014,7 +1037,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.state}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, state: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, state: text})}
                     placeholder="Enter state"
                     placeholderTextColor="#9CA3AF"
                     blurOnSubmit={false}
@@ -1027,7 +1050,7 @@ export default function ProfileScreen({ navigation, route }) {
                   <TextInput
                     style={styles.textInput}
                     value={editFormData.zip}
-                    onChangeText={(text) => setEditFormData(prev => ({ ...prev, zip: text }))}
+                    onChangeText={(text) => setEditFormData({...editFormData, zip: text})}
                     placeholder="Enter zip code"
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
@@ -1058,8 +1081,7 @@ export default function ProfileScreen({ navigation, route }) {
               )}
             </TouchableOpacity>
           </View>
-            </View>
-          </TouchableWithoutFeedback>
+          </View>
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -1093,10 +1115,11 @@ export default function ProfileScreen({ navigation, route }) {
             {/* Profile Picture Section */}
             <View style={styles.profilePictureSection}>
               <View style={styles.profilePictureContainer}>
-                {userProfile?.avatar_url && userProfile.avatar_url !== '' && !userProfile.hasSkippedPhoto ? (
+                {userProfile?.avatar_url && userProfile.avatar_url !== '' && !userProfile.avatar_url.includes('undefined') ? (
                   <Image 
                     source={{ uri: userProfile.avatar_url }} 
                     style={styles.profilePicture}
+                    key={userProfile.avatar_url}
                   />
                 ) : (
                   <View style={styles.profilePicturePlaceholder}>

@@ -122,9 +122,7 @@ export default function Payment({ navigation, route }) {
           {/* Transaction Fee Information Box */}
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              Once the product is delivered, you will{'\n'}
-              incur a <Text style={styles.boldText}>$x.xx transaction fee</Text> for using{'\n'}
-              Couri. <Text style={styles.italicText}>This fee is non-refundable.</Text>
+              Once the product is delivered, you will incur a <Text style={styles.boldText}>$x.xx transaction fee</Text> for using Couri. <Text style={styles.italicText}>This fee is non-refundable.</Text>
             </Text>
           </View>
 
@@ -241,20 +239,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: '0%',
     color: '#000000',
+    marginLeft: 11,
   },
   stepTextSecond: {
     position: 'absolute',
     left: '25%',
     color: '#000000',
+    marginLeft: 17,
   },
   stepTextThird: {
     position: 'absolute',
     left: '50%',
     color: '#000000',
+    marginLeft: 19,
   },
   stepTextFourth: {
     position: 'absolute',
     left: '75%',
+    marginLeft: 35,
   },
   mainContent: {
     flex: 1,
@@ -262,24 +264,24 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingTop: 20,
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   mainTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#000',
-    textAlign: 'left',
+    textAlign: 'center',
     marginBottom: 16,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#000',
-    textAlign: 'left',
+    textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
     maxWidth: 350,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   boldText: {
     fontWeight: 'bold',
@@ -297,6 +299,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 350,
     alignItems: 'center',
+    alignSelf: 'center',
   },
   infoText: {
     fontSize: 16,
@@ -309,6 +312,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     marginTop: 24,
     width: '100%',
+    alignSelf: 'center',
   },
   linkPaymentButton: {
     backgroundColor: '#000000',

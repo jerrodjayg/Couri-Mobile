@@ -42,7 +42,8 @@ export default function TrackingScreen({ navigation, route }) {
     productDescription,
     pickupAddress: routePickupAddress,
     userAddress,
-    userProfile: routeUserProfile
+    userProfile: routeUserProfile,
+    productName
   } = route.params || {};
 
   // Load user profile and product details
@@ -61,14 +62,21 @@ export default function TrackingScreen({ navigation, route }) {
       // Try to get from route params first
       if (routeUserProfile) {
         setUserProfile(routeUserProfile);
+        console.log('✅ TrackingScreen - Loaded user profile from route params');
         return;
       }
 
       // Otherwise load from AsyncStorage
       const storedProfile = await AsyncStorage.getItem('userProfileData');
-      if (storedProfile) {
-        const profile = JSON.parse(storedProfile);
-        setUserProfile(profile);
+      const tempUserData = await AsyncStorage.getItem('tempUserData');
+      
+      if (storedProfile || tempUserData) {
+        const profileData = storedProfile ? JSON.parse(storedProfile) : {};
+        const tempData = tempUserData ? JSON.parse(tempUserData) : {};
+        const mergedProfile = { ...profileData, ...tempData };
+        
+        console.log('✅ TrackingScreen - Loaded user profile from AsyncStorage:', mergedProfile);
+        setUserProfile(mergedProfile);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -76,11 +84,35 @@ export default function TrackingScreen({ navigation, route }) {
   };
 
   const loadProductDetails = () => {
-    if (productPrice && productTitle) {
+    // Get price from multiple possible sources
+    const priceFromParams = productPrice || route.params?.productPrice;
+    const titleFromParams = productTitle || route.params?.productTitle || route.params?.productName;
+    const descFromParams = productDescription || route.params?.productDescription;
+    
+    console.log('🔍 TrackingScreen - Loading product details from params:', {
+      productPrice: priceFromParams,
+      productTitle: titleFromParams,
+      productDescription: descFromParams
+    });
+    
+    if (priceFromParams && titleFromParams) {
+      // Parse price - remove $ sign and commas if present
+      let parsedPrice = 0;
+      if (typeof priceFromParams === 'string') {
+        const cleanPrice = priceFromParams.replace(/[$,]/g, '').trim();
+        parsedPrice = parseFloat(cleanPrice) || 0;
+      } else {
+        parsedPrice = parseFloat(priceFromParams) || 0;
+      }
+      
+      console.log('💰 TrackingScreen - Product Price:', priceFromParams, '→ Parsed:', parsedPrice);
+      console.log('💰 TrackingScreen - Delivery Fee (10%):', (parsedPrice * 0.10).toFixed(2));
+      console.log('💰 TrackingScreen - Total Price:', (parsedPrice + (parsedPrice * 0.10)).toFixed(2));
+      
       setProductDetails({
-        price: parseFloat(productPrice) || 0,
-        title: productTitle || '',
-        description: productDescription || '',
+        price: parsedPrice,
+        title: titleFromParams || '',
+        description: descFromParams || '',
       });
     }
   };
@@ -89,12 +121,17 @@ export default function TrackingScreen({ navigation, route }) {
     try {
       let addressToUse = null;
       
-      // Priority 1: Check route params
+      // Priority 1: Check route params for pickup address
       if (routePickupAddress) {
         console.log('🔍 DEBUG: routePickupAddress from params:', routePickupAddress);
         addressToUse = routePickupAddress;
       } 
-      // Priority 2: Check AsyncStorage
+      // Priority 2: Check if userAddress from route params can be used
+      else if (userAddress) {
+        console.log('🔍 DEBUG: Using userAddress from route params as pickup:', userAddress);
+        addressToUse = userAddress;
+      }
+      // Priority 3: Check AsyncStorage
       else {
         const storedAddress = await AsyncStorage.getItem('currentPickupAddress');
         if (storedAddress) {
@@ -264,7 +301,7 @@ export default function TrackingScreen({ navigation, route }) {
   }, []);
 
   // Calculate pricing
-  const deliveryFee = productDetails.price * 0.0893; // 8.93%
+  const deliveryFee = productDetails.price * 0.10; // 10%
   const totalPrice = productDetails.price + deliveryFee;
 
   // Generate HTML for live Google Maps with WebView
@@ -485,7 +522,7 @@ export default function TrackingScreen({ navigation, route }) {
                   mapTypeControl: false,
                   streetViewControl: false,
                   fullscreenControl: true,
-                  zoomControl: true,
+                  zoomControl: false,
                   gestureHandling: 'greedy',
                   styles: [
                     {
@@ -675,7 +712,7 @@ export default function TrackingScreen({ navigation, route }) {
                   ]
                 });
                 
-                // User location marker (Current Location - Blue Dot)
+                // User location marker (Current Location - Pink Dot with Glow)
                 userMarker = new google.maps.Marker({
                 position: userLocation,
                 map: map,
@@ -683,10 +720,15 @@ export default function TrackingScreen({ navigation, route }) {
                 icon: {
                   path: google.maps.SymbolPath.CIRCLE,
                     scale: 8,
-                  fillColor: '#4285F4',
+                  fillColor: '#FFE8FD',
                   fillOpacity: 1,
-                  strokeColor: '#FFFFFF',
-                    strokeWeight: 3
+                  strokeWeight: 0,
+                  shadow: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#FFE8FD',
+                    fillOpacity: 0.3
+                  }
                   }
                 });
                 
@@ -888,6 +930,7 @@ export default function TrackingScreen({ navigation, route }) {
     console.log('🔍 DEBUG: Getting display address...');
     console.log('🔍 DEBUG: pickupAddress?.address:', pickupAddress?.address);
     console.log('🔍 DEBUG: userAddress:', userAddress);
+    console.log('🔍 DEBUG: route.params:', route.params);
     
     // Priority 1: Pickup address from state
     if (pickupAddress?.address) {
@@ -898,13 +941,51 @@ export default function TrackingScreen({ navigation, route }) {
     // Priority 2: User address from route params
     if (userAddress) {
       console.log('✅ Using userAddress from params:', userAddress);
+      // If userAddress is an object, format it
+      if (typeof userAddress === 'object') {
+        const parts = [];
+        if (userAddress.street || userAddress.address1 || userAddress.address_line_1) {
+          parts.push(userAddress.street || userAddress.address1 || userAddress.address_line_1);
+        }
+        if (userAddress.address2 || userAddress.address_line_2) {
+          parts.push(userAddress.address2 || userAddress.address_line_2);
+        }
+        if (userAddress.city) parts.push(userAddress.city);
+        if (userAddress.state) parts.push(userAddress.state);
+        if (userAddress.zipCode || userAddress.zip || userAddress.zip_code) {
+          parts.push(userAddress.zipCode || userAddress.zip || userAddress.zip_code);
+        }
+        const formatted = parts.join(', ');
+        if (formatted) return formatted;
+      }
       return userAddress;
     }
     
-    // Priority 3: User profile address
-    if (userProfile?.address) {
-      console.log('✅ Using userProfile.address:', userProfile.address);
-      return userProfile.address;
+    // Priority 3: User profile address (try to build from components)
+    if (userProfile) {
+      const parts = [];
+      if (userProfile.address1 || userProfile.address_line_1) {
+        parts.push(userProfile.address1 || userProfile.address_line_1);
+      }
+      if (userProfile.address2 || userProfile.address_line_2) {
+        parts.push(userProfile.address2 || userProfile.address_line_2);
+      }
+      if (userProfile.city) parts.push(userProfile.city);
+      if (userProfile.state) parts.push(userProfile.state);
+      if (userProfile.zip || userProfile.zip_code) {
+        parts.push(userProfile.zip || userProfile.zip_code);
+      }
+      const formatted = parts.join(', ');
+      if (formatted) {
+        console.log('✅ Using userProfile address components:', formatted);
+        return formatted;
+      }
+      
+      // Fallback to userProfile.address if available
+      if (userProfile.address) {
+        console.log('✅ Using userProfile.address:', userProfile.address);
+        return userProfile.address;
+      }
     }
     
     console.log('❌ No address found');
@@ -923,6 +1004,16 @@ export default function TrackingScreen({ navigation, route }) {
             style={styles.couriLogo}
             resizeMode="contain"
           />
+          <TouchableOpacity 
+            style={styles.homeButton}
+            onPress={() => navigation.navigate('Welcomepage')}
+          >
+            <Image
+              source={require('../assets/homeicon.png')}
+              style={styles.homeIcon}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.headerRight}>
@@ -933,7 +1024,10 @@ export default function TrackingScreen({ navigation, route }) {
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.profileButton}>
+          <TouchableOpacity 
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('MyAccount')}
+          >
             {getProfileImage() ? (
               <Image
                 source={{ uri: getProfileImage() }}
@@ -1118,6 +1212,8 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerRight: {
     flexDirection: 'row',
@@ -1126,6 +1222,18 @@ const styles = StyleSheet.create({
   couriLogo: {
     width: 80,
     height: 32,
+  },
+  homeButton: {
+    marginLeft: 8,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeIcon: {
+    width: 18,
+    height: 18,
+    tintColor: '#000000',
   },
   messageButton: {
     width: 40,

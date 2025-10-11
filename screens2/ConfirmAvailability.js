@@ -19,25 +19,34 @@ export default function ConfirmAvailability({ navigation, route }) {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     
-    // Calculate the next available hour (rounded up)
-    let nextHour = currentHour;
-    if (currentMinute > 0) {
-      nextHour = currentHour + 1;
+    // Time slots: 9 AM to 6 PM with 1-hour intervals
+    // 9-10 AM, 10-11 AM, 11 AM-12 PM, 12-1 PM, 1-2 PM, 2-3 PM, 3-4 PM, 4-5 PM, 5-6 PM
+    
+    // If current time is before 9 AM, next slot is 9:00 AM - 10:00 AM
+    if (currentHour < 9) {
+      return '9:00 AM - 10:00 AM';
     }
     
-    // If it's already past 8 PM, show tomorrow's first slot
-    if (nextHour > 20) {
+    // If current time is after 5 PM (17:00), next slot is tomorrow 9:00 AM - 10:00 AM
+    if (currentHour >= 17) {
       return 'Tomorrow 9:00 AM - 10:00 AM';
     }
     
-    // Default to 3:00 PM - 4:00 PM if current time is before 3 PM
-    if (nextHour < 15) {
-      return '3:00 PM - 4:00 PM';
+    // Calculate the next slot based on current time
+    // If we're in the middle of an hour, round up to the next hour
+    let nextSlotStart = currentHour;
+    if (currentMinute > 0) {
+      nextSlotStart = currentHour + 1;
     }
     
-    // Show next available hour
-    const startTime = formatTime(nextHour, 0);
-    const endTime = formatTime(nextHour + 1, 0);
+    // Make sure we don't go past 5 PM (last slot starts at 5 PM)
+    if (nextSlotStart >= 17) {
+      return 'Tomorrow 9:00 AM - 10:00 AM';
+    }
+    
+    // Format the time slot
+    const startTime = formatTime(nextSlotStart, 0);
+    const endTime = formatTime(nextSlotStart + 1, 0);
     return `${startTime} - ${endTime}`;
   };
 
@@ -53,15 +62,38 @@ export default function ConfirmAvailability({ navigation, route }) {
     setDeliveryTime(generateDeliveryTime());
   }, []);
 
-  const handleYesAvailable = () => {
-    // Navigate to TrackingScreen
+  const handleYesAvailable = async () => {
+    try {
+      // Track that user clicked "Yes, I'm available"
+      await AsyncStorage.setItem('userJourney_yesAvailable', 'true');
+      await AsyncStorage.setItem('userJourney_confirmationCompleted', 'true');
+      console.log('✅ User journey: Yes, I\'m available clicked - confirmation flow completed');
+    } catch (error) {
+      console.error('Error tracking user journey:', error);
+    }
+    
+    // Navigate to TrackingScreen with all necessary data
     navigation.navigate('TrackingScreen', {
       ...transactionData,
-      deliveryStatus: 'confirmed'
+      deliveryStatus: 'confirmed',
+      userAddress: transactionData?.userAddress || route.params?.userAddress,
+      productPrice: transactionData?.productPrice || route.params?.productPrice,
+      productTitle: transactionData?.productTitle || route.params?.productTitle,
+      productDescription: transactionData?.productDescription || route.params?.productDescription,
+      pickupAddress: transactionData?.pickupAddress || route.params?.pickupAddress,
+      userProfile: transactionData?.userProfile || route.params?.userProfile
     });
   };
 
-  const handleNoAvailable = () => {
+  const handleNoAvailable = async () => {
+    try {
+      // Track that user clicked "No, show me other options"
+      await AsyncStorage.setItem('userJourney_noAvailable', 'true');
+      console.log('✅ User journey: No, show me other options clicked');
+    } catch (error) {
+      console.error('Error tracking user journey:', error);
+    }
+    
     // Navigate to delayArrival page
     navigation.navigate('delayArrival', {
       transactionData
