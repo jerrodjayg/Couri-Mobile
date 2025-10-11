@@ -17,8 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MODAL_MIN_HEIGHT = 120;
-const MODAL_MAX_HEIGHT = SCREEN_HEIGHT * 0.8;
+const MODAL_MIN_HEIGHT = 180;
+const MODAL_MAX_HEIGHT = SCREEN_HEIGHT * 0.5;
 
 export default function TrackingScreen({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
@@ -34,7 +34,6 @@ export default function TrackingScreen({ navigation, route }) {
   
   // Modal animation
   const [modalHeight, setModalHeight] = useState(MODAL_MIN_HEIGHT);
-  const modalTranslateY = useRef(new Animated.Value(0)).current;
 
   // Get route parameters
   const {
@@ -48,6 +47,9 @@ export default function TrackingScreen({ navigation, route }) {
 
   // Load user profile and product details
   useEffect(() => {
+    console.log('🔍 DEBUG: Route params:', route.params);
+    console.log('🔍 DEBUG: userAddress from params:', userAddress);
+    console.log('🔍 DEBUG: pickupAddress from params:', routePickupAddress);
     loadUserProfile();
     loadProductDetails();
     loadPickupAddress();
@@ -84,22 +86,94 @@ export default function TrackingScreen({ navigation, route }) {
   };
 
   const loadPickupAddress = async () => {
-    if (routePickupAddress) {
-      setPickupAddress(routePickupAddress);
-    } else if (userAddress) {
-      // If no pickup address provided, use user address as pickup location
-      try {
-        const geocoded = await Location.geocodeAsync(userAddress);
-        if (geocoded.length > 0) {
+    try {
+      let addressToUse = null;
+      
+      // Priority 1: Check route params
+      if (routePickupAddress) {
+        console.log('🔍 DEBUG: routePickupAddress from params:', routePickupAddress);
+        addressToUse = routePickupAddress;
+      } 
+      // Priority 2: Check AsyncStorage
+      else {
+        const storedAddress = await AsyncStorage.getItem('currentPickupAddress');
+        if (storedAddress) {
+          console.log('🔍 DEBUG: Found address in AsyncStorage:', storedAddress);
+          addressToUse = JSON.parse(storedAddress);
+        }
+      }
+      
+      if (addressToUse) {
+        // Format the pickup address from the object structure
+        let formattedAddress = '';
+        if (typeof addressToUse === 'string') {
+          formattedAddress = addressToUse;
+        } else if (addressToUse.street || addressToUse.address) {
+          // Build address string from components
+          const parts = [];
+          if (addressToUse.street) parts.push(addressToUse.street);
+          if (addressToUse.address2) parts.push(addressToUse.address2);
+          if (addressToUse.city) parts.push(addressToUse.city);
+          if (addressToUse.state) parts.push(addressToUse.state);
+          if (addressToUse.zipCode) parts.push(addressToUse.zipCode);
+          formattedAddress = parts.join(', ');
+        } else if (addressToUse.address) {
+          formattedAddress = addressToUse.address;
+        }
+        
+        console.log('✅ Formatted address:', formattedAddress);
+        
+        // Geocode the address to get coordinates
+        if (formattedAddress) {
+          try {
+            const geocoded = await Location.geocodeAsync(formattedAddress);
+            if (geocoded.length > 0) {
+              setPickupAddress({
+                ...addressToUse,
+                latitude: geocoded[0].latitude,
+                longitude: geocoded[0].longitude,
+                address: formattedAddress,
+              });
+              console.log('✅ Pickup address set with coordinates');
+            } else {
+              setPickupAddress({
+                ...addressToUse,
+                address: formattedAddress,
+              });
+              console.log('✅ Pickup address set without coordinates');
+            }
+          } catch (geocodeError) {
+            console.error('Error geocoding pickup address:', geocodeError);
+            setPickupAddress({
+              ...addressToUse,
+              address: formattedAddress,
+            });
+          }
+        }
+      } else if (userAddress) {
+        // If no pickup address provided, use user address as pickup location
+        console.log('🔍 DEBUG: Using userAddress:', userAddress);
+        try {
+          const geocoded = await Location.geocodeAsync(userAddress);
+          if (geocoded.length > 0) {
+            setPickupAddress({
+              latitude: geocoded[0].latitude,
+              longitude: geocoded[0].longitude,
+              address: userAddress,
+            });
+            console.log('✅ User address set with coordinates');
+          }
+        } catch (geocodeError) {
+          console.error('Error geocoding user address:', geocodeError);
           setPickupAddress({
-            latitude: geocoded[0].latitude,
-            longitude: geocoded[0].longitude,
             address: userAddress,
           });
         }
-      } catch (error) {
-        console.error('Error geocoding user address:', error);
+      } else {
+        console.log('❌ No pickup address or user address found');
       }
+    } catch (error) {
+      console.error('❌ Error loading pickup address:', error);
     }
   };
 
@@ -250,7 +324,6 @@ export default function TrackingScreen({ navigation, route }) {
           <script>
             let map;
             let userMarker;
-            let pickupMarker;
             let loadingElement = document.getElementById('loading');
             
             // Helper function to send messages to React Native
@@ -409,63 +482,216 @@ export default function TrackingScreen({ navigation, route }) {
                 zoom: 13,
                 center: userLocation,
                   mapTypeId: 'roadmap',
-                  mapTypeControl: true,
-                  streetViewControl: true,
+                  mapTypeControl: false,
+                  streetViewControl: false,
                   fullscreenControl: true,
                   zoomControl: true,
                   gestureHandling: 'greedy',
                   styles: [
                     {
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#212121"
+                        }
+                      ]
+                    },
+                    {
+                      "elementType": "labels.icon",
+                      "stylers": [
+                        {
+                          "visibility": "off"
+                        }
+                      ]
+                    },
+                    {
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#757575"
+                        }
+                      ]
+                    },
+                    {
+                      "elementType": "labels.text.stroke",
+                      "stylers": [
+                        {
+                          "color": "#212121"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "administrative",
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#757575"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "administrative.country",
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#9e9e9e"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "administrative.land_parcel",
+                      "stylers": [
+                        {
+                          "visibility": "off"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "administrative.locality",
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#bdbdbd"
+                        }
+                      ]
+                    },
+                    {
                       "featureType": "poi",
-                      "stylers": [{ "visibility": "on" }]
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#757575"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "poi.park",
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#181818"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "poi.park",
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#616161"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "poi.park",
+                      "elementType": "labels.text.stroke",
+                      "stylers": [
+                        {
+                          "color": "#1b1b1b"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "road",
+                      "elementType": "geometry.fill",
+                      "stylers": [
+                        {
+                          "color": "#2c2c2c"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "road",
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#8a8a8a"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "road.arterial",
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#373737"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "road.highway",
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#3c3c3c"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "road.highway.controlled_access",
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#4e4e4e"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "road.local",
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#616161"
+                        }
+                      ]
                     },
                     {
                       "featureType": "transit",
-                      "stylers": [{ "visibility": "on" }]
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#757575"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "water",
+                      "elementType": "geometry",
+                      "stylers": [
+                        {
+                          "color": "#000000"
+                        }
+                      ]
+                    },
+                    {
+                      "featureType": "water",
+                      "elementType": "labels.text.fill",
+                      "stylers": [
+                        {
+                          "color": "#3d3d3d"
+                        }
+                      ]
                     }
                   ]
                 });
                 
-                // User location marker (Delivery Person)
+                // User location marker (Current Location - Blue Dot)
                 userMarker = new google.maps.Marker({
                 position: userLocation,
                 map: map,
-                  title: "Your Location (Driver)",
+                  title: "Your Current Location",
                 icon: {
                   path: google.maps.SymbolPath.CIRCLE,
-                    scale: 15,
-                  fillColor: '#FFE8FD',
+                    scale: 8,
+                  fillColor: '#4285F4',
                   fillOpacity: 1,
                   strokeColor: '#FFFFFF',
-                    strokeWeight: 4
-                  },
-                  label: {
-                    text: '🚗',
-                    fontSize: '20px'
+                    strokeWeight: 3
                   }
                 });
                 
-                // Pickup location marker (Customer)
+                // Draw delivery route using Directions API (no pickup marker)
               if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
-                  pickupMarker = new google.maps.Marker({
-                  position: pickupLocation,
-                  map: map,
-                    title: "Pickup Location (Customer)",
-                  icon: {
-                      path: google.maps.SymbolPath.CIRCLE,
-                      scale: 12,
-                      fillColor: '#FF4444',
-                      fillOpacity: 1,
-                      strokeColor: '#FFFFFF',
-                      strokeWeight: 3
-                    },
-                    label: {
-                      text: '📍',
-                      fontSize: '18px'
-                    }
-                  });
-                  
-                  // Draw delivery route using Directions API
                   console.log('🔍 DEBUG: Initializing Directions API...');
                   
                   if (!google.maps.DirectionsService) {
@@ -503,7 +729,7 @@ export default function TrackingScreen({ navigation, route }) {
                       console.log('✅ DEBUG: Route calculated successfully');
                       directionsRenderer.setDirections(result);
                       
-                      // Display route information
+                      // Log route information to console only
                       const route = result.routes[0];
                       const leg = route.legs[0];
                       
@@ -512,28 +738,6 @@ export default function TrackingScreen({ navigation, route }) {
                       console.log('   Duration:', leg.duration.text);
                       console.log('   Start address:', leg.start_address);
                       console.log('   End address:', leg.end_address);
-                      
-                      // Update UI with route info (you can customize this)
-                      const routeInfo = document.createElement('div');
-                      routeInfo.innerHTML = \`
-                        <div style="
-                          position: absolute;
-                          top: 10px;
-                          left: 10px;
-                          background: rgba(255,255,255,0.9);
-                          padding: 10px;
-                          border-radius: 8px;
-                          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                          font-size: 14px;
-                          z-index: 1000;
-                        ">
-                          <div style="font-weight: bold; margin-bottom: 5px;">🚗 Delivery Route</div>
-                          <div>📏 Distance: \${leg.distance.text}</div>
-                          <div>⏱️ Time: \${leg.duration.text}</div>
-                        </div>
-                      \`;
-                      document.body.appendChild(routeInfo);
                       
                     } else {
                       console.error('❌ DEBUG: Directions request failed with status:', status);
@@ -628,12 +832,23 @@ export default function TrackingScreen({ navigation, route }) {
     }
   }, [userLocation, pickupAddress]);
 
+  // Debug effect to log address state changes
+  useEffect(() => {
+    console.log('🔍 DEBUG: Address state updated!');
+    console.log('🔍 DEBUG: pickupAddress state:', pickupAddress);
+    console.log('🔍 DEBUG: Display address will be:', getDisplayAddress());
+  }, [pickupAddress, userAddress, userProfile]);
+
 
   // Pan responder for modal
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 10;
+        return Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderGrant: () => {
+        // Touch started
       },
       onPanResponderMove: (_, gestureState) => {
         const newHeight = MODAL_MIN_HEIGHT - gestureState.dy;
@@ -644,13 +859,6 @@ export default function TrackingScreen({ navigation, route }) {
       onPanResponderRelease: (_, gestureState) => {
         const shouldExpand = gestureState.dy < -50;
         const targetHeight = shouldExpand ? MODAL_MAX_HEIGHT : MODAL_MIN_HEIGHT;
-        
-        Animated.spring(modalTranslateY, {
-          toValue: targetHeight - MODAL_MIN_HEIGHT,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
         
         setModalHeight(targetHeight);
       },
@@ -675,6 +883,34 @@ export default function TrackingScreen({ navigation, route }) {
     return null;
   };
 
+  // Get display address - check all possible sources
+  const getDisplayAddress = () => {
+    console.log('🔍 DEBUG: Getting display address...');
+    console.log('🔍 DEBUG: pickupAddress?.address:', pickupAddress?.address);
+    console.log('🔍 DEBUG: userAddress:', userAddress);
+    
+    // Priority 1: Pickup address from state
+    if (pickupAddress?.address) {
+      console.log('✅ Using pickupAddress.address:', pickupAddress.address);
+      return pickupAddress.address;
+    }
+    
+    // Priority 2: User address from route params
+    if (userAddress) {
+      console.log('✅ Using userAddress from params:', userAddress);
+      return userAddress;
+    }
+    
+    // Priority 3: User profile address
+    if (userProfile?.address) {
+      console.log('✅ Using userProfile.address:', userProfile.address);
+      return userProfile.address;
+    }
+    
+    console.log('❌ No address found');
+    return 'Address not available';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
@@ -683,19 +919,18 @@ export default function TrackingScreen({ navigation, route }) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image
-            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/couri-logo.png' }}
-            style={styles.logo}
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png' }}
+            style={styles.couriLogo}
             resizeMode="contain"
           />
         </View>
         
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.messageButton}>
-            <Image
-              source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/message-icon.png' }}
-              style={styles.messageIcon}
-              resizeMode="contain"
-            />
+            <View style={styles.chatIcon}>
+              <Text style={styles.chatIconText}>💬</Text>
+              <View style={styles.notificationDot} />
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.profileButton}>
@@ -711,6 +946,12 @@ export default function TrackingScreen({ navigation, route }) {
             )}
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Status Section */}
+      <View style={styles.statusSection}>
+        <Text style={styles.statusTitle}>A Couri driver is being assigned</Text>
+        <Text style={styles.statusSubtitle}>We'll let you know when they're on the way.</Text>
       </View>
 
       {/* Map */}
@@ -786,37 +1027,69 @@ export default function TrackingScreen({ navigation, route }) {
           styles.modal,
           {
             height: modalHeight,
-            transform: [{ translateY: modalTranslateY }],
           }
         ]}
-        {...panResponder.panHandlers}
       >
-        <View style={styles.modalHandle} />
+        <View style={styles.modalHandleContainer} {...panResponder.panHandlers}>
+          <View style={styles.modalHandle} />
+        </View>
         
-        <View style={styles.modalContent}>
+        <View style={styles.modalContent} {...panResponder.panHandlers}>
           {modalHeight <= MODAL_MIN_HEIGHT + 50 ? (
-            // Collapsed view - show price only
+            // Collapsed view - show address and total
             <View style={styles.collapsedContent}>
-              <Text style={styles.priceLabel}>Product Price</Text>
-              <Text style={styles.priceValue}>${productDetails.price.toFixed(2)}</Text>
+              <View style={styles.addressSection}>
+                <Text style={styles.addressLabel}>Your Address</Text>
+                <Text style={styles.addressText}>
+                  {getDisplayAddress()}
+                </Text>
+              </View>
+              
+              <View style={styles.divider} />
+              
+              <View style={styles.summaryHeader}>
+                <Text style={styles.summaryTitle}>Order Summary</Text>
+                <View style={styles.totalWithArrow}>
+                  <Text style={styles.totalAmount}>${totalPrice.toFixed(2)}</Text>
+                  <Text style={styles.expandArrow}>^</Text>
+                </View>
+              </View>
             </View>
           ) : (
             // Expanded view - show full details
             <View style={styles.expandedContent}>
-              <Text style={styles.productTitle}>{productDetails.title}</Text>
+              <View style={styles.addressSection}>
+                <Text style={styles.addressLabel}>Your Address</Text>
+                <Text style={styles.addressText}>
+                  {getDisplayAddress()}
+                </Text>
+              </View>
               
-              <View style={styles.priceBreakdown}>
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Product Price</Text>
-                  <Text style={styles.priceValue}>${productDetails.price.toFixed(2)}</Text>
+              <View style={styles.divider} />
+              
+              <View style={styles.summaryHeader}>
+                <Text style={styles.summaryTitle}>Order Summary</Text>
+                <View style={styles.totalWithArrow}>
+                  <Text style={styles.totalAmount}>${totalPrice.toFixed(2)}</Text>
+                  <Text style={styles.expandArrow}>⌄</Text>
+                </View>
+              </View>
+              
+              <View style={styles.orderDetails}>
+                <View style={styles.orderItem}>
+                  <Text style={styles.itemName}>"{productDetails.title}"</Text>
+                  <Text style={styles.itemPrice}>${productDetails.price.toFixed(2)}</Text>
                 </View>
                 
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Couri Delivery & Service Fee</Text>
-                  <Text style={styles.priceValue}>${deliveryFee.toFixed(2)}</Text>
+                <View style={styles.orderItem}>
+                  <View style={styles.feeRow}>
+                    <Text style={styles.feeLabel}>Couri Delivery & Service Fee</Text>
+                    <Text style={styles.infoIcon}>ⓘ</Text>
+                  </View>
+                  <Text style={styles.feePrice}>${deliveryFee.toFixed(2)}</Text>
                 </View>
                 
-                <View style={[styles.priceRow, styles.totalRow]}>
+                <View style={[styles.orderItem, styles.totalItem]}>
                   <Text style={styles.totalLabel}>Total</Text>
                   <Text style={styles.totalValue}>${totalPrice.toFixed(2)}</Text>
                 </View>
@@ -839,10 +1112,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingTop: 30,
+    paddingBottom: 15,
+    backgroundColor: '#fafafa',
   },
   headerLeft: {
     flex: 1,
@@ -851,28 +1123,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logo: {
+  couriLogo: {
     width: 80,
-    height: 30,
+    height: 32,
   },
   messageButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f8f8f8',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+    position: 'relative',
   },
-  messageIcon: {
-    width: 20,
-    height: 20,
+  chatIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  chatIconText: {
+    fontSize: 20,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
   },
   profileButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   profileImage: {
     width: '100%',
@@ -891,6 +1179,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+  },
+  statusSection: {
+    backgroundColor: '#fafafa',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  statusTitle: {
+    fontSize: 28,
+    fontWeight: 'normal',
+    color: '#000',
+    marginBottom: 8,
+    lineHeight: 34,
+  },
+  statusSubtitle: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#000',
+    lineHeight: 22,
   },
   mapContainer: {
     flex: 1,
@@ -947,14 +1253,17 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  modalHandleContainer: {
+    width: '100%',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalHandle: {
     width: 40,
     height: 4,
     backgroundColor: '#d0d0d0',
     borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 12,
   },
   modalContent: {
     flex: 1,
@@ -963,43 +1272,102 @@ const styles = StyleSheet.create({
   },
   collapsedContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingVertical: 5,
   },
   expandedContent: {
     flex: 1,
+    paddingVertical: 5,
   },
-  productTitle: {
-    fontSize: 18,
+  addressSection: {
+    marginBottom: 8,
+  },
+  addressLabel: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 5,
+  },
+  addressText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+    lineHeight: 22,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
   },
-  priceBreakdown: {
-    flex: 1,
-    justifyContent: 'center',
+  totalWithArrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  priceRow: {
+  totalAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginRight: 8,
+  },
+  expandArrow: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 15,
+  },
+  orderDetails: {
+    marginTop: 10,
+  },
+  orderItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
   },
-  totalRow: {
+  itemName: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+    marginRight: 10,
+  },
+  itemPrice: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  feeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  feeLabel: {
+    fontSize: 16,
+    color: '#333',
+    marginRight: 5,
+  },
+  infoIcon: {
+    fontSize: 14,
+    color: '#666',
+  },
+  feePrice: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  totalItem: {
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     marginTop: 10,
     paddingTop: 15,
-  },
-  priceLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  priceValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
   },
   totalLabel: {
     fontSize: 18,

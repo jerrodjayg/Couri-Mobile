@@ -20,7 +20,7 @@
 
     "ios": {
       "config":{
-        "googleMapsApiKey": "YOUR_NEW_IOS_API_KEY_HERE"
+        "googleMapsApiKey": "AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw"
       },
       "useAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.jerrod",
@@ -38,7 +38,7 @@
     "android": {
       "config":{
         "googleMaps": {
-          "apiKey": "YOUR_NEW_ANDROID_API_KEY_HERE"
+          "apiKey": "AIzaSyAefIF36UbqayA10CzzBSKq3eI_j3e_9Ak"
         }
       },
       "package": "com.anonymous.jerrod",

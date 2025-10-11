@@ -77,7 +77,7 @@ export default function ConfirmAvailability({ navigation, route }) {
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Image
-              source={{ uri: 'https://cdn-icons-png.freepik.com/256/5629/5629228.png' }}
+              source={require('../assets/backarrow.png')}
               style={styles.backArrowImage}
               resizeMode="contain"
             />
