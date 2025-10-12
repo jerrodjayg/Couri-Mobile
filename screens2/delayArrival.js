@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -8,12 +9,18 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Modal,
+  Animated,
+  Linking,
 } from 'react-native';
 
 export default function DelayArrival({ navigation, route }) {
   const { transactionData } = route.params || {};
   const [selectedTime, setSelectedTime] = useState(null);
-  const [timeSlots, setTimeSlots] = useState([]);
+  const [todaySlots, setTodaySlots] = useState([]);
+  const [tomorrowSlots, setTomorrowSlots] = useState([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const slideAnim = useRef(new Animated.Value(300)).current;
 
   // Generate time slots based on current time
   const generateTimeSlots = () => {
@@ -21,10 +28,8 @@ export default function DelayArrival({ navigation, route }) {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     
-    // Time slots: 9 AM to 6 PM with 1-hour intervals
-    // 9-10 AM, 10-11 AM, 11 AM-12 PM, 12-1 PM, 1-2 PM, 2-3 PM, 3-4 PM, 4-5 PM, 5-6 PM
-    
-    const slots = [];
+    const todaySlotsArray = [];
+    const tomorrowSlotsArray = [];
     let id = 1;
 
     // Calculate the next available hour (rounded up)
@@ -47,7 +52,7 @@ export default function DelayArrival({ navigation, route }) {
         const startTime = formatTime(startHour, 0);
         const endTime = formatTime(endHour, 0);
         
-        slots.push({
+        todaySlotsArray.push({
           id: id.toString(),
           label: `${startTime} - ${endTime}`,
           value: `${startHour}:00-${endHour}:00`,
@@ -66,16 +71,16 @@ export default function DelayArrival({ navigation, route }) {
       const startTime = formatTime(startHour, 0);
       const endTime = formatTime(endHour, 0);
       
-      slots.push({
+      tomorrowSlotsArray.push({
         id: id.toString(),
-        label: `Tomorrow ${startTime} - ${endTime}`,
+        label: `${startTime} - ${endTime}`,
         value: `tomorrow-${startHour}:00-${endHour}:00`,
         isToday: false
       });
       id++;
     }
 
-    return slots;
+    return { todaySlots: todaySlotsArray, tomorrowSlots: tomorrowSlotsArray };
   };
 
   // Format time to 12-hour format with AM/PM
@@ -87,15 +92,25 @@ export default function DelayArrival({ navigation, route }) {
   };
 
   useEffect(() => {
-    setTimeSlots(generateTimeSlots());
+    const { todaySlots, tomorrowSlots } = generateTimeSlots();
+    setTodaySlots(todaySlots);
+    setTomorrowSlots(tomorrowSlots);
   }, []);
 
   const handleTimeSelect = (time) => {
     setSelectedTime(time);
+    setShowConfirmModal(true);
+    // Animate modal sliding up
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleConfirmTime = async () => {
     if (selectedTime) {
+      setShowConfirmModal(false);
       try {
         // Track that user confirmed time range
         await AsyncStorage.setItem('userJourney_timeConfirmed', 'true');
@@ -121,67 +136,74 @@ export default function DelayArrival({ navigation, route }) {
     }
   };
 
+  const handleCloseModal = () => {
+    // Animate modal sliding down
+    Animated.timing(slideAnim, {
+      toValue: 300,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowConfirmModal(false);
+      setSelectedTime(null);
+    });
+  };
+
+  const handleContactSupport = () => {
+    Linking.openURL('https://gocouri.com');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image
-              source={require('../assets/backarrow.png')}
-              style={styles.backArrowImage}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.headerTitle}>SELECT DELIVERY TIME</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Image
+            source={require('../assets/backarrow.png')}
+            style={styles.backArrowImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
         <View style={styles.headerRight} />
       </View>
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.iconContainer}>
-          <Text style={styles.iconText}>⏰</Text>
-        </View>
+        <Text style={styles.pageTitle}>Delay Arrival</Text>
         
-        <Text style={styles.title}>Choose a new delivery time</Text>
-        
-        <Text style={styles.subtitle}>
-          Select when you'll be available to receive your delivery.
+        <Text style={styles.instructionText}>
+          Choose a time range in the next 24 hours when you will be home to meet a Couri driver:
         </Text>
 
-        {/* Transaction Details */}
-        {transactionData && (
-          <View style={styles.transactionCard}>
-            <View style={styles.transactionContent}>
-              <View style={styles.transactionDetails}>
-                <Text style={styles.productTitle}>
-                  "{transactionData.productTitle || 'Product'}"
+        {/* Today Time Slots */}
+        {todaySlots.length > 0 && (
+          <View style={styles.timeSection}>
+            <Text style={styles.sectionTitle}>Today</Text>
+            {todaySlots.map((time) => (
+              <TouchableOpacity
+                key={time.id}
+                style={[
+                  styles.timeSlot,
+                  selectedTime?.id === time.id && styles.timeSlotSelected
+                ]}
+                onPress={() => handleTimeSelect(time)}
+              >
+                <Text style={[
+                  styles.timeSlotText,
+                  selectedTime?.id === time.id && styles.timeSlotTextSelected
+                ]}>
+                  {time.label}
                 </Text>
-                {transactionData.productDescription && (
-                  <Text style={styles.productDescription}>
-                    {transactionData.productDescription}
-                  </Text>
-                )}
-              </View>
-              
-              {transactionData.productImage && (
-                <Image 
-                  source={{ uri: transactionData.productImage }} 
-                  style={styles.productImage} 
-                  resizeMode="cover"
-                />
-              )}
-            </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
-        {/* Time Slots */}
-        <View style={styles.timeSlotsContainer}>
-          <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
-          {timeSlots.map((time) => (
+        {/* Tomorrow Time Slots */}
+        <View style={styles.timeSection}>
+          <Text style={styles.sectionTitle}>Tomorrow</Text>
+          {tomorrowSlots.map((time) => (
             <TouchableOpacity
               key={time.id}
               style={[
@@ -196,34 +218,56 @@ export default function DelayArrival({ navigation, route }) {
               ]}>
                 {time.label}
               </Text>
-              {selectedTime?.id === time.id && (
-                <View style={styles.checkmark}>
-                  <Text style={styles.checkmarkText}>✓</Text>
-                </View>
-              )}
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Contact Support */}
+        <View style={styles.contactSection}>
+          <Text style={styles.contactText}>None of these work?</Text>
+          <TouchableOpacity style={styles.contactButton} onPress={handleContactSupport}>
+            <Text style={styles.contactButtonText}>Contact Support</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      {/* Bottom Button */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity 
-          style={[
-            styles.confirmButton,
-            !selectedTime && styles.confirmButtonDisabled
-          ]}
-          onPress={handleConfirmTime}
-          disabled={!selectedTime}
-        >
-          <Text style={[
-            styles.confirmButtonText,
-            !selectedTime && styles.confirmButtonTextDisabled
-          ]}>
-            Confirm time range
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmModal}
+        transparent
+        animationType="none"
+        onRequestClose={handleCloseModal}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View 
+            style={[
+              styles.modalContent,
+              { transform: [{ translateY: slideAnim }] }
+            ]}
+          >
+            {/* Close button */}
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={handleCloseModal}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+
+            {/* Modal title */}
+            <Text style={styles.modalTitle}>
+              Confirm your availability between{'\n'}{selectedTime?.label} {selectedTime?.isToday ? 'today' : 'tomorrow'}?
+            </Text>
+
+            {/* Confirm button */}
+            <TouchableOpacity 
+              style={styles.confirmButton}
+              onPress={handleConfirmTime}
+            >
+              <Text style={styles.confirmButtonText}>Confirm time range</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -235,26 +279,19 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
     backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerLeft: {
-    width: 40,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 20,
   },
   headerRight: {
-    width: 40,
+    flex: 1,
   },
   backArrowImage: {
     width: 24,
@@ -262,143 +299,136 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f8f8f8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    alignSelf: 'center',
-  },
-  iconText: {
-    fontSize: 40,
-  },
-  title: {
+  pageTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
-    textAlign: 'center',
+    color: '#333',
     marginBottom: 16,
   },
-  subtitle: {
+  instructionText: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: '#333',
     lineHeight: 24,
     marginBottom: 32,
   },
-  transactionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 32,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  transactionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  transactionDetails: {
-    flex: 1,
-    marginRight: 16,
-  },
-  productTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  productDescription: {
-    fontSize: 14,
-    color: '#666',
-  },
-  productImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  timeSlotsContainer: {
+  timeSection: {
     marginBottom: 32,
   },
-  timeSlotsTitle: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
+    fontWeight: 'normal',
+    color: '#333',
     marginBottom: 16,
   },
   timeSlot: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f5f5f5',
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 8,
     marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   timeSlotSelected: {
-    backgroundColor: '#e8f4fd',
-    borderColor: '#007AFF',
+    backgroundColor: '#10B981',
   },
   timeSlotText: {
     fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
-  },
-  timeSlotTextSelected: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkmarkText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#333',
     fontWeight: 'bold',
   },
-  bottomContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-    paddingTop: 16,
+  timeSlotTextSelected: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  contactSection: {
+    marginTop: 0,
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  contactText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 16,
+  },
+  contactButton: {
     backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    paddingVertical: 16,
+    paddingHorizontal: 64,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#000',
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  contactButtonText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    paddingBottom: 60,
+    minHeight: 220,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: -49,
+    right: 7,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  closeButtonText: {
+    fontSize: 35,
+    color: '#fff',
+
+  },
+  modalTitle: {
+    fontSize: 18,
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
   },
   confirmButton: {
     backgroundColor: '#000',
+    borderRadius: 30,
     paddingVertical: 16,
-    borderRadius: 50,
     alignItems: 'center',
-  },
-  confirmButtonDisabled: {
-    backgroundColor: '#ccc',
+    width: '100%',
   },
   confirmButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  confirmButtonTextDisabled: {
-    color: '#999',
   },
 });

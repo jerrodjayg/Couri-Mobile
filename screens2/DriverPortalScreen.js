@@ -64,7 +64,7 @@ export default function DriverPortalScreen({ navigation }) {
       {/* Map Section */}
       <View style={styles.mapContainer}>
         <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderText}>🗺️ Map will go here</Text>
+          <Text style={styles.mapPlaceholderText}>Map will go here</Text>
           <Text style={styles.mapSubtext}>Driver location tracking</Text>
         </View>
       </View>

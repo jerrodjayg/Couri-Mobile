@@ -457,14 +457,14 @@ const TransactionDetailsModal = ({ visible, onClose, transactionData, navigation
 
           {/* Title */}
           <Text style={transactionDetailsModalStyles.title}>
-            How long will transaction review take?
+            How long will{'\n'}transaction review{'\n'}take?
           </Text>
 
           {/* Description */}
           <Text style={transactionDetailsModalStyles.description}>
             {isBuyer 
-              ? "We've notified the seller that your transaction is awaiting review. Most sellers review within an hour, but it depends on how quickly they respond. If it's been a while, consider nudging them on the original platform where you contacted them."
-              : "We've notified the buyer that your transaction is awaiting review. Most buyers review within an hour, but it depends on how quickly they respond. If it's been a while, consider nudging them on the original platform where you contacted them."
+              ? "We've notified the seller that your\ntransaction is awaiting review. Most sellers\nreview within an hour, but it depends on how\nquickly they respond. If it's been a while,\nconsider nudging them on the original\nplatform where you contacted them."
+              : "We've notified the buyer that your\ntransaction is awaiting review. Most buyers\nreview within an hour, but it depends on how\nquickly they respond. If it's been a while,\nconsider nudging them on the original\nplatform where you contacted them."
             }
           </Text>
 
@@ -551,44 +551,50 @@ const transactionDetailsModalStyles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 32,
-    minHeight: 300,
+    paddingVertical: 24,
+    width: '100%',
+    minHeight: 450,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   closeButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 32,
-    height: 32,
+    top: -45,
+    right: 1,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
   },
   closeButtonText: {
-    fontSize: 18,
-    color: '#666',
+    fontSize: 24,
+    color: '#fff',
     fontWeight: 'bold',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: 'normal',
     color: '#000',
     marginBottom: 16,
-    marginTop: 8,
+    textAlign: 'center',
   },
   description: {
     fontSize: 16,
     color: '#000',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   actionButton: {
     backgroundColor: '#000',
@@ -596,6 +602,7 @@ const transactionDetailsModalStyles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     width: '100%',
+    marginTop: 40,
   },
   actionButtonText: {
     color: '#fff',
@@ -1546,7 +1553,7 @@ const styles = StyleSheet.create({
   infoLogoImage: { width: 50, height: 50, marginBottom: 12 },
   infoTitle: { fontSize: 28, fontWeight: '300', textAlign: 'center', marginBottom: 8 },
   infoSub: { fontSize: 14, color: '#444', marginBottom: 20 },
-  learnMoreButton: { backgroundColor: '#fff', borderRadius: 50, paddingVertical: 19, paddingHorizontal: 33, borderWidth: 2, borderColor: '#000' },
+  learnMoreButton: { backgroundColor: '#fff', borderRadius: 50, paddingVertical: 19, paddingHorizontal: 60, borderWidth: 2, borderColor: '#000' },
   learnMoreText: { fontSize: 16, fontWeight: '600', textAlign: 'center', color: '#000' },
 });
 

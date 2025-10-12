@@ -226,11 +226,48 @@ export default function TrackingScreen({ navigation, route }) {
         return;
       }
 
-      console.log('🔍 DEBUG: Getting current location with high accuracy...');
-      // Get current location with high accuracy
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+      // Check for cached location first (much faster)
+      try {
+        const cachedLocation = await AsyncStorage.getItem('cachedUserLocation');
+        if (cachedLocation) {
+          const { location: cachedLoc, timestamp } = JSON.parse(cachedLocation);
+          const age = Date.now() - timestamp;
+          
+          // Use cached location if less than 2 minutes old
+          if (age < 120000) {
+            console.log('📍 Using cached user location (age:', Math.round(age / 1000), 'seconds)');
+            setUserLocation({
+              latitude: cachedLoc.coords.latitude,
+              longitude: cachedLoc.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            });
+            setLocationError(null);
+            
+            // Still get fresh location in background for next time
+            getFreshLocationInBackground();
+            return;
+          }
+        }
+      } catch (cacheError) {
+        console.log('⚠️ Cache read error, continuing with fresh location...');
+      }
+
+      console.log('🔍 DEBUG: Getting current location with balanced accuracy...');
+      
+      // Try to get location with timeout and fallback accuracy
+      const locationPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        maximumAge: 30000, // Accept location up to 30 seconds old
+        timeout: 10000, // 10 second timeout
       });
+
+      // Add overall timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Location timeout')), 15000);
+      });
+
+      const location = await Promise.race([locationPromise, timeoutPromise]);
       
       console.log('✅ DEBUG: Location obtained:', {
         latitude: location.coords.latitude,
@@ -246,10 +283,61 @@ export default function TrackingScreen({ navigation, route }) {
       });
       
       setLocationError(null);
+      
+      // Cache the location for faster future access
+      try {
+        await AsyncStorage.setItem('cachedUserLocation', JSON.stringify({
+          location: location,
+          timestamp: Date.now()
+        }));
+      } catch (cacheError) {
+        console.log('⚠️ Could not cache location:', cacheError);
+      }
+      
     } catch (error) {
       console.error('❌ DEBUG: Error getting location:', error);
       console.error('❌ DEBUG: Error details:', error.message);
-      setLocationError('Unable to get current location: ' + error.message);
+      
+      // Try fallback with lower accuracy if high accuracy failed
+      try {
+        console.log('🔄 Trying fallback location with lower accuracy...');
+        const fallbackLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Lowest,
+          maximumAge: 60000, // Accept location up to 1 minute old
+          timeout: 8000, // 8 second timeout
+        });
+        
+        setUserLocation({
+          latitude: fallbackLocation.coords.latitude,
+          longitude: fallbackLocation.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        setLocationError(null);
+        console.log('✅ Fallback location successful');
+      } catch (fallbackError) {
+        setLocationError('Unable to get current location: ' + error.message);
+      }
+    }
+  };
+
+  // Get fresh location in background for caching
+  const getFreshLocationInBackground = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        maximumAge: 60000,
+        timeout: 20000,
+      });
+      
+      // Cache the fresh location
+      await AsyncStorage.setItem('cachedUserLocation', JSON.stringify({
+        location: location,
+        timestamp: Date.now()
+      }));
+      console.log('✅ Fresh location cached in background');
+    } catch (error) {
+      console.log('⚠️ Background location update failed:', error.message);
     }
   };
 
@@ -271,9 +359,10 @@ export default function TrackingScreen({ navigation, route }) {
         // Start watching position for real-time updates
         locationSubscription = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000, // Update every 5 seconds
-            distanceInterval: 10, // Update when moved 10 meters
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 10000, // Update every 10 seconds (less frequent for better performance)
+            distanceInterval: 20, // Update when moved 20 meters
+            maximumAge: 30000, // Accept location up to 30 seconds old
           },
           (location) => {
             setUserLocation({
@@ -719,15 +808,15 @@ export default function TrackingScreen({ navigation, route }) {
                   title: "Your Current Location",
                 icon: {
                   path: google.maps.SymbolPath.CIRCLE,
-                    scale: 8,
+                    scale: 12,
                   fillColor: '#FFE8FD',
                   fillOpacity: 1,
                   strokeWeight: 0,
                   shadow: {
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: 10,
+                    scale: 18,
                     fillColor: '#FFE8FD',
-                    fillOpacity: 0.3
+                    fillOpacity: 0.4
                   }
                   }
                 });
@@ -1017,13 +1106,6 @@ export default function TrackingScreen({ navigation, route }) {
         </View>
         
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.messageButton}>
-            <View style={styles.chatIcon}>
-              <Text style={styles.chatIconText}>💬</Text>
-              <View style={styles.notificationDot} />
-            </View>
-          </TouchableOpacity>
-          
           <TouchableOpacity 
             style={styles.profileButton}
             onPress={() => navigation.navigate('MyAccount')}
@@ -1234,33 +1316,6 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     tintColor: '#000000',
-  },
-  messageButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    position: 'relative',
-  },
-  chatIcon: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  chatIconText: {
-    fontSize: 20,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
   },
   profileButton: {
     width: 40,

@@ -112,7 +112,6 @@ export default function Share({ navigation, route }) {
       const message = `You've been invited to a transaction on Couri! View and join the transaction here: ${webUrl}`;
       
       await Clipboard.setStringAsync(message);
-      Alert.alert('Copied!', 'Web invitation link copied to clipboard');
     } catch (error) {
       console.error('Error copying web invite:', error);
       Alert.alert('Error', 'Failed to copy web invitation');
@@ -281,6 +280,16 @@ export default function Share({ navigation, route }) {
                         {isCreatingWebInvite ? 'Creating...' : 'Copy web link'}
                       </Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={[styles.sendButton, isCreatingWebInvite && styles.disabledButton]} 
+                      onPress={handleShareWebInvite}
+                      disabled={isCreatingWebInvite}
+                    >
+                      <Text style={styles.sendButtonText}>
+                        {isCreatingWebInvite ? 'Creating...' : 'Send Link'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -420,6 +429,8 @@ const styles = StyleSheet.create({
   copySquare1: { position: 'absolute', top: 2, left: 2, width: 12, height: 12, borderWidth: 2, borderColor: '#000', borderRadius: 2 },
   copySquare2: { position: 'absolute', top: 6, left: 6, width: 12, height: 12, backgroundColor: '#000', borderRadius: 2 },
   copyButtonText: { color: '#000', fontSize: 16, fontWeight: '600' },
+  sendButton: { backgroundColor: '#000', borderWidth: 1, borderColor: '#000', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  sendButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   shareButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#007AFF', borderWidth: 1, borderColor: '#007AFF', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 14, gap: 8, flex: 1 },
   shareIcon: { width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
   shareIconText: { fontSize: 16, color: '#fff', fontWeight: 'bold' },
