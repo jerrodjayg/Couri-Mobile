@@ -686,10 +686,32 @@ export default function Welcomepage({ route, navigation }) {
     }
   }, [route?.params?.transactionData]);
 
-  /* ----- Deep link handling: parse ?data=... or ?id=... ----- */
+  /* ----- Deep link handling: handle invitation deep links ----- */
   const handleIncomingUrl = async (url) => {
     if (!url) return;
     try {
+      console.log('🔗 Handling incoming URL:', url);
+      
+      // Check if this is from route params (already passed via navigation)
+      if (route?.params?.inviteTransaction) {
+        console.log('✅ Invite data from route params:', route.params.inviteTransaction);
+        const inviteData = route.params.inviteTransaction;
+        
+        setInvite({
+          transactionId: inviteData.id,
+          title: inviteData.title,
+          price: inviteData.price,
+          image: inviteData.image,
+          description: inviteData.description,
+          seller: inviteData.seller,
+          sellerId: inviteData.sellerId,
+          source: inviteData.source,
+          fromDeepLink: true
+        });
+        return;
+      }
+
+      // Parse URL for legacy base64 encoded data
       const parsed = Linking.parse(url);
       if (parsed?.queryParams?.data && typeof parsed.queryParams.data === 'string') {
         const payload = decodeInvite(parsed.queryParams.data);
@@ -716,7 +738,10 @@ export default function Welcomepage({ route, navigation }) {
           console.log('✅ Someone else clicked link - showing invite modal');
         }
       } else if (parsed?.queryParams?.id && typeof parsed.queryParams.id === 'string') {
-        // TODO: fetch by ID from your backend if using short links
+        // Fetch transaction by ID from backend
+        const transactionId = parsed.queryParams.id;
+        console.log('📥 Fetching transaction by ID:', transactionId);
+        // This will be handled by App.js deep link handler
       }
     } catch (e) {
       console.log('❌ Invalid invite link:', e);
@@ -738,6 +763,58 @@ export default function Welcomepage({ route, navigation }) {
     const sub = Linking.addEventListener('url', ({ url }) => handleIncomingUrl(url));
     return () => sub.remove();
   }, [userProfile]);
+
+  /* ----- Realtime listener: Person 1 waits for Person 2 to accept ----- */
+  useEffect(() => {
+    // Only subscribe if we have a transaction ID to listen for
+    if (!transactionData?.transactionId) return;
+
+    console.log('📡 Setting up realtime listener for transaction:', transactionData.transactionId);
+    
+    const channelName = `transaction:${transactionData.transactionId}`;
+    const channel = supabase.channel(channelName, { 
+      config: { broadcast: { self: false } } 
+    });
+
+    channel
+      .on('broadcast', { event: 'transaction-accepted' }, (payload) => {
+        const { transactionId, acceptedAt, inviteeId } = payload?.payload || {};
+        console.log('🎉 Real-time notification: Invite accepted!', { 
+          transactionId, 
+          acceptedAt, 
+          inviteeId 
+        });
+        
+        if (transactionId === transactionData.transactionId) {
+          // Show success modal to Person 1
+          setSuccessModalVisible(true);
+          console.log('✅ Showing acceptance notification to Person 1');
+        }
+      })
+      .on('broadcast', { event: 'transaction-declined' }, (payload) => {
+        const { transactionId } = payload?.payload || {};
+        console.log('❌ Real-time notification: Invite declined', { transactionId });
+        
+        if (transactionId === transactionData.transactionId) {
+          // Show alert to Person 1
+          Alert.alert(
+            'Invitation Declined',
+            'The other party has declined your transaction invitation.',
+            [{ text: 'OK' }]
+          );
+          // Clear transaction data
+          setTransactionData(null);
+        }
+      })
+      .subscribe((status) => {
+        console.log('📡 Realtime channel subscription status:', status);
+      });
+
+    return () => {
+      console.log('🔌 Unsubscribing from realtime channel:', channelName);
+      channel.unsubscribe();
+    };
+  }, [transactionData?.transactionId]);
 
   /* ----- Original safety checks / session logic (unchanged) ----- */
   useEffect(() => {
@@ -1402,18 +1479,49 @@ export default function Welcomepage({ route, navigation }) {
         onClose={() => setConfirmVisible(false)}
         onAccept={async () => {
           try {
-            // TODO: send accept to backend here
             setConfirmVisible(false);
-            console.log('🎉 Person 2 accepted invite, transactionId:', invite?.transactionId);
-            // Simulate triggering success modal on Person 1's screen
-            // In a real app, this would be handled via push notifications or real-time updates
-            setTimeout(async () => {
-              console.log('⏰ Triggering transaction accepted after 1 second delay');
-              await triggerTransactionAccepted(invite?.transactionId);
-            }, 1000);
-            Alert.alert('Invitation accepted', 'The buyer will be notified.');
+            console.log('🎉 Person 2 accepting invite, transactionId:', invite?.transactionId);
+            
+            // Get user session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+              Alert.alert('Error', 'You must be signed in to accept invitations.');
+              return;
+            }
+
+            // Call accept-invite API
+            const projectRef = process.env.EXPO_PUBLIC_SUPABASE_PROJECT_REF || 'nfkykasruwdzpcjuufdu';
+            const response = await fetch(`https://${projectRef}.functions.supabase.co/accept-invite-by-id`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({
+                transactionId: invite?.transactionId,
+                action: 'accept'
+              })
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok || !result.success) {
+              throw new Error(result.error || 'Failed to accept invitation');
+            }
+
+            console.log('✅ Invitation accepted successfully:', result);
+            
+            // Clear invite and show success
+            setInvite(null);
+            Alert.alert(
+              'Invitation Accepted!', 
+              `The seller (${invite?.seller}) has been notified. You'll receive updates as the transaction progresses.`,
+              [{ text: 'OK', onPress: () => console.log('User acknowledged acceptance') }]
+            );
+            
           } catch (e) {
-            Alert.alert('Something went wrong', 'Please try again.');
+            console.error('❌ Error accepting invitation:', e);
+            Alert.alert('Error', e.message || 'Failed to accept invitation. Please try again.');
           }
         }}
       />

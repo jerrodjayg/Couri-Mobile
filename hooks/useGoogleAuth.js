@@ -9,17 +9,28 @@ WebBrowser.maybeCompleteAuthSession();
 export function useGoogleAuth() {
   const [loading, setLoading] = useState(false);
 
-  // Create redirect URI for Expo Go compatibility
-  const redirectTo = 'com.anonymous.jerrod://';
+  // Create redirect URI based on platform
+  const redirectTo = Platform.OS === 'web' 
+    ? window.location.origin  // Redirect back to the main app URL
+    : 'com.anonymous.jerrod://';
 
   const signIn = async () => {
     if (loading) return;
     setLoading(true);
 
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('❌ Google sign-in timeout - taking too long');
+      setLoading(false);
+      alert('Google sign-in is taking too long. Please try again.');
+    }, 30000); // 30 second timeout
+
     try {
       console.log('🔄 Starting Supabase Google OAuth...');
       console.log('📱 Platform:', Platform.OS);
       console.log('🔗 Redirect URL:', redirectTo);
+      console.log('🌐 Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+      console.log('🌐 Window available:', typeof window !== 'undefined');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -35,7 +46,18 @@ export function useGoogleAuth() {
 
       if (error) {
         console.error('❌ OAuth error:', error);
+        console.error('❌ OAuth error details:', {
+          message: error.message,
+          status: error.status,
+          platform: Platform.OS
+        });
         throw error;
+      }
+
+      if (!data?.url) {
+        console.error('❌ No OAuth URL received from Supabase');
+        console.error('❌ Data received:', data);
+        throw new Error('No OAuth URL received from authentication provider');
       }
 
       if (data?.url) {
@@ -45,7 +67,38 @@ export function useGoogleAuth() {
 
         let result;
         
-        if (Platform.OS === 'android') {
+        if (Platform.OS === 'web') {
+          console.log('🌐 Web platform detected - opening OAuth in new tab...');
+          console.log('🔗 OAuth URL:', data.url);
+          console.log('🎯 Redirect URL:', redirectTo);
+          
+          // Try to open OAuth URL in new tab
+          try {
+            const newWindow = window.open(data.url, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
+            
+            if (!newWindow) {
+              console.error('❌ Popup blocked - trying direct redirect');
+              // If popup is blocked, show user message and try direct redirect
+              alert('Please allow popups for this site, then try again. Or the page will redirect to Google.');
+              setTimeout(() => {
+                window.location.href = data.url;
+              }, 2000);
+            } else {
+              console.log('✅ OAuth opened in new tab');
+            }
+            
+            // Return success regardless
+            result = { type: 'success', url: data.url };
+            
+          } catch (openError) {
+            console.error('❌ Failed to open OAuth window:', openError);
+            // Fallback: direct redirect
+            console.log('🔄 Falling back to direct redirect...');
+            window.location.href = data.url;
+            result = { type: 'success', url: data.url };
+          }
+          
+        } else if (Platform.OS === 'android') {
           console.log('📱 Android detected - using WebBrowser...');
           
           try {
@@ -247,6 +300,7 @@ export function useGoogleAuth() {
       
       return { type: 'error', message: userMessage, originalError: err };
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };

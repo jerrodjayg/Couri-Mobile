@@ -194,6 +194,23 @@ export default function Share({ navigation, route }) {
     navigation.navigate('MyAccount', { userData: userProfile });
   };
 
+  const getUserInitials = (profile) => {
+    if (profile?.full_name) {
+      const names = profile.full_name.split(' ');
+      if (names.length >= 2) return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      if (names.length === 1) return names[0].charAt(0).toUpperCase();
+    }
+    if (profile?.name) {
+      const names = profile.name.split(' ');
+      if (names.length >= 2) return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+      if (names.length === 1) return names[0].charAt(0).toUpperCase();
+    }
+    if (profile?.firstName && profile?.lastName) {
+      return (profile.firstName.charAt(0) + profile.lastName.charAt(0)).toUpperCase();
+    }
+    return 'U';
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />

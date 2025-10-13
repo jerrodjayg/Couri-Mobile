@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Complete - Couri</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 20px;
+        }
+        .success-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            background: #10B981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .checkmark {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .message {
+            font-size: 18px;
+            color: #000;
+            margin-bottom: 10px;
+        }
+        .submessage {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">cou<span style="text-decoration: none; color: #000;">ri</span></div>
+        <div class="success-icon">
+            <div class="checkmark">✓</div>
+        </div>
+        <div class="message" id="status-message">Processing Authentication...</div>
+        <div class="submessage" id="status-detail">Please wait while we complete your sign-in.</div>
+    </div>
+
+    <script>
+        // Handle OAuth callback for web authentication
+        console.log('🔗 Auth callback page loaded');
+        console.log('📍 Current URL:', window.location.href);
+        
+        // Extract the authorization code or error from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+        
+        console.log('🔍 URL parameters:', { code, error, errorDescription });
+        
+        const statusMessage = document.getElementById('status-message');
+        const statusDetail = document.getElementById('status-detail');
+        
+        if (error) {
+            console.error('❌ OAuth error:', error, errorDescription);
+            statusMessage.textContent = 'Authentication Failed';
+            statusDetail.textContent = errorDescription || error;
+            document.querySelector('.success-icon').style.background = '#EF4444';
+            document.querySelector('.checkmark').textContent = '✕';
+            
+            // Show error for 3 seconds then close
+            setTimeout(() => {
+                window.close();
+            }, 3000);
+            
+        } else if (code) {
+            console.log('✅ Authorization code received:', code);
+            statusMessage.textContent = 'Authentication Complete!';
+            statusDetail.textContent = 'You are now signed in. This window will close automatically.';
+            
+            // Auto-close the tab after 2 seconds
+            setTimeout(() => {
+                console.log('🏠 Closing auth tab...');
+                window.close();
+            }, 2000);
+            
+        } else {
+            console.log('⚠️ No code or error found in URL');
+            statusMessage.textContent = 'Authentication Complete';
+            statusDetail.textContent = 'You can close this window and return to the app.';
+            
+            // Auto-close after 3 seconds
+            setTimeout(() => {
+                window.close();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
