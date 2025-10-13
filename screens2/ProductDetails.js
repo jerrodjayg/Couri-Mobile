@@ -733,16 +733,21 @@ export default function ProductDetails({ navigation, route }) {
       
       // Clean up the extracted data
       if (productName) {
-        productName = productName.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+        // Decode HTML entities
+        productName = productName.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
         
         // Don't extract price from product name - let user enter it manually
         console.log('✅ Price will be entered manually by user');
         
-        // Clean up product name - remove price info and make it shorter
+        // Clean up product name - remove price info, symbols, and make it shorter
         productName = productName
           .replace(/\$\d+(?:\.\d{2})?/gi, '') // Remove price
           .replace(/for\s+\$\d+/gi, '') // Remove "for $X"
           .replace(/everything\s+in\s+the\s+picture/gi, '') // Remove "everything in the picture"
+          .replace(/\s+-\s+Facebook/gi, '') // Remove "- Facebook" suffix
+          .replace(/\s+\|\s+Facebook/gi, '') // Remove "| Facebook" suffix
+          .replace(/\s+-\s+Marketplace/gi, '') // Remove "- Marketplace" suffix
+          .replace(/[^\w\s\-&',.()]/gi, '') // Remove special symbols but keep letters, numbers, spaces, hyphens, ampersands, apostrophes, commas, periods, and parentheses
           .replace(/\s+/g, ' ') // Clean up extra spaces
           .trim();
         
@@ -1800,12 +1805,12 @@ export default function ProductDetails({ navigation, route }) {
           {!extractedData.productName ? (
             <View style={styles.webViewContainer}>
               <Text style={styles.sectionTitle}>
-                {isSelling ? 'Facebook Marketplace Seller' : 'Facebook Marketplace Scraper'}
+                {isSelling ? 'Couri Delivery AI' : 'Couri Delivery AI'}
               </Text>
               <Text style={styles.sectionSubtitle}>
                 {isSelling 
-                  ? 'Automatically extracting product information for listing: ' + productUrl
-                  : 'Automatically extracting product information from: ' + productUrl
+                  ? 'Automatically extracting product information for listing'
+                  : 'Automatically extracting product information'
                 }
               </Text>
               
