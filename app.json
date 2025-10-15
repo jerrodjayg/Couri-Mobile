@@ -25,6 +25,10 @@
       "useAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.jerrod",
       "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:gocouri.com",
+        "applinks:www.gocouri.com"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to camera to take profile photos.",

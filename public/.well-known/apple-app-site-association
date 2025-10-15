@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "S4VHGX8378.com.anonymous.jerrod",
+        "paths": [
+          "/deeplink/i/*",
+          "/i/*"
+        ]
+      }
+    ]
+  }
+}
+

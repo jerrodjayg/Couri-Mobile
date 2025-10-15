@@ -9,6 +9,9 @@ import { Linking as RNLinking } from 'react-native';
 import { Buffer } from 'buffer';
 import OptimizedImage from '../components/OptimizedImage';
 import imagePreloader from '../utils/imagePreloader';
+import { getInviteCache, clearInviteCache } from '../utils/inviteCache';
+import { listMyInvites, acceptInvite } from '../utils/inviteApi';
+import { useInviteRealtime } from '../hooks/useInviteRealtime';
 import {
   Animated,
   View,
@@ -658,6 +661,64 @@ export default function Welcomepage({ route, navigation }) {
   const [transactionData, setTransactionData] = useState(null); // 👈 transaction data from Share.js
   const [successModalVisible, setSuccessModalVisible] = useState(false); // 👈 success modal for accepted transaction
   const [transactionDetailsModalVisible, setTransactionDetailsModalVisible] = useState(false); // 👈 transaction details modal
+  const [myInvites, setMyInvites] = useState([]); // 👈 list of all my invites
+  const [inviteError, setInviteError] = useState(null); // 👈 invite loading/acceptance errors
+
+  // Check for cached invite from deep link on mount
+  useEffect(() => {
+    const cachedInvite = getInviteCache();
+    if (cachedInvite) {
+      console.log('📦 Found cached invite from deep link:', cachedInvite.id);
+      setInvite(cachedInvite);
+      clearInviteCache(); // Clear after loading
+    }
+    
+    // Check for invite error from route params
+    if (route?.params?.inviteError) {
+      console.log('❌ Invite error from deep link:', route.params.inviteError);
+      setInviteError(route.params.inviteError);
+    }
+  }, [route?.params?.inviteError]);
+
+  // Show error alert when inviteError is set
+  useEffect(() => {
+    if (inviteError) {
+      Alert.alert(
+        'Invitation Error',
+        inviteError,
+        [
+          { 
+            text: 'Request New Invite', 
+            onPress: () => {
+              setInviteError(null);
+              // Could navigate to a screen to request new invite
+            }
+          },
+          { text: 'OK', onPress: () => setInviteError(null) }
+        ]
+      );
+    }
+  }, [inviteError]);
+
+  // Real-time subscription for invite acceptance (Person 1 waiting for Person 2)
+  useInviteRealtime(
+    transactionData?.transactionId || transactionData?.id,
+    (data) => {
+      console.log('🎉 Invite accepted via real-time:', data);
+      setSuccessModalVisible(true);
+      // Refetch invites to update list
+      if (userProfile?.id) {
+        listMyInvites({ mine: true }).then(invites => {
+          setMyInvites(invites);
+        }).catch(err => console.error('Error refetching invites:', err));
+      }
+    },
+    (data) => {
+      console.log('❌ Invite declined via real-time:', data);
+      Alert.alert('Invitation Declined', 'The other party has declined your invitation.');
+      setTransactionData(null);
+    }
+  );
 
   // Preload Welcomepage-specific images when component mounts
   useEffect(() => {
@@ -1075,13 +1136,30 @@ export default function Welcomepage({ route, navigation }) {
         }
       };
       
+      // Refetch invites when screen comes into focus
+      const refetchInvites = async () => {
+        if (!userProfile?.id) return;
+        
+        try {
+          console.log('🔄 Refetching invites on screen focus...');
+          const invites = await listMyInvites({ mine: true });
+          if (isMounted) {
+            setMyInvites(invites);
+            console.log('✅ Invites refetched:', invites.length);
+          }
+        } catch (error) {
+          console.error('❌ Error refetching invites:', error);
+        }
+      };
+      
       refreshProfilePicture();
       checkTransactionStatus();
+      refetchInvites();
       
       return () => {
         isMounted = false;
       };
-    }, [transactionData])
+    }, [transactionData, userProfile?.id])
   );
 
   const handleSignOut = async () => {
@@ -1480,48 +1558,42 @@ export default function Welcomepage({ route, navigation }) {
         onAccept={async () => {
           try {
             setConfirmVisible(false);
-            console.log('🎉 Person 2 accepting invite, transactionId:', invite?.transactionId);
+            console.log('🎉 Person 2 accepting invite, inviteId:', invite?.id || invite?.transactionId);
             
-            // Get user session
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-              Alert.alert('Error', 'You must be signed in to accept invitations.');
-              return;
+            const inviteId = invite?.id || invite?.transactionId;
+            if (!inviteId) {
+              throw new Error('Invalid invitation');
             }
 
-            // Call accept-invite API
-            const projectRef = process.env.EXPO_PUBLIC_SUPABASE_PROJECT_REF || 'nfkykasruwdzpcjuufdu';
-            const response = await fetch(`https://${projectRef}.functions.supabase.co/accept-invite-by-id`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-              },
-              body: JSON.stringify({
-                transactionId: invite?.transactionId,
-                action: 'accept'
-              })
-            });
-
-            const result = await response.json();
+            // Call accept invite API (idempotent)
+            const result = await acceptInvite(inviteId);
             
-            if (!response.ok || !result.success) {
-              throw new Error(result.error || 'Failed to accept invitation');
-            }
-
             console.log('✅ Invitation accepted successfully:', result);
             
-            // Clear invite and show success
+            // Update local state
             setInvite(null);
+            
+            // Update invite list
+            if (myInvites && myInvites.length > 0) {
+              setMyInvites(prev => prev.map(inv => 
+                inv.id === inviteId ? { ...inv, status: 'accepted' } : inv
+              ));
+            }
+            
+            // Show success message
             Alert.alert(
               'Invitation Accepted!', 
-              `The seller (${invite?.seller}) has been notified. You'll receive updates as the transaction progresses.`,
+              `The seller (${invite?.seller || 'seller'}) has been notified. You'll receive updates as the transaction progresses.`,
               [{ text: 'OK', onPress: () => console.log('User acknowledged acceptance') }]
             );
             
           } catch (e) {
             console.error('❌ Error accepting invitation:', e);
-            Alert.alert('Error', e.message || 'Failed to accept invitation. Please try again.');
+            
+            // Handle specific errors with user-friendly messages
+            let errorMessage = e.message || 'Failed to accept invitation. Please try again.';
+            
+            Alert.alert('Error', errorMessage);
           }
         }}
       />

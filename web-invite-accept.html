@@ -344,16 +344,18 @@
                 
                 console.log('Opening Couri app (TestFlight) with transaction ID:', transactionId);
                 
-                // Try to open the app with deep link first
-                // If TestFlight app is installed and running, this will work
-                const deepLinkUrl = `${DEEP_LINK_SCHEME}://transaction/${transactionId}`;
+                // Use Universal Link format for TestFlight
+                // Format: https://gocouri.com/deeplink/i/:token
+                const universalLinkUrl = `https://gocouri.com/deeplink/i/${transactionId}`;
                 
-                // Attempt to open the deep link
+                console.log('🔗 Opening via Universal Link:', universalLinkUrl);
+                
+                // Attempt to open the universal link
                 const startTime = Date.now();
-                window.location.href = deepLinkUrl;
+                window.location.href = universalLinkUrl;
                 
                 // Show instructions message
-                showSuccess(`Opening Couri app...<br><br>If you're already logged in to the TestFlight app, you should see the invitation on your Welcome screen.<br><br>Transaction ID: <strong>${transactionId}</strong>`);
+                showSuccess(`Opening Couri app...<br><br>If you're already logged in to the TestFlight app, you should see the invitation on your Welcome screen.<br><br>Invite ID: <strong>${transactionId}</strong>`);
                 
                 // After a short delay, if the page is still visible, show TestFlight option
                 setTimeout(() => {

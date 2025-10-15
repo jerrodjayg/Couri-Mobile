@@ -6,6 +6,8 @@ import { UserProvider } from './contexts/UserContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { supabase } from './screens/supabaseClient';
+import { fetchInviteByToken } from './utils/inviteApi';
+import { setInviteCache } from './utils/inviteCache';
 
 import UploadPhotoScreen from './screens/UploadPhotoScreen';
 import SplashScreen from './screens/SplashScreen';
@@ -48,7 +50,8 @@ const linking = {
   prefixes: [
     "com.anonymous.jerrod://",  // Current scheme from app.json
     "couri://",  // Alternative simpler scheme
-    "https://gocouri.com",  // Universal Links (when configured)
+    "https://gocouri.com",  // Universal Links
+    "https://www.gocouri.com",  // Universal Links (www)
   ],
   config: {
     screens: {
@@ -95,9 +98,57 @@ export default function App() {
         }
       }
       
-      // Handle transaction deep links (both schemes)
+      // Handle invite deep links with token (Universal Links: https://couri.app/deeplink/i/:token)
+      else if (url && (url.includes('/deeplink/i/') || url.includes('/i/'))) {
+        console.log('📬 Invite deep link detected');
+        
+        try {
+          const urlObj = new URL(url);
+          const pathSegments = urlObj.pathname.split('/').filter(s => s);
+          
+          // Extract token from URL
+          // Support both /deeplink/i/:token and /i/:token formats
+          let token = null;
+          const iIndex = pathSegments.indexOf('i');
+          if (iIndex !== -1 && iIndex < pathSegments.length - 1) {
+            token = pathSegments[iIndex + 1];
+          }
+          
+          if (token && navigationRef.current) {
+            console.log('📬 Fetching invite by token:', token);
+            
+            // Fetch invite using token
+            fetchInviteByToken(token)
+              .then(invite => {
+                console.log('✅ Invite fetched:', invite);
+                
+                // Store in cache
+                setInviteCache(invite);
+                
+                // Navigate to Welcomepage which will show the invite
+                navigationRef.current.navigate('Welcomepage', {
+                  inviteToken: token,
+                  fromDeepLink: true
+                });
+              })
+              .catch(error => {
+                console.error('❌ Error fetching invite:', error);
+                
+                // Navigate to Welcomepage with error
+                navigationRef.current.navigate('Welcomepage', {
+                  inviteError: error.message || 'Failed to load invitation',
+                  fromDeepLink: true
+                });
+              });
+          }
+        } catch (error) {
+          console.error('❌ Error handling invite deep link:', error);
+        }
+      }
+      
+      // Handle transaction deep links (legacy support)
       else if (url && (url.includes('transaction/'))) {
-        console.log('💼 Transaction deep link detected');
+        console.log('💼 Transaction deep link detected (legacy)');
         
         try {
           const urlObj = new URL(url);
