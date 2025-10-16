@@ -611,6 +611,71 @@ const transactionDetailsModalStyles = StyleSheet.create({
   },
 });
 
+const cancelConfirmModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    width: '85%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    gap: 12,
+  },
+  keepButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    width: '100%',
+  },
+  keepButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#FF0000',
+  },
+  cancelButtonText: {
+    color: '#FF0000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
 /* -----------------------------
    Accept/Decline modal (same screen)
 ------------------------------*/
@@ -658,6 +723,7 @@ export default function Welcomepage({ route, navigation }) {
   const [transactionData, setTransactionData] = useState(null); // 👈 transaction data from Share.js
   const [successModalVisible, setSuccessModalVisible] = useState(false); // 👈 success modal for accepted transaction
   const [transactionDetailsModalVisible, setTransactionDetailsModalVisible] = useState(false); // 👈 transaction details modal
+  const [cancelConfirmModalVisible, setCancelConfirmModalVisible] = useState(false); // 👈 cancel transaction confirmation modal
 
   // Preload Welcomepage-specific images when component mounts
   useEffect(() => {
@@ -1324,9 +1390,7 @@ export default function Welcomepage({ route, navigation }) {
                 <TouchableOpacity 
                   style={styles.cancelTransactionButton} 
                   onPress={() => {
-                    setTransactionData(null);
-                    // TODO: Handle transaction cancellation
-                    console.log('Cancel transaction');
+                    setCancelConfirmModalVisible(true);
                   }}
                 >
                   <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
@@ -1429,6 +1493,45 @@ export default function Welcomepage({ route, navigation }) {
         transactionData={transactionData}
         navigation={navigation}
       />
+
+      {/* Cancel Transaction Confirmation Modal */}
+      <Modal
+        visible={cancelConfirmModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelConfirmModalVisible(false)}
+      >
+        <View style={cancelConfirmModalStyles.overlay}>
+          <View style={cancelConfirmModalStyles.modalContent}>
+            <Text style={cancelConfirmModalStyles.title}>
+              Cancel Transaction?
+            </Text>
+            <Text style={cancelConfirmModalStyles.description}>
+              Are you sure you want to cancel this transaction? This action cannot be undone.
+            </Text>
+            
+            <View style={cancelConfirmModalStyles.buttonContainer}>
+              <TouchableOpacity 
+                style={cancelConfirmModalStyles.keepButton}
+                onPress={() => setCancelConfirmModalVisible(false)}
+              >
+                <Text style={cancelConfirmModalStyles.keepButtonText}>Keep Transaction</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={cancelConfirmModalStyles.cancelButton}
+                onPress={() => {
+                  setTransactionData(null);
+                  setCancelConfirmModalVisible(false);
+                  console.log('Transaction cancelled');
+                }}
+              >
+                <Text style={cancelConfirmModalStyles.cancelButtonText}>Yes, Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 

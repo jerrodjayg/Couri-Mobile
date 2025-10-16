@@ -1,5 +1,6 @@
 // PersonalInfoScreen.js
 import { supabase } from './supabaseClient';
+import { UserService } from '../utils/userService';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,7 +16,6 @@ import {
   Pressable,
   Image,
   Alert,
-  FlatList,
 } from 'react-native';
 import base64 from 'react-native-base64';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,6 +28,8 @@ export default function PersonalInfoScreen({ navigation, route }) {
   console.log('🔍 PersonalInfoScreen DEBUG - Supabase client methods:', Object.keys(supabase || {}));
   
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   console.log('🔍 PersonalInfoScreen DEBUG - selectedPlace state initialized');
   
   const { userInfo, phone } = route.params || {};
@@ -103,6 +105,146 @@ export default function PersonalInfoScreen({ navigation, route }) {
     return match[1];
   };
 
+  // Fetch address suggestions from Geoapify API (free alternative)
+  const fetchAddressSuggestions = async (input) => {
+    if (!input || input.trim().length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    setIsLoadingAddresses(true);
+    
+    try {
+      const apiKey = 'd32e033d549b4ad5a9f56bd0519f87e3';
+      const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(input)}&apiKey=${apiKey}&filter=countrycode:us&limit=5`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data && data.features && data.features.length > 0) {
+        // Transform Geoapify response to show full address in dropdown
+        const suggestions = data.features.map(feature => {
+          const props = feature.properties;
+          const streetOnly = `${props.housenumber || ''} ${props.street || ''}`.trim();
+          
+          // Build full address display for dropdown
+          const parts = [
+            streetOnly,
+            props.city,
+            props.state_code || props.state,
+            props.postcode
+          ].filter(Boolean);
+          
+          const fullDisplay = parts.join(', ');
+          
+          return {
+            place_id: feature.properties.place_id || `${feature.properties.lat}_${feature.properties.lon}`,
+            description: fullDisplay,           // Show full address in dropdown
+            streetOnly: streetOnly,             // Store street for Address Line 1
+            properties: feature.properties
+          };
+        });
+        setAddressSuggestions(suggestions);
+      } else {
+        setAddressSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching address suggestions:', error);
+      setAddressSuggestions([]);
+    } finally {
+      setIsLoadingAddresses(false);
+    }
+  };
+
+  // Get place details from Geoapify
+  const getPlaceDetails = async (suggestion) => {
+    try {
+      const props = suggestion.properties;
+      
+      // Use the pre-extracted street-only value from suggestion
+      const streetAddress = suggestion.streetOnly || `${props.housenumber || ''} ${props.street || ''}`.trim();
+      
+      return {
+        streetNumber: props.housenumber || '',
+        route: props.street || '',
+        city: props.city || '',
+        state: props.state_code || props.state || '',
+        zipCode: props.postcode || '',
+        fullAddress: streetAddress, // Only street info for Address Line 1
+        address1: streetAddress,    // Only street number + street name
+        address2: props.address_line2 || '',
+        city: props.city || '',
+        state: props.state_code || props.state || '',
+        zip: props.postcode || ''
+      };
+    } catch (error) {
+      console.error('Error parsing place details:', error);
+      return null;
+    }
+  };
+
+  // Parse address components from Google Places API response
+  const parseAddressComponents = (addressComponents, formattedAddress) => {
+    let streetNumber = '';
+    let route = '';
+    let city = '';
+    let state = '';
+    let zipCode = '';
+
+    addressComponents.forEach(component => {
+      const types = component.types;
+      
+      if (types.includes('street_number')) {
+        streetNumber = component.long_name;
+      } else if (types.includes('route')) {
+        route = component.long_name;
+      } else if (types.includes('locality') || types.includes('administrative_area_level_2')) {
+        city = component.long_name;
+      } else if (types.includes('administrative_area_level_1')) {
+        state = component.short_name;
+      } else if (types.includes('postal_code')) {
+        zipCode = component.long_name;
+      }
+    });
+
+    return {
+      streetNumber,
+      route,
+      city,
+      state,
+      zipCode,
+      fullAddress: formattedAddress || `${streetNumber} ${route}`.trim(),
+      address1: `${streetNumber} ${route}`.trim(),
+      address2: '',
+      city,
+      state,
+      zip: zipCode
+    };
+  };
+
+  // Handle address selection
+  const handleAddressSelect = async (suggestion) => {
+    console.log('🔍 Address selected:', suggestion);
+    setIsLoadingAddresses(true);
+    
+    const details = await getPlaceDetails(suggestion);
+    
+    if (details) {
+      console.log('🔍 Parsed address details:', details);
+      setForm(prev => ({
+        ...prev,
+        fullAddress: details.fullAddress,
+        address1: details.address1,
+        city: details.city,
+        state: details.state,
+        zip: details.zip,
+      }));
+    }
+    
+    setAddressSuggestions([]);
+    setIsLoadingAddresses(false);
+  };
+
   // Populate form with userInfo from route params if it exists
   useEffect(() => {
     try {
@@ -174,6 +316,21 @@ export default function PersonalInfoScreen({ navigation, route }) {
   const handleChange = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
     setError('');
+    
+    // Trigger address suggestions when typing in fullAddress field
+    if (name === 'fullAddress') {
+      if (value.length >= 3) {
+        // Debounce the API call
+        if (window.addressTimeout) {
+          clearTimeout(window.addressTimeout);
+        }
+        window.addressTimeout = setTimeout(() => {
+          fetchAddressSuggestions(value);
+        }, 300);
+      } else {
+        setAddressSuggestions([]);
+      }
+    }
   };
   console.log('🔍 PersonalInfoScreen DEBUG - handleChange function defined');
 
@@ -221,6 +378,21 @@ export default function PersonalInfoScreen({ navigation, route }) {
       console.log('🔍 PersonalInfoScreen DEBUG - Invalid email format');
       setError('invalidEmail');
       return;
+    }
+
+    // Check if email already exists in database
+    console.log('🔍 PersonalInfoScreen DEBUG - Checking if email already exists in database');
+    try {
+      const { exists } = await UserService.checkUserExists(form.email.toLowerCase());
+      if (exists) {
+        console.log('🔍 PersonalInfoScreen DEBUG - Email already exists in database');
+        setError('emailExists');
+        return;
+      }
+      console.log('🔍 PersonalInfoScreen DEBUG - Email is available');
+    } catch (dbError) {
+      console.error('❌ PersonalInfoScreen DEBUG - Error checking email existence:', dbError);
+      // Continue with account creation if database check fails
     }
 
     console.log('🔍 PersonalInfoScreen DEBUG - Form validation passed, navigating to PushNoti');
@@ -300,6 +472,9 @@ export default function PersonalInfoScreen({ navigation, route }) {
       case 'invalidEmail':
         message = 'Enter a valid email address';
         break;
+      case 'emailExists':
+        message = 'This email is already assigned to an account';
+        break;
       case 'databaseError':
         message = 'Failed to save your information. Please try again.';
         break;
@@ -322,7 +497,11 @@ export default function PersonalInfoScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <View style={styles.header}>
           <View style={styles.backButtonContainer}>
             <Pressable onPress={() => navigation.goBack()}>
@@ -344,6 +523,7 @@ export default function PersonalInfoScreen({ navigation, route }) {
           contentContainerStyle={styles.formContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
         >
           <Text style={styles.sectionTitle}>Personal Info</Text>
           
@@ -374,12 +554,34 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
           <Text style={styles.sectionTitle}>Home Address</Text>
 
-          <TextInput 
-            placeholder="Full Address*" 
-            value={form.fullAddress} 
-            onChangeText={(text) => handleChange('fullAddress', text)} 
-            style={styles.input} 
-          />
+          <View style={{ position: 'relative', zIndex: 1000 }}>
+            <TextInput 
+              placeholder="Street Address*" 
+              value={form.fullAddress} 
+              onChangeText={(text) => handleChange('fullAddress', text)} 
+              style={styles.input} 
+            />
+            
+            {addressSuggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {addressSuggestions.map((item) => (
+                  <TouchableOpacity
+                    key={item.place_id}
+                    style={styles.suggestionItem}
+                    onPress={() => handleAddressSelect(item)}
+                  >
+                    <Text style={styles.suggestionText}>{item.description}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            
+            {isLoadingAddresses && (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading...</Text>
+              </View>
+            )}
+          </View>
 
           <TextInput placeholder="Address Line 2 (Optional)" value={form.address2} onChangeText={(text) => handleChange('address2', text)} style={styles.input} />
           <TextInput placeholder="City*" value={form.city} onChangeText={(text) => handleChange('city', text)} style={styles.input} />
@@ -402,7 +604,7 @@ export default function PersonalInfoScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -411,7 +613,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: 'transparent' },
   container: { flex: 1, backgroundColor: 'transparent' },
   scrollContainer: { flex: 1 },
-  formContainer: { padding: 24, paddingBottom: 80 },
+  formContainer: { padding: 24, paddingBottom: 120 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 8, paddingTop: 8 },
   backButtonContainer: { width: 44, alignItems: 'flex-start' },
   backArrowImage: { width: 24, height: 24, marginLeft: 20, marginTop: 4 },
@@ -438,6 +640,39 @@ const styles = StyleSheet.create({
     fontWeight: '600' 
   },
   errorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 52,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    maxHeight: 200,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    zIndex: 1001,
+  },
+  suggestionItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 52,
+    right: 16,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: '#999',
+  },
   errorIcon: { width: 18, height: 18, borderRadius: 9, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
   errorIconText: { color: 'white', fontWeight: 'bold', fontSize: 14, lineHeight: 14 },
   errorText: { color: 'red', fontWeight: '600' },

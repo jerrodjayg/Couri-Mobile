@@ -12,6 +12,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from './supabaseClient';
 
 export default function MyAccountScreen({ navigation, route }) {
   const { user } = useUser();
@@ -125,11 +126,26 @@ export default function MyAccountScreen({ navigation, route }) {
   );
 
   const handleLogOut = async () => {
-    // Navigate back to home/login screen
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
-    });
+    try {
+      // Sign out from Supabase but preserve user data in AsyncStorage
+      await supabase.auth.signOut();
+      
+      // Set flag to indicate user logged out (but keep data)
+      await AsyncStorage.setItem('userLastAction', 'sign_out');
+      
+      // Navigate back to home screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Still navigate even if logout fails
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    }
   };
 
   const handleViewProfile = () => {

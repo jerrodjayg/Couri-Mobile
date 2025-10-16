@@ -40,9 +40,9 @@ export default function SplashScreen({ navigation }) {
         const lastAction = await AsyncStorage.getItem('userLastAction');
         console.log('🔍 SplashScreen: User last action:', lastAction);
         
-        // If user deleted account or signed out, go to Home screen
-        if (lastAction === 'delete_account' || lastAction === 'sign_out') {
-          console.log('✅ SplashScreen: User deleted account or signed out, navigating to Home');
+        // If user deleted account, go to Home screen
+        if (lastAction === 'delete_account') {
+          console.log('✅ SplashScreen: User deleted account, navigating to Home');
           // Clear the last action flag
           await AsyncStorage.removeItem('userLastAction');
           setTimeout(() => {
@@ -55,6 +55,43 @@ export default function SplashScreen({ navigation }) {
             });
           }, 2000);
           return;
+        }
+        
+        // If user signed out, check if they have saved data and go to Welcomepage
+        if (lastAction === 'sign_out') {
+          console.log('✅ SplashScreen: User signed out, checking for saved data');
+          // Clear the last action flag
+          await AsyncStorage.removeItem('userLastAction');
+          
+          // Check if user has saved data in AsyncStorage
+          const tempUserData = await AsyncStorage.getItem('tempUserData');
+          const userProfileData = await AsyncStorage.getItem('userProfileData');
+          
+          if (tempUserData || userProfileData) {
+            console.log('✅ SplashScreen: Found saved user data, navigating to Welcomepage');
+            setTimeout(() => {
+              Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 1000,
+                useNativeDriver: true,
+              }).start(() => {
+                navigation.replace('Welcomepage');
+              });
+            }, 2000);
+            return;
+          } else {
+            console.log('✅ SplashScreen: No saved data found, navigating to Home');
+            setTimeout(() => {
+              Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 1000,
+                useNativeDriver: true,
+              }).start(() => {
+                navigation.replace('Home');
+              });
+            }, 2000);
+            return;
+          }
         }
         
         // Check if user just completed account creation
@@ -86,15 +123,15 @@ export default function SplashScreen({ navigation }) {
             .single();
           
           if (userData && !error) {
-            // User exists in database - go to Welcome page
-            console.log('✅ SplashScreen: Returning user found, navigating to Welcome page');
+            // User exists in database - go to BiometricAuth screen for returning users
+            console.log('✅ SplashScreen: Returning user found, navigating to BiometricAuth screen');
             setTimeout(() => {
               Animated.timing(fadeAnim, {
                 toValue: 0,
                 duration: 1000,
                 useNativeDriver: true,
               }).start(() => {
-                navigation.replace('Welcomepage');
+                navigation.replace('BiometricAuth');
               });
             }, 2000);
             return;

@@ -126,7 +126,8 @@ export function useGoogleAuth() {
             console.log('❌ No authorization code found in redirect URL');
             return { 
               type: 'error', 
-              message: 'OAuth completed but no authorization code received.'
+              message: 'OAuth completed but no authorization code received.',
+              shouldShowErrorScreen: true
             };
           }
           
@@ -213,21 +214,22 @@ export function useGoogleAuth() {
           // If we get here, the code exchange failed
           return { 
             type: 'error', 
-            message: 'OAuth completed but session establishment failed. Please try again.'
+            message: 'OAuth completed but session establishment failed. Please try again.',
+            shouldShowErrorScreen: true
           };
         } else if (result.type === 'cancel') {
           console.log('⚠️ OAuth flow was cancelled by user');
-          return { type: 'error', message: 'Sign-in was cancelled' };
+          return { type: 'error', message: 'Sign-in was cancelled', shouldShowErrorScreen: false };
         } else if (result.type === 'dismiss') {
           console.log('⚠️ OAuth flow was dismissed');
-          return { type: 'error', message: 'Sign-in was dismissed' };
+          return { type: 'error', message: 'Sign-in was dismissed', shouldShowErrorScreen: false };
         } else {
           console.log('❌ OAuth flow failed or incomplete');
-          return { type: 'error', message: 'OAuth flow failed. Please try again.' };
+          return { type: 'error', message: 'OAuth flow failed. Please try again.', shouldShowErrorScreen: true };
         }
       } else {
         console.log('❌ No OAuth URL received from Supabase');
-        return { type: 'error', message: 'No OAuth URL received' };
+        return { type: 'error', message: 'No OAuth URL received', shouldShowErrorScreen: true };
       }
     } catch (err) {
       console.error('❌ Google sign-in error:', err.message);
@@ -245,7 +247,7 @@ export function useGoogleAuth() {
         userMessage = 'Sign-in is taking too long. Please check your internet connection and try again.';
       }
       
-      return { type: 'error', message: userMessage, originalError: err };
+      return { type: 'error', message: userMessage, originalError: err, shouldShowErrorScreen: true };
     } finally {
       setLoading(false);
     }

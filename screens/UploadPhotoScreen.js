@@ -318,27 +318,29 @@ export default function UploadPhotoScreen({ navigation, route }) {
       
       console.log('🔍 UploadPhotoScreen DEBUG - Complete merged existing data (skip):', completeExistingData);
 
-      // Store user data without photo but with initials - EXPLICITLY NO PROFILE PICTURE
+      // Store user data without NEW photo but PRESERVE existing profile picture if it exists
       const userData = {
         ...completeExistingData,  // Use merged data instead of just effectiveUserInfo
         isGoogleAuth: route.params?.isGoogleAuth || false,
         userInitials: userInitials,
         hasSkippedPhoto: true,
-        avatar_url: '', // Explicitly set to empty
-        profileImageUri: '', // Explicitly set to empty
+        // PRESERVE existing profile picture if it exists, don't clear it
+        avatar_url: completeExistingData?.avatar_url || '', // Keep existing or empty
+        profileImageUri: completeExistingData?.profileImageUri || '', // Keep existing or empty
       };
 
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
       
-      // Store COMPLETE user data in userProfileData for other screens - EXPLICITLY NO PROFILE PICTURE
+      // Store COMPLETE user data in userProfileData for other screens - PRESERVE existing profile picture
       // This ensures all user information is preserved even when skipping photo
       const completeUserProfileData = {
         // PRESERVE ALL EXISTING USER DATA FIRST using merged data
         ...completeExistingData,
         // Then add/update specific fields
         id: completeExistingData?.id || 'temp_user',
-        avatar_url: '', // Explicitly set to empty
-        profileImageUri: '', // Explicitly set to empty
+        // PRESERVE existing profile picture if it exists, don't clear it
+        avatar_url: completeExistingData?.avatar_url || '', // Keep existing or empty
+        profileImageUri: completeExistingData?.profileImageUri || '', // Keep existing or empty
         hasSkippedPhoto: true,
         userInitials: userInitials,
         // Ensure these fields exist (but don't override if they're already in completeExistingData)

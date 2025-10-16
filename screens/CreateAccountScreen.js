@@ -153,9 +153,17 @@ export default function CreateAccountScreen({ navigation }) {
     const canGoBack = navigation.canGoBack();
     console.log('🔍 CreateAccountScreen DEBUG - Can go back:', canGoBack);
     
+    // Add focus listener to reset loading states when user returns to this screen
+    const unsubscribe = navigation.addListener('focus', () => {
+      setLoading(false);
+      setIsHandlingGoogleSignIn(false);
+      console.log('🔍 CreateAccountScreen DEBUG - Screen focused, reset loading states');
+    });
+    
     return () => {
       console.log('🔍 CreateAccountScreen DEBUG - Component unmounting');
       setIsHandlingGoogleSignIn(false);
+      unsubscribe(); // Clean up the listener
     };
   }, [navigation]);
 
@@ -227,24 +235,26 @@ const handleGoogleSignIn = async () => {
   setLoading(true);
   setIsHandlingGoogleSignIn(true);
   
-  // Add timeout to prevent hanging
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Google sign-in timeout after 105 seconds')), 105000);
-  });
+  // Add timeout to detect if Google auth doesn't proceed
+  const errorTimeoutId = setTimeout(() => {
+    console.log('⏱️ Google auth timeout - showing error screen');
+    setLoading(false);
+    setIsHandlingGoogleSignIn(false);
+    navigation.navigate('GoogleAuthError');
+  }, 5000); // 5 seconds
   
   try {
     console.log('🔄 Starting Google sign-in...');
     
-    // Race between the actual sign-in and the timeout
-    const result = await Promise.race([
-      signInGoogle(),
-      timeoutPromise
-    ]);
+    const result = await signInGoogle();
     
     console.log('📱 Google sign-in result:', result);
     console.log('🔍 CreateAccountScreen DEBUG - Google sign-in result type:', result.type);
     console.log('🔍 CreateAccountScreen DEBUG - Google sign-in result URL:', result.url);
 
+    // Clear the timeout since we got a response
+    clearTimeout(errorTimeoutId);
+    
     if (result.type === 'success') {
       console.log('✅ Google sign-in successful');
       
@@ -357,31 +367,42 @@ const handleGoogleSignIn = async () => {
       }
       
       console.log('❌ No user data found in any location');
-      Alert.alert('Error', 'Google sign-in completed but no user data was found. Please try again.');
+      // Reset loading states before navigation
+      setLoading(false);
+      setIsHandlingGoogleSignIn(false);
+      navigation.navigate('GoogleAuthError');
+      return;
       
     } else if (result.type === 'error') {
       console.log('❌ Google sign-in failed with error type');
-      Alert.alert('Error', 'Google sign-in failed. Please try again.');
+      // Only navigate to error screen if it's not a user cancellation
+      if (result.shouldShowErrorScreen !== false) {
+        // Reset loading states before navigation
+        setLoading(false);
+        setIsHandlingGoogleSignIn(false);
+        navigation.navigate('GoogleAuthError');
+        return;
+      }
     } else {
       console.log('❌ Google sign-in failed with unknown type:', result.type);
-      Alert.alert('Error', 'Google sign-in failed. Please try again.');
+      // Reset loading states before navigation
+      setLoading(false);
+      setIsHandlingGoogleSignIn(false);
+      navigation.navigate('GoogleAuthError');
+      return;
     }
     
   } catch (error) {
     console.error('❌ Google sign-in error:', error);
     
-            if (error.message === 'Google sign-in timeout after 105 seconds') {
-      Alert.alert(
-        'Sign-in Timeout',
-        'Google sign-in is taking too long. Please check your internet connection and try again.',
-        [{ text: 'OK' }]
-      );
-    } else {
-      Alert.alert('Error', 'Google sign-in failed. Please try again.');
-    }
-  } finally {
+    // Clear the timeout
+    clearTimeout(errorTimeoutId);
+    
+    // Reset loading states before navigation
     setLoading(false);
     setIsHandlingGoogleSignIn(false);
+    // Navigate to Google Auth Error screen for any error
+    navigation.navigate('GoogleAuthError');
   }
 };
 
@@ -561,9 +582,9 @@ const handleGoogleSignIn = async () => {
 
  {/* Google */}
  <TouchableOpacity
- style={[styles.providerButton, googleLoading && { opacity: 0.7 }]}
+ style={[styles.providerButton, (googleLoading || loading) && { opacity: 0.7 }]}
  onPress={handleGoogleSignIn}
- disabled={googleLoading}
+ disabled={googleLoading || loading}
  >
  <Image
  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}

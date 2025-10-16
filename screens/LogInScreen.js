@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Pressable, SafeAre
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { supabase } from './supabaseClient';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useFacebookAuth } from '../hooks/useFacebookAuth';
@@ -137,6 +138,8 @@ export default function LogInScreen({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingSignIn, setIsProcessingSignIn] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState('Biometric');
+  const [hasBiometricHardware, setHasBiometricHardware] = useState(false);
   const { signIn: signInGoogle, loading: googleLoading } = useGoogleAuth();
   const { signIn: signInFacebook, loading: facebookLoading } = useFacebookAuth();
   const { signIn: signInApple, loading: appleLoading } = useAppleAuth();
@@ -152,15 +155,271 @@ export default function LogInScreen({ navigation }) {
   // Clear error messages when component unmounts or navigation changes
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Error handling removed - only phone notifications now
+      // Reset loading states when user returns to this screen
+      setIsProcessingSignIn(false);
+      console.log('🔍 LogInScreen DEBUG - Screen focused, reset loading states');
     });
 
     return unsubscribe;
   }, [navigation]);
 
+  // Check biometric availability
+  useEffect(() => {
+    const checkBiometricAvailability = async () => {
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        
+        setHasBiometricHardware(hasHardware && isEnrolled);
+        
+        if (hasHardware && isEnrolled) {
+          const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+          
+          if (Platform.OS === 'ios') {
+            if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+              setBiometricLabel('Face ID');
+            } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+              setBiometricLabel('Touch ID');
+            }
+          } else {
+            if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+              setBiometricLabel('Fingerprint');
+            } else if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+              setBiometricLabel('Face Recognition');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Biometric detection error:', error);
+        setHasBiometricHardware(false);
+      }
+    };
+
+    checkBiometricAvailability();
+  }, []);
+
   const handlePhoneChange = (text) => {
     setPhoneNumber(formatPhoneNumber(text));
     // Error clearing removed - only phone notifications now
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      // First check if user has saved data in AsyncStorage
+      const tempUserData = await AsyncStorage.getItem('tempUserData');
+      const userProfileData = await AsyncStorage.getItem('userProfileData');
+      
+      if (!tempUserData && !userProfileData) {
+        Alert.alert(
+          'No Account Found',
+          'You need to create an account first before using biometric login.',
+          [
+            {
+              text: 'Create Account',
+              onPress: () => navigation.navigate('CreateAccount'),
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            }
+          ]
+        );
+        return;
+      }
+
+      // Check biometric availability
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware) {
+        Alert.alert('Error', 'Biometric hardware not available on this device.');
+        return;
+      }
+
+      if (!isEnrolled) {
+        Alert.alert('Error', `No ${biometricLabel} data found. Please enroll first.`);
+        return;
+      }
+
+      // Perform biometric authentication
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: `Authenticate using ${biometricLabel}`,
+        fallbackLabel: 'Use device passcode',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        console.log('✅ Biometric authentication successful');
+        
+        // Load user data from AsyncStorage
+        let userData = null;
+        if (tempUserData) {
+          userData = JSON.parse(tempUserData);
+        } else if (userProfileData) {
+          userData = JSON.parse(userProfileData);
+        }
+
+        if (userData) {
+          // Verify user exists in Supabase database before logging in
+          const userEmail = userData.email || userData.userEmail;
+          
+          console.log('📦 Full userData from AsyncStorage:', JSON.stringify(userData, null, 2));
+          console.log('📧 Extracted email:', userEmail);
+          console.log('📧 Email type:', typeof userEmail);
+          console.log('📧 Email length:', userEmail?.length);
+          
+          if (!userEmail) {
+            Alert.alert(
+              'No Account Found',
+              'No email found in saved data. Please create an account first.',
+              [
+                {
+                  text: 'Create Account',
+                  onPress: () => navigation.navigate('CreateAccount'),
+                },
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                }
+              ]
+            );
+            return;
+          }
+
+          try {
+            console.log('🔍 Checking if user exists in Supabase:', userEmail);
+            console.log('🔍 Checking with email (lowercase):', userEmail.toLowerCase());
+            console.log('🔍 About to query users table...');
+            
+            // Add timeout to database query (5 seconds)
+            const queryPromise = supabase
+              .from('users')
+              .select('*')
+              .eq('email', userEmail.toLowerCase());
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Database query timeout')), 5000)
+            );
+            
+            // Race between query and timeout
+            const { data: existingUsers, error: checkError } = await Promise.race([
+              queryPromise,
+              timeoutPromise
+            ]).catch(err => {
+              console.log('⚠️ Database query failed or timed out:', err.message);
+              console.log('ℹ️ Proceeding with cached data only (RLS may be blocking database access)');
+              
+              // Return empty result so we can skip to cached data
+              return { data: null, error: { message: err.message } };
+            });
+
+            console.log('✅ Query completed');
+            console.log('🔍 Raw query response - data:', existingUsers);
+            console.log('🔍 Raw query response - error:', checkError);
+            console.log('🔍 Data type:', typeof existingUsers);
+            console.log('🔍 Is array?:', Array.isArray(existingUsers));
+            console.log('🔍 Number of users found:', existingUsers?.length || 0);
+            
+            if (existingUsers) {
+              console.log('🔍 First user in array:', existingUsers[0]);
+            }
+
+            if (checkError) {
+              console.error('❌ Database query error:', checkError);
+              console.error('❌ Error code:', checkError.code);
+              console.error('❌ Error message:', checkError.message);
+              console.error('❌ Error details:', checkError.details);
+            }
+
+            // Check if we found at least one user
+            if (!existingUsers || existingUsers.length === 0) {
+              console.log('⚠️ User not found in database or query blocked by RLS');
+              console.log('🔍 Searched for email:', userEmail.toLowerCase());
+              console.log('🔍 Query returned:', existingUsers);
+              
+              // If we have cached data and the query just timed out (not an actual error),
+              // allow login with cached data
+              if (checkError && checkError.message === 'Database query timeout') {
+                console.log('ℹ️ Database query timed out (likely RLS blocking)');
+                console.log('✅ Using cached data from AsyncStorage for Face ID login');
+                
+                // Navigate to Welcomepage with cached user data
+                navigation.replace('Welcomepage', {
+                  name: userData.firstName || userData.name || 'there',
+                  userData: userData
+                });
+                return;
+              }
+              
+              // If it's a real "not found" (not just RLS blocking), show error
+              Alert.alert(
+                'No Account Found',
+                'You don\'t have an account with Couri. Please create an account first.',
+                [
+                  {
+                    text: 'Create Account',
+                    onPress: () => navigation.navigate('CreateAccount'),
+                  },
+                  {
+                    text: 'Cancel',
+                    style: 'cancel',
+                  }
+                ]
+              );
+              return;
+            }
+
+            const existingUser = existingUsers[0];
+            console.log('✅ User found in Supabase database');
+            console.log('✅ User email from DB:', existingUser.email);
+            console.log('✅ User ID:', existingUser.id);
+            console.log('✅ User first name:', existingUser.first_name);
+            console.log('✅ User last name:', existingUser.last_name);
+            
+            // Update userData with database info to ensure consistency
+            userData = {
+              ...userData,
+              id: existingUser.id,
+              email: existingUser.email,
+              firstName: existingUser.first_name || userData.firstName,
+              lastName: existingUser.last_name || userData.lastName,
+              phone: existingUser.phone || userData.phone,
+              address1: existingUser.address_line_1 || userData.address1,
+              address2: existingUser.address_line_2 || userData.address2,
+              city: existingUser.city || userData.city,
+              state: existingUser.state || userData.state,
+              zip: existingUser.zip_code || userData.zip,
+            };
+            
+            console.log('✅ Face ID login successful, proceeding to Welcomepage');
+            
+            // Navigate to Welcomepage with user data from database
+            navigation.replace('Welcomepage', {
+              name: userData.firstName || userData.name || 'there',
+              userData: userData
+            });
+          } catch (error) {
+            console.error('❌ Error verifying user in Supabase:', error);
+            console.log('ℹ️ Database verification failed, but proceeding with cached data');
+            console.log('✅ Using AsyncStorage data for Face ID login');
+            
+            // Allow login with cached data even if database check fails
+            navigation.replace('Welcomepage', {
+              name: userData.firstName || userData.name || 'there',
+              userData: userData
+            });
+          }
+        } else {
+          Alert.alert('Error', 'Unable to load user data. Please try again.');
+        }
+      } else {
+        console.log('❌ Biometric authentication failed or cancelled');
+      }
+    } catch (error) {
+      console.error('❌ Biometric authentication error:', error);
+      Alert.alert('Error', 'Something went wrong during biometric authentication.');
+    }
   };
   const handleContinue = () => {
     if (!phoneNumber || phoneNumber.trim().length === 0) {
@@ -270,6 +529,13 @@ export default function LogInScreen({ navigation }) {
     console.log('🔍 LogInScreen DEBUG - Starting Google sign-in for returning user');
     console.log('🔍 LogInScreen DEBUG - Current navigation state:', navigation.getState());
     
+    // Add timeout to detect if Google auth doesn't proceed
+    const errorTimeoutId = setTimeout(() => {
+      console.log('⏱️ Google auth timeout - showing error screen');
+      setIsProcessingSignIn(false);
+      navigation.navigate('GoogleAuthError');
+    }, 5000); // 5 seconds
+    
     try {
       const currentSession = await supabase.auth.getSession();
       console.log('🔍 LogInScreen DEBUG - Current user session before OAuth:', currentSession);
@@ -286,6 +552,9 @@ export default function LogInScreen({ navigation }) {
       console.log('🔍 LogInScreen DEBUG - Result URL:', result?.url);
       console.log('🔍 LogInScreen DEBUG - Result session:', result?.session);
 
+      // Clear the timeout since we got a response
+      clearTimeout(errorTimeoutId);
+
       if (result.type !== 'success') {
         console.log('🔍 LogInScreen DEBUG - Google sign-in failed or incomplete');
         
@@ -296,7 +565,13 @@ export default function LogInScreen({ navigation }) {
           console.log('🔍 LogInScreen DEBUG - Generic error message');
         }
         
-        Alert.alert('Error', result.message || 'Google sign-in failed. Please try again.');
+        // Only navigate to error screen if it's not a user cancellation
+        if (result.shouldShowErrorScreen !== false) {
+          // Reset loading states before navigation
+          setIsProcessingSignIn(false);
+          navigation.navigate('GoogleAuthError');
+          return;
+        }
         return;
       }
 
@@ -412,10 +687,12 @@ export default function LogInScreen({ navigation }) {
           console.log('🔍 LogInScreen DEBUG - Result URL:', result?.url);
         }
         
-        // If still no email, show error
+        // If still no email, navigate to error screen
         if (!userEmail) {
-          console.log('🔍 LogInScreen DEBUG - Still no email available, showing error alert');
-          Alert.alert('Error', 'Unable to retrieve user information. Please try again.');
+          console.log('🔍 LogInScreen DEBUG - Still no email available, navigating to error screen');
+          // Reset loading states before navigation
+          setIsProcessingSignIn(false);
+          navigation.navigate('GoogleAuthError');
           return;
         }
       }
@@ -530,9 +807,11 @@ export default function LogInScreen({ navigation }) {
         } catch (error) {
           console.error('❌ LogInScreen DEBUG - Error creating new Google user session:', error);
           
-          // Fallback: sign out and show error
+          // Fallback: sign out and navigate to error screen
           await supabase.auth.signOut();
-          Alert.alert('Error', 'Failed to create user session. Please try again.');
+          // Reset loading states before navigation
+          setIsProcessingSignIn(false);
+          navigation.navigate('GoogleAuthError');
           return;
         }
       }
@@ -642,16 +921,22 @@ export default function LogInScreen({ navigation }) {
 
       } catch (error) {
         console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
-        Alert.alert('Error', 'Google sign-in failed. Please try again.');
+        // Reset loading states before navigation
+        setIsProcessingSignIn(false);
+        navigation.navigate('GoogleAuthError');
       }
     } catch (error) {
       console.error('❌ LogInScreen DEBUG - Google sign-in error (outer catch):', error);
       console.error('❌ LogInScreen DEBUG - Error message:', error.message);
       console.error('❌ LogInScreen DEBUG - Error stack:', error.stack);
       console.error('❌ LogInScreen DEBUG - Full error details:', JSON.stringify(error, null, 2));
-      Alert.alert('Error', 'Google sign-in failed. Please try again.');
-    } finally {
+      
+      // Clear the timeout
+      clearTimeout(errorTimeoutId);
+      
+      // Reset loading states before navigation
       setIsProcessingSignIn(false);
+      navigation.navigate('GoogleAuthError');
     }
   };
 
@@ -828,9 +1113,9 @@ export default function LogInScreen({ navigation }) {
 
               {/* Google */}
               <TouchableOpacity
-                style={[styles.providerButton, googleLoading && { opacity: 0.7 }]}
+                style={[styles.providerButton, (googleLoading || isProcessingSignIn) && { opacity: 0.7 }]}
                 onPress={handleGoogleSignIn}
-                disabled={googleLoading}
+                disabled={googleLoading || isProcessingSignIn}
               >
                 <Image
                   source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
@@ -853,6 +1138,22 @@ export default function LogInScreen({ navigation }) {
               </TouchableOpacity> */}
             </View>
           </View>
+
+          {/* Biometric Login Section - Moved to bottom */}
+          {hasBiometricHardware && (
+            <TouchableOpacity 
+              style={styles.biometricButton}
+              onPress={handleBiometricLogin}
+            >
+              <Image
+                source={require('../assets/face-id.png')}
+                style={styles.biometricIcon}
+                resizeMode="contain"
+                tintColor="#8B5CF6"
+              />
+              <Text style={styles.biometricText}>Log in with {biometricLabel}</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.signUpRow}>
             <Text style={styles.bottomText}>Don't have an account? </Text>
@@ -948,6 +1249,24 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24
   },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginTop: -4,
+  },
+  biometricIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  },
+  biometricText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#8B5CF6', // Purple text
+  },
   socialBox: {
     borderWidth: 1,
     borderColor: '#000',
@@ -961,11 +1280,11 @@ const styles = StyleSheet.create({
   signUpRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 10
+    marginTop: 225
   },
   bottomText: {
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 16,
     color: '#000'
   },
   link: {

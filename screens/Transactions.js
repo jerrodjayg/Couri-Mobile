@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { getTransactionsByMonth } from '../utils/transactionService';
+import { getTransactionsByMonth, cleanupUntitledTransactions } from '../utils/transactionService';
 
 export default function Transactions({ navigation }) {
   const [transactionsByMonth, setTransactionsByMonth] = useState({});
@@ -15,6 +15,13 @@ export default function Transactions({ navigation }) {
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      
+      // Clean up any untitled transactions first
+      const removedCount = await cleanupUntitledTransactions();
+      if (removedCount > 0) {
+        console.log(`🧹 Removed ${removedCount} untitled transactions`);
+      }
+      
       const transactions = await getTransactionsByMonth();
       setTransactionsByMonth(transactions);
       console.log('📱 Loaded transactions:', transactions);

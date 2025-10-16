@@ -77,13 +77,24 @@ export default function Share({ navigation, route }) {
       const webUrl = generateWebInvitationUrl(transaction.id);
       setWebInviteUrl(webUrl);
       
-      // Also save to local storage for backup
-      await saveTransaction({
-        ...transactionData,
-        id: transaction.id,
-        supabaseId: transaction.id,
-        webInviteUrl: webUrl,
-      });
+      // Only save to local storage if we have a valid product title
+      if (resolvedTitle && resolvedTitle.trim().length > 0) {
+        await saveTransaction({
+          productTitle: resolvedTitle,
+          productImage: resolvedImage,
+          productPrice: productPrice,
+          productUrl: productUrl,
+          transactionType: transactionType,
+          userProfile: userProfile,
+          offerId: offerId,
+          id: transaction.id,
+          supabaseId: transaction.id,
+          webInviteUrl: webUrl,
+        });
+        console.log('✅ Transaction saved to local storage');
+      } else {
+        console.log('⚠️ Skipping local storage save - no valid product title');
+      }
 
       console.log('✅ Web invitation created:', webUrl);
       return webUrl;
@@ -154,23 +165,7 @@ export default function Share({ navigation, route }) {
   };
 
   const handleModalGotIt = async () => {
-    try {
-      // Save transaction to AsyncStorage
-      await saveTransaction({
-        productTitle: resolvedTitle,
-        productImage: resolvedImage,
-        productPrice: productPrice,
-        productUrl: productUrl,
-        transactionType: transactionType,
-        userProfile: userProfile,
-        offerId: offerId,
-      });
-      
-      console.log('✅ Transaction saved successfully');
-    } catch (error) {
-      console.error('❌ Error saving transaction:', error);
-    }
-    
+    // Transaction already saved in createWebInvitation, no need to save again
     setModalVisible(false);
     // Pass transaction data to show the review state
     navigation.navigate('Welcomepage', {
