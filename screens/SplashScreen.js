@@ -112,6 +112,25 @@ export default function SplashScreen({ navigation }) {
           return;
         }
         
+        // Check if user has saved data in AsyncStorage (from previous session)
+        // This ensures users go to Welcomepage even if their Supabase session expires
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        if (tempUserData || userProfileData) {
+          console.log('✅ SplashScreen: Found saved user data, navigating to Welcomepage');
+          setTimeout(() => {
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 1000,
+              useNativeDriver: true,
+            }).start(() => {
+              navigation.replace('Welcomepage');
+            });
+          }, 2000);
+          return;
+        }
+        
         const { data } = await supabase.auth.getSession();
         
         // If user has a valid session, check if they exist in database
@@ -139,7 +158,7 @@ export default function SplashScreen({ navigation }) {
         }
         
         // No session or user not in database - go to Home screen
-        console.log('✅ SplashScreen: No session or new user, navigating to Home');
+        console.log('✅ SplashScreen: No saved data and no session, navigating to Home');
         setTimeout(() => {
           Animated.timing(fadeAnim, {
             toValue: 0,

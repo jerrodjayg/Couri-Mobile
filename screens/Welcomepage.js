@@ -849,8 +849,19 @@ export default function Welcomepage({ route, navigation }) {
           return;
         }
 
+        // Check if user has saved data in AsyncStorage first
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        
+        // If user has saved data, they should stay on Welcomepage
+        if (tempUserData || userProfileData) {
+          console.log('✅ Welcomepage: User has saved data, staying on Welcomepage');
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user && !user && !customUser) {
+          console.log('⚠️ Welcomepage: No session, no user data, redirecting to Home');
           navigation.replace('Home');
           return;
         }
