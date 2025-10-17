@@ -10,6 +10,7 @@ import { supabase } from './screens/supabaseClient';
 import UploadPhotoScreen from './screens/UploadPhotoScreen';
 import SplashScreen from './screens/SplashScreen';
 import BiometricAuthScreen from './screens/BiometricAuthScreen';
+import BiometricSetupScreen from './screens/BiometricSetupScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateAccountScreen from './screens/CreateAccountScreen';
 import LogInScreen from './screens/LogInScreen';
@@ -160,6 +161,7 @@ export default function App() {
    <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
  <Stack.Screen name="Splash" component={SplashScreen} />
  <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />
+ <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
  <Stack.Screen name="Home" component={HomeScreen} />
  <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
  <Stack.Screen name="Login" component={LogInScreen} />

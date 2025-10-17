@@ -78,11 +78,12 @@ export default function FaceIDScreen({ navigation, route }) {
       });
 
       if (result.success) {
-        // ✅ After Face ID step, go straight to PushNoti with user data
+        // ✅ After Face ID step, go to BiometricSetup first, then PushNoti
         // Prioritize savedUser (from database) over userInfo (from form)
         const userData = route.params?.savedUser || route.params?.userInfo;
-        navigation.navigate('PushNoti', { 
-          user: userData,
+        navigation.navigate('BiometricSetup', { 
+          userInfo: userData,
+          savedUser: route.params?.savedUser,
           isGoogleAuth: isGoogleAuth,
           googleUserData: googleUserData
         });
@@ -96,11 +97,12 @@ export default function FaceIDScreen({ navigation, route }) {
   };
 
   const handleMaybeLater = () => {
-    // ✅ Even if they skip, proceed to PushNoti with user data
+    // ✅ Even if they skip, proceed to BiometricSetup first, then PushNoti
     // Prioritize savedUser (from database) over userInfo (from form)
     const userData = route.params?.savedUser || route.params?.userInfo;
-    navigation.navigate('PushNoti', { 
-      user: userData,
+    navigation.navigate('BiometricSetup', { 
+      userInfo: userData,
+      savedUser: route.params?.savedUser,
       isGoogleAuth: isGoogleAuth,
       googleUserData: googleUserData
     });

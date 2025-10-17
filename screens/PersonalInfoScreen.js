@@ -450,8 +450,8 @@ export default function PersonalInfoScreen({ navigation, route }) {
       googleUserData: route.params?.googleUserData || null
     });
 
-    // Navigate to PushNoti with form data (skipping password creation)
-    navigation.navigate('PushNoti', { 
+    // Navigate to BiometricSetup first, then to PushNoti
+    navigation.navigate('BiometricSetup', { 
       userInfo: form,
       savedUser: null, // No saved user yet
       isGoogleAuth: route.params?.isGoogleAuth || false,
