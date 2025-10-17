@@ -59,71 +59,6 @@ export default function LoginSecurityScreen({ navigation }) {
     }
   };
 
-  // Create profiles table if it doesn't exist
-  const createProfilesTable = async () => {
-    try {
-      console.log('🔄 Creating profiles table...');
-      
-      // Create the profiles table directly with SQL
-      const { error } = await supabase.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS profiles (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            email TEXT UNIQUE NOT NULL,
-            first_name TEXT,
-            last_name TEXT,
-            full_name TEXT,
-            phone TEXT,
-            address1 TEXT,
-            address2 TEXT,
-            city TEXT,
-            state TEXT,
-            zip TEXT,
-            avatar_url TEXT DEFAULT '',
-            is_google_auth BOOLEAN DEFAULT false,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          -- Create updated_at trigger if it doesn't exist
-          CREATE OR REPLACE FUNCTION update_updated_at_column()
-          RETURNS TRIGGER AS $$
-          BEGIN
-            NEW.updated_at = NOW();
-            RETURN NEW;
-          END;
-          $$ language 'plpgsql';
-          
-          DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
-          CREATE TRIGGER update_profiles_updated_at
-            BEFORE UPDATE ON profiles
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-        `
-      });
-      
-      if (error) {
-        console.log('⚠️ Could not create table via RPC:', error);
-        // Try alternative approach - just check if table exists
-        const { error: checkError } = await supabase
-          .from('profiles')
-          .select('*')
-          .limit(1);
-        
-        if (checkError && checkError.code === '42P01') {
-          console.log('🔄 Profiles table still does not exist after creation attempt');
-          console.log('🔄 You may need to create the table manually in Supabase dashboard');
-        } else {
-          console.log('✅ Profiles table is accessible');
-        }
-      } else {
-        console.log('✅ Profiles table created successfully');
-      }
-    } catch (error) {
-      console.log('⚠️ Error creating profiles table:', error);
-      console.log('🔄 You may need to create the table manually in Supabase dashboard');
-    }
-  };
 
   // Create users table if it doesn't exist
   const createUsersTable = async () => {
@@ -217,40 +152,24 @@ export default function LoginSecurityScreen({ navigation }) {
 
       console.log('🔄 Using user ID for deletion:', currentUserId);
 
-      // Delete user profile from profiles table
-      console.log('🔄 Deleting user profile from profiles table...');
+      // Delete user data from users table
+      console.log('🔄 Deleting user data from users table...');
       try {
-        const { error: profileError } = await supabase
-          .from('profiles')
+        const { error: userError } = await supabase
+          .from('users')
           .delete()
           .eq('id', currentUserId);
 
-        if (profileError) {
-          if (profileError.code === '42P01') {
-            console.log('⚠️ Profiles table does not exist, creating it first...');
-            // Try to create the profiles table
-            await createProfilesTable();
-            // Retry the deletion
-            const { error: retryError } = await supabase
-              .from('profiles')
-              .delete()
-              .eq('id', currentUserId);
-            if (retryError) {
-              console.error('❌ Error deleting profile after table creation:', retryError);
-            } else {
-              console.log('✅ Profile data deleted successfully after table creation');
-            }
-          } else {
-            console.error('❌ Error deleting profile:', profileError);
-            Alert.alert('Error', 'Failed to delete profile data. Please try again.');
-            setLoading(false);
-            return;
-          }
+        if (userError) {
+          console.error('❌ Error deleting user data:', userError);
+          // Don't show error to user, just log it and continue with cleanup
+          console.log('⚠️ Continuing with account deletion despite database error');
         } else {
-          console.log('✅ Profile data deleted successfully');
+          console.log('✅ User data deleted successfully');
         }
-      } catch (profileError) {
-        console.log('⚠️ Profiles table operation failed:', profileError);
+      } catch (userError) {
+        console.log('⚠️ Users table operation failed:', userError);
+        // Continue with cleanup even if database deletion fails
       }
 
       // Get user email for deletion
