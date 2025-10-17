@@ -145,31 +145,34 @@ export default function LoginSecurityScreen({ navigation }) {
       }
 
       if (!currentUserId) {
-        Alert.alert('Error', 'User not authenticated. Please try logging in again.');
-        setLoading(false);
-        return;
+        console.log('⚠️ No user ID found, proceeding with account deletion anyway');
+        // Don't show error, just proceed with deletion
       }
 
       console.log('🔄 Using user ID for deletion:', currentUserId);
 
-      // Delete user data from users table
-      console.log('🔄 Deleting user data from users table...');
-      try {
-        const { error: userError } = await supabase
-          .from('users')
-          .delete()
-          .eq('id', currentUserId);
+      // Delete user data from users table (only if we have a user ID)
+      if (currentUserId) {
+        console.log('🔄 Deleting user data from users table...');
+        try {
+          const { error: userError } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', currentUserId);
 
-        if (userError) {
-          console.error('❌ Error deleting user data:', userError);
-          // Don't show error to user, just log it and continue with cleanup
-          console.log('⚠️ Continuing with account deletion despite database error');
-        } else {
-          console.log('✅ User data deleted successfully');
+          if (userError) {
+            console.error('❌ Error deleting user data:', userError);
+            // Don't show error to user, just log it and continue with cleanup
+            console.log('⚠️ Continuing with account deletion despite database error');
+          } else {
+            console.log('✅ User data deleted successfully');
+          }
+        } catch (userError) {
+          console.log('⚠️ Users table operation failed:', userError);
+          // Continue with cleanup even if database deletion fails
         }
-      } catch (userError) {
-        console.log('⚠️ Users table operation failed:', userError);
-        // Continue with cleanup even if database deletion fails
+      } else {
+        console.log('⚠️ No user ID available, skipping database deletion');
       }
 
       // Get user email for deletion
@@ -190,10 +193,10 @@ export default function LoginSecurityScreen({ navigation }) {
         console.log('⚠️ No email found for user deletion');
       }
 
-      // Try to delete from users table if it exists
-      console.log('🔄 Attempting to delete user data from users table...');
-      try {
-        if (userEmail) {
+      // Try to delete from users table if it exists (only if we have an email)
+      if (userEmail) {
+        console.log('🔄 Attempting to delete user data from users table by email...');
+        try {
           // Delete by email (case-insensitive)
           const { error: userError } = await supabase
             .from('users')
@@ -209,9 +212,11 @@ export default function LoginSecurityScreen({ navigation }) {
           } else {
             console.log('✅ User data deleted successfully from users table');
           }
+        } catch (userError) {
+          console.log('⚠️ Users table operation failed:', userError);
         }
-      } catch (userError) {
-        console.log('⚠️ Users table operation failed:', userError);
+      } else {
+        console.log('⚠️ No email available, skipping email-based database deletion');
       }
 
       // Delete the Supabase auth user
