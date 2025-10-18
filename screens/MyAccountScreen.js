@@ -15,6 +15,21 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from './supabaseClient';
 
 export default function MyAccountScreen({ navigation, route }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState(null);
   const [userInitials, setUserInitials] = useState(null);
@@ -367,7 +382,7 @@ export default function MyAccountScreen({ navigation, route }) {
                   resizeMode="contain"
                 />
               </View>
-              <Text style={styles.menuText}>Legal</Text>
+              <Text style={styles.menuText}>Policies & Resources</Text>
               <Text style={styles.menuArrow}>→</Text>
             </TouchableOpacity>
           </View>

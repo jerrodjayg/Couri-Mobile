@@ -17,6 +17,21 @@ import { supabase } from './supabaseClient';
 import { UserService } from '../utils/userService';
 
 export default function ProfileScreen({ navigation, route }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState(null);
   const [userInitials, setUserInitials] = useState(null);

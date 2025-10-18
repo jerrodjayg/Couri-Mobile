@@ -20,6 +20,21 @@ import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditAddressScreen({ navigation, route }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const { user } = useUser();
   const [address1, setAddress1] = useState('');
   const [address2, setAddress2] = useState('');

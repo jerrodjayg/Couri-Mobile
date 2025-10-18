@@ -3,8 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { getTransactionsByMonth, cleanupUntitledTransactions } from '../utils/transactionService';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function Transactions({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const [transactionsByMonth, setTransactionsByMonth] = useState({});
   const [loading, setLoading] = useState(true);
 

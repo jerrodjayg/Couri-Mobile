@@ -14,8 +14,24 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
 import { useUser } from '../contexts/UserContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditPhoneScreen({ navigation, route }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const { user } = useUser();
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,8 +87,8 @@ export default function EditPhoneScreen({ navigation, route }) {
   };
 
   const validatePhone = (phone) => {
-    const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/;
-    return phoneRegex.test(phone);
+    const cleaned = phone.replace(/\D/g, ''); // Remove all non-digits
+    return cleaned.length === 10;
   };
 
   const handleSave = async () => {
@@ -82,7 +98,7 @@ export default function EditPhoneScreen({ navigation, route }) {
     }
 
     if (!validatePhone(phone.trim())) {
-      Alert.alert('Error', 'Please enter a valid phone number in the format (XXX) XXX-XXXX.');
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number.');
       return;
     }
 

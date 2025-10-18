@@ -4,8 +4,24 @@ import { View, Image, StyleSheet, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import imagePreloader from '../utils/imagePreloader';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function SplashScreen({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

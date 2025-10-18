@@ -1,28 +1,47 @@
 import { supabase } from './supabaseClient';
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function PhoneInputScreen({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const [phone, setPhone] = useState('');
 
   const handleSendCode = async () => {
-  if (phone.length !== 10) {
-    console.log('Please enter a 10-digit phone number');
-    return;
-  }
+    // Validate phone number - must be exactly 10 digits
+    const cleanedPhone = phone.replace(/\D/g, ''); // Remove all non-digits
+    
+    if (cleanedPhone.length !== 10) {
+      Alert.alert('Invalid Phone Number', 'Please enter a valid 10-digit phone number.');
+      return;
+    }
 
-  const fullPhone = `+1${phone}`;
+    const fullPhone = `+1${cleanedPhone}`;
 
-  const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
+    const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
 
-  if (error) {
-    console.log('Error sending OTP:', error.message);
-    return;
-  }
+    if (error) {
+      Alert.alert('Error', `Failed to send verification code: ${error.message}`);
+      return;
+    }
 
-  console.log('OTP sent successfully');
-  navigation.navigate('CodeVerify', { phone: fullPhone });
-};
+    Alert.alert('Success', 'Verification code sent successfully!');
+    navigation.navigate('CodeVerify', { phone: fullPhone });
+  };
 
 
   return (

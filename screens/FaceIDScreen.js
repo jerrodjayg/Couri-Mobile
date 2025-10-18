@@ -11,10 +11,26 @@ import {
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Logo from '../assets/Logo_Dark.png';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function FaceIDScreen({ navigation, route }) {
   const { userInfo, savedUser, isGoogleAuth, googleUserData } = route.params || {};
   const [authLabel, setAuthLabel] = useState('Biometric');
+
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
 
   // Log the received parameters for debugging
   useEffect(() => {
@@ -81,7 +97,7 @@ export default function FaceIDScreen({ navigation, route }) {
         // ✅ After Face ID step, go to BiometricSetup first, then PushNoti
         // Prioritize savedUser (from database) over userInfo (from form)
         const userData = route.params?.savedUser || route.params?.userInfo;
-        navigation.navigate('BiometricSetup', { 
+        navigation.replace('BiometricSetup', { 
           userInfo: userData,
           savedUser: route.params?.savedUser,
           isGoogleAuth: isGoogleAuth,
@@ -100,7 +116,7 @@ export default function FaceIDScreen({ navigation, route }) {
     // ✅ Even if they skip, proceed to BiometricSetup first, then PushNoti
     // Prioritize savedUser (from database) over userInfo (from form)
     const userData = route.params?.savedUser || route.params?.userInfo;
-    navigation.navigate('BiometricSetup', { 
+    navigation.replace('BiometricSetup', { 
       userInfo: userData,
       savedUser: route.params?.savedUser,
       isGoogleAuth: isGoogleAuth,
@@ -143,15 +159,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingHorizontal: 32,
-    paddingTop: 60,
+    paddingTop: 300, // Move logo down more
   },
   logoImage: {
     width: 105,
     height: 25,
-    marginBottom: 20,
+    marginBottom: 50,
+    color: '#5D72FB'
   },
   contentWrapper: {
-    marginTop: 150,
+    marginTop: 200, // Move everything down more
     alignItems: 'center',
     width: '100%',
   },

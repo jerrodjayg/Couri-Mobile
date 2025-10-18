@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function UploadPhotoScreen({ navigation, route }) {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -19,6 +20,21 @@ export default function UploadPhotoScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
   const [completeUserInfo, setCompleteUserInfo] = useState(null);
   const { userInfo, savedUser } = route.params || {};
+
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
 
   // DEBUG: Add comprehensive logging for user data flow
   useEffect(() => {
@@ -105,6 +121,13 @@ export default function UploadPhotoScreen({ navigation, route }) {
     try {
       setIsLoading(true);
       
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need permission to access your photos.');
+        setIsLoading(false);
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -112,7 +135,7 @@ export default function UploadPhotoScreen({ navigation, route }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
@@ -129,7 +152,8 @@ export default function UploadPhotoScreen({ navigation, route }) {
       
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Sorry, we need camera permissions to make this work!');
+        Alert.alert('Permission Denied', 'We need permission to access your camera.');
+        setIsLoading(false);
         return;
       }
 
@@ -139,7 +163,7 @@ export default function UploadPhotoScreen({ navigation, route }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
@@ -650,21 +674,22 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: '50%',
-    right: 15,
-    width: 30,
-    height: 20,
+    top: '47%',
+    right: 14,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     transform: [
       { translateY: -100 }
     ],
-    zIndex: 1002,
+    zIndex: 1003,
+    elevation: 10,
   },
   closeButtonText: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
+    fontSize: 33,
+    color: '#fff',
+    fontWeight: 'normal',
   },
   modalTitle: {
     fontSize: 18,
@@ -695,7 +720,7 @@ const styles = StyleSheet.create({
   modalPlusSign: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
+    right: 3,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -714,7 +739,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   titleUnderline: {
-    width: '100%',
+    width: '112%',
     height: 1,
     backgroundColor: '#e0e0e0',
     marginBottom: 20,
@@ -723,7 +748,7 @@ const styles = StyleSheet.create({
     width: 1,
     height: 80,
     backgroundColor: '#e0e0e0',
-    marginHorizontal: 20,
+    marginHorizontal: 0,
     marginTop: -20,
   },
 });

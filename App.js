@@ -46,7 +46,7 @@ import Payment from './screens2/Payment';
 import PlaidConnect from './screens2/PlaidConnect';
 import Share from './screens2/Share';
 import ProductDetails from './screens2/ProductDetails';
-import GoogleAuthErrorScreen from './screens/GoogleAuthErrorScreen';
+import TutorialScreen from './screens/TutorialScreen';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -167,7 +167,7 @@ export default function App() {
  <Stack.Screen name="Login" component={LogInScreen} />
  <Stack.Screen name="CodeVerify" component={CodeVerify} />
  <Stack.Screen name="AccountSetup" component={AccountSetupScreen} />
- <Stack.Screen name="Welcomepage" component={Welcomepage} />
+ <Stack.Screen name="Welcomepage" component={Welcomepage} options={{ gestureEnabled: false }} />
  <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen} />
  <Stack.Screen name="MyAccount" component={MyAccountScreen} />
  <Stack.Screen name="LoginSecurity" component={LoginSecurityScreen} />
@@ -198,7 +198,7 @@ export default function App() {
         <Stack.Screen name="Payment" component={Payment} />
         <Stack.Screen name="PlaidConnect" component={PlaidConnect} />
         <Stack.Screen name="Share" component={Share} />
-        <Stack.Screen name="GoogleAuthError" component={GoogleAuthErrorScreen} />
+        <Stack.Screen name="Tutorial" component={TutorialScreen} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>

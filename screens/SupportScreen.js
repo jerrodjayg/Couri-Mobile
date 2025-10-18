@@ -8,8 +8,24 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 const SupportScreen = ({ navigation }) => {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const handleCallSupport = () => {
     // Call support implementation will go here
     console.log('Call support pressed');

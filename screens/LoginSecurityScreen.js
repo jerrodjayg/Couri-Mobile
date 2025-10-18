@@ -5,8 +5,24 @@ import { supabase } from './supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import * as Location from 'expo-location';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function LoginSecurityScreen({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const { user } = useUser();
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
@@ -16,7 +32,41 @@ export default function LoginSecurityScreen({ navigation }) {
   // Check location permission status on mount
   useEffect(() => {
     checkLocationPermission();
+    loadBiometricPreference();
+    loadLocationPreference();
   }, []);
+
+  // Load biometric preference from AsyncStorage
+  const loadBiometricPreference = async () => {
+    try {
+      const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
+      if (biometricEnabled === 'true') {
+        setFaceIdEnabled(true);
+        console.log('✅ Biometric preference loaded: enabled');
+      } else {
+        setFaceIdEnabled(false);
+        console.log('✅ Biometric preference loaded: disabled');
+      }
+    } catch (error) {
+      console.log('⚠️ Error loading biometric preference:', error);
+    }
+  };
+
+  // Load location preference from AsyncStorage
+  const loadLocationPreference = async () => {
+    try {
+      const locationEnabled = await AsyncStorage.getItem('locationEnabled');
+      if (locationEnabled === 'true') {
+        setLocationEnabled(true);
+        console.log('✅ Location preference loaded: enabled');
+      } else {
+        setLocationEnabled(false);
+        console.log('✅ Location preference loaded: disabled');
+      }
+    } catch (error) {
+      console.log('⚠️ Error loading location preference:', error);
+    }
+  };
 
   const checkLocationPermission = async () => {
     try {
@@ -34,9 +84,15 @@ export default function LoginSecurityScreen({ navigation }) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           setLocationEnabled(true);
+          // Save preference to AsyncStorage
+          await AsyncStorage.setItem('locationEnabled', 'true');
+          console.log('✅ Location preference saved: enabled');
           Alert.alert('Success', 'Location access has been enabled.');
         } else {
           setLocationEnabled(false);
+          // Save preference to AsyncStorage
+          await AsyncStorage.setItem('locationEnabled', 'false');
+          console.log('✅ Location preference saved: disabled');
           Alert.alert(
             'Permission Denied',
             'Location access is required for delivery tracking. You can enable it in your device settings.',
@@ -47,6 +103,7 @@ export default function LoginSecurityScreen({ navigation }) {
         console.error('Error requesting location permission:', error);
         Alert.alert('Error', 'Failed to request location permission.');
         setLocationEnabled(false);
+        await AsyncStorage.setItem('locationEnabled', 'false');
       }
     } else {
       // Show alert that they need to disable in settings
@@ -116,6 +173,17 @@ export default function LoginSecurityScreen({ navigation }) {
     }
   };
 
+  // Handle Face ID toggle and save preference
+  const handleFaceIdToggle = async (value) => {
+    try {
+      setFaceIdEnabled(value);
+      // Save preference to AsyncStorage
+      await AsyncStorage.setItem('biometricEnabled', value.toString());
+      console.log('✅ Biometric preference saved:', value);
+    } catch (error) {
+      console.log('⚠️ Error saving biometric preference:', error);
+    }
+  };
 
   const handleDeleteAccount = () => {
     setShowDeleteModal(true);
@@ -317,7 +385,7 @@ export default function LoginSecurityScreen({ navigation }) {
               <Text style={styles.cardLabelBold}>Enable Face ID</Text>
               <Switch
                 value={faceIdEnabled}
-                onValueChange={setFaceIdEnabled}
+                onValueChange={handleFaceIdToggle}
               />
             </View>
           </View>

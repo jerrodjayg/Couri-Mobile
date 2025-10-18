@@ -156,12 +156,71 @@ const InvitePreviewCard = ({ invite, onPress }) => {
 };
 
 /* -----------------------------
+   Size Warning Modal
+------------------------------*/
+const SizeWarningModal = ({ visible, onClose, onUnderstand, onCancel }) => {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={sizeWarningModalStyles.overlay}>
+        <View style={sizeWarningModalStyles.modalContent}>
+          {/* Icon */}
+          <View style={sizeWarningModalStyles.iconContainer}>
+            <View style={sizeWarningModalStyles.iconCircle}>
+              <Text style={sizeWarningModalStyles.iconText}>co</Text>
+            </View>
+          </View>
+          
+          {/* Title */}
+          <Text style={sizeWarningModalStyles.title}>Heads up!</Text>
+          
+          {/* Body Text */}
+          <Text style={sizeWarningModalStyles.bodyText}>
+            Couri drivers use their personal cars, so all items need to fit in a standard trunk or back seat. Large items (like couches or large appliances) can't be delivered at this time. Oversized items may be canceled.
+          </Text>
+          
+          {/* Buttons */}
+          <TouchableOpacity
+            style={sizeWarningModalStyles.understandButton}
+            onPress={onUnderstand}
+          >
+            <Text style={sizeWarningModalStyles.understandButtonText}>I understand</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={sizeWarningModalStyles.cancelButton}
+            onPress={onCancel}
+          >
+            <Text style={sizeWarningModalStyles.cancelButtonText}>Cancel transaction</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+/* -----------------------------
    Bottom-sheet choice modal
 ------------------------------*/
 const CouriModal = ({ visible, onClose, onGetStarted }) => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [isGetStartedEnabled, setIsGetStartedEnabled] = useState(false);
   const panAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(500)).current;
+
+  // Animate modal in when visible
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      slideAnim.setValue(500);
+      panAnim.setValue(0);
+    }
+  }, [visible]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -179,16 +238,17 @@ const CouriModal = ({ visible, onClose, onGetStarted }) => {
         panAnim.flattenOffset();
         if (gestureState.dy > 100 || gestureState.vy > 0.5) {
           Animated.timing(panAnim, {
-            toValue: 400,
-            duration: 200,
+            toValue: 500,
+            duration: 250,
             useNativeDriver: true,
           }).start(() => {
             onClose();
             panAnim.setValue(0);
           });
         } else {
-          Animated.spring(panAnim, {
+          Animated.timing(panAnim, {
             toValue: 0,
+            duration: 200,
             useNativeDriver: true,
           }).start();
         }
@@ -212,11 +272,18 @@ const CouriModal = ({ visible, onClose, onGetStarted }) => {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={modalStyles.overlay}>
         <TouchableOpacity style={modalStyles.overlayTouchable} onPress={onClose} activeOpacity={1} />
         <Animated.View
-          style={[modalStyles.modalContainer, { transform: [{ translateY: panAnim }] }]}
+          style={[
+            modalStyles.modalContainer,
+            { 
+              transform: [{ 
+                translateY: Animated.add(slideAnim, panAnim)
+              }] 
+            }
+          ]}
           {...panResponder.panHandlers}
         >
           <View style={modalStyles.dragHandle} />
@@ -1084,6 +1151,59 @@ export default function Welcomepage({ route, navigation }) {
     }, [transactionData])
   );
 
+  // Disable swipe back gesture - Multiple approaches for reliability
+  useFocusEffect(
+    React.useCallback(() => {
+      // Method 1: Disable on parent navigator
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      // Method 2: Disable on current screen
+      navigation.setOptions({
+        gestureEnabled: false,
+      });
+      
+      // Method 3: Disable on the stack navigator if available
+      const stackNavigator = navigation.getParent();
+      if (stackNavigator) {
+        stackNavigator.setOptions({
+          gestureEnabled: false,
+        });
+      }
+      
+      return () => {
+        // Re-enable gestures when leaving
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+        navigation.setOptions({
+          gestureEnabled: true,
+        });
+        if (stackNavigator) {
+          stackNavigator.setOptions({
+            gestureEnabled: true,
+          });
+        }
+      };
+    }, [navigation])
+  );
+
+  // Additional PanResponder to block any swipe gestures
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      // Block any pan gestures
+    },
+    onPanResponderMove: () => {
+      // Block any pan gestures
+    },
+    onPanResponderRelease: () => {
+      // Block any pan gestures
+    },
+  });
+
   const handleSignOut = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1467,7 +1587,7 @@ export default function Welcomepage({ route, navigation }) {
         }}
         onGetStarted={(option) => {
           setModalVisible(false);
-          navigation.navigate('URL', { type: option, userProfile });
+          navigation.navigate('URL', { type: option, userProfile, showSizeWarning: true });
         }}
       />
 
@@ -1547,7 +1667,7 @@ export default function Welcomepage({ route, navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} {...panResponder.panHandlers}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       {shouldBeScrollable ? (
         <ScrollView 
@@ -1738,5 +1858,84 @@ const modalStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+});
+
+const sizeWarningModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 320,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  iconContainer: {
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  bodyText: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  understandButton: {
+    backgroundColor: '#242422',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  understandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#000',
+    fontSize: 16,
+    textDecorationLine: 'underline',
   },
 });

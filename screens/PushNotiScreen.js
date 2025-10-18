@@ -1,10 +1,11 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image, StatusBar, Alert, Platform,
+  View, Text, StyleSheet, TouchableOpacity, Image, StatusBar, Alert, Platform, Modal,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from './supabaseClient';
 import { useUser } from '../contexts/UserContext';
@@ -15,6 +16,23 @@ export default function PushNotiScreen({ navigation, route }) {
   const userFromParams = route?.params?.user;
   const isGoogleAuth = route?.params?.isGoogleAuth;
   const googleUserData = route?.params?.googleUserData;
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
 
   // Ensure Android channel exists
   useEffect(() => {
@@ -25,7 +43,59 @@ export default function PushNotiScreen({ navigation, route }) {
         vibrationPattern: [0, 250, 250, 250],
       });
     }
+    
+    // Check if location permission is already granted
+    checkLocationPermission();
   }, []);
+
+  const checkLocationPermission = async () => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        // Already has permission, proceed to notifications
+        console.log('✅ Location permission already granted');
+      }
+    } catch (error) {
+      console.log('⚠️ Error checking location permission:', error);
+    }
+  };
+
+  const handleAllowLocation = () => {
+    setShowModal(true);
+  };
+
+  const handleModalOK = async () => {
+    try {
+      setLoading(true);
+      console.log('📍 Requesting location permission...');
+      
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status === 'granted') {
+        console.log('✅ Location permission granted');
+        await AsyncStorage.setItem('locationEnabled', 'true');
+      } else {
+        console.log('❌ Location permission denied');
+        await AsyncStorage.setItem('locationEnabled', 'false');
+      }
+      
+      setShowModal(false);
+      // Continue to notification setup
+      await handleEnableNotifications();
+    } catch (error) {
+      console.error('❌ Error requesting location permission:', error);
+      setShowModal(false);
+      await AsyncStorage.setItem('locationEnabled', 'false');
+      // Still proceed to notifications
+      await handleEnableNotifications();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModalDontAllow = () => {
+    setShowModal(false);
+  };
 
   // If permission already granted when landing here, save silently
   useFocusEffect(
@@ -807,10 +877,10 @@ const saveRegularUserToDatabase = async () => {
         googleUserData: googleUserData
       });
       
-      // Navigate to Welcomepage to show user info after completing sign-up flow
-      navigation.replace('Welcomepage', { 
-        name: userFromParams?.firstName || userFromParams?.name || 'there',
-        userData: userFromParams,
+      // Navigate to Tutorial for new users (account creation flow)
+      navigation.replace('Tutorial', { 
+        userInfo: userFromParams,
+        isNewUser: true,
         isGoogleAuth: isGoogleAuth || false,
         googleUserData: googleUserData
       });
@@ -824,10 +894,13 @@ const saveRegularUserToDatabase = async () => {
        console.log('🔍 PushNotiScreen DEBUG - handleMaybeLater called');
        console.log('🔍 PushNotiScreen DEBUG - Navigating to Welcomepage (maybe later)');
        
-       // Navigate to Welcomepage to show user info after completing sign-up flow
-       navigation.replace('Welcomepage', { 
-         name: userFromParams?.firstName || userFromParams?.name || 'there',
-         userData: userFromParams,
+       // Save location preference as disabled
+       await AsyncStorage.setItem('locationEnabled', 'false');
+       
+       // Navigate to Tutorial for new users (account creation flow)
+       navigation.replace('Tutorial', { 
+         userInfo: userFromParams,
+         isNewUser: true,
          isGoogleAuth: isGoogleAuth || false,
          googleUserData: googleUserData
        });
@@ -836,53 +909,238 @@ const saveRegularUserToDatabase = async () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
-      {/* Nav Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Image 
-            source={require('../assets/backarrow.png')} 
-            style={styles.backArrowImage}
+      
+      {/* App Logo */}
+      <Image 
+        source={require('../assets/Logo_Dark.png')} 
+        style={styles.logoImage} 
+        resizeMode="contain" 
+      />
+      
+      <View style={styles.contentWrapper}>
+        {/* Location Icon */}
+        <View style={styles.locationIconContainer}>
+          <Image
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/location.png' }} // Location icon from Supabase storage
+            style={styles.locationIcon}
+            resizeMode="contain"
+            onError={() => console.log('❌ Failed to load location.png from Supabase')}
           />
-        </TouchableOpacity>
-        <Image source={require('../assets/Logo_Dark.png')} style={styles.logo} resizeMode="contain" />
-        <View style={styles.placeholder} />
-      </View>
-
-      {/* Main */}
-      <View style={styles.content}>
-        <Image source={require('../assets/notification-bell.png')} style={styles.bellIcon} resizeMode="contain" />
-        <Text style={styles.title}>Allow push notifications?</Text>
-        <Text style={styles.description}>
-          We'll use push notifications to update you on transaction status, delivery tracking, and promotions.
+        </View>
+        
+        {/* Title */}
+        <Text style={styles.title}>
+          Allow location access
         </Text>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={handleEnableNotifications}>
-          <Text style={styles.primaryButtonText}>Enable push notifications</Text>
+        
+        {/* Subtitle */}
+        <Text style={styles.subtitle}>
+          We use your location to make the pickup &{'\n'}delivery experience easy and reliable
+        </Text>
+        
+        {/* Allow Button */}
+        <TouchableOpacity
+          style={styles.allowButton}
+          onPress={handleAllowLocation}
+          disabled={loading}
+        >
+          <Text style={styles.allowButtonText}>
+            {loading ? 'Requesting...' : 'Allow location access'}
+          </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleMaybeLater}>
-          <Text style={styles.secondaryLink}>Maybe later</Text>
+        
+        {/* Maybe Later Button */}
+        <TouchableOpacity
+          style={styles.maybeLaterButton}
+          onPress={handleMaybeLater}
+        >
+          <Text style={styles.maybeLaterText}>Maybe later</Text>
         </TouchableOpacity>
       </View>
+
+      {/* iOS-style Modal */}
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleModalDontAllow}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Do you want to allow "Couri"{'\n'} to access your location while using the app?
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              Enabling location access enhances the pickup & delivery experience.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalDontAllowButton}
+                onPress={handleModalDontAllow}
+              >
+                <Text style={styles.modalDontAllowText}>Don't Allow</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalOKButton}
+                onPress={handleModalOK}
+              >
+                <Text style={styles.modalOKText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  navBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20,
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 32,
+    paddingTop: 100,
   },
-  backArrowImage: { width: 36, height: 36, resizeMode: 'contain' },
-  logo: { width: 80, height: 40 },
-  placeholder: { width: 24 },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  bellIcon: { width: 80, height: 80, marginBottom: 32 },
-  title: { fontSize: 27, fontWeight: '250', color: '#000', textAlign: 'center', marginBottom: 16 },
-  description: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 20, marginBottom: 60, paddingHorizontal: 20 },
-  primaryButton: { backgroundColor: '#000', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 50, marginBottom: 28, width: '100%', alignItems: 'center', elevation: 12 },
-  primaryButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  secondaryLink: { color: '#000', fontSize: 14, textDecorationLine: 'underline' },
+  logoImage: {
+    width: 105,
+    height: 30,
+    marginBottom: 20,
+  },
+  contentWrapper: {
+    marginTop: 140,
+    alignItems: 'center',
+    width: '100%',
+  },
+  locationIconContainer: {
+    width: 90,
+    height: 90,
+    backgroundColor: '#E8E9FF', // Light blue background like in the image
+    borderRadius: 60,
+    borderWidth: 1,
+    borderColor: '#5D72FB', // Thin gray border around the circle
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: -37,
+  },
+  locationIcon: {
+    width: 50,
+    height: 60,
+    tintColor: '#5D72FB', // Blue color for location icon
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: 'normal',
+    marginBottom: 18,
+    marginTop: 10,
+    color: '#000',
+    textAlign: 'center',
+    fontFamily: 'Area Normal Trial',
+    fontWeight: '400',
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#000',
+    marginBottom: 60,
+    marginTop: -1,
+    lineHeight: 20,
+    paddingHorizontal: 15,
+    fontFamily: 'Area Normal'
+  },
+  allowButton: {
+    backgroundColor: '#242422',
+    paddingVertical: 16,
+    paddingHorizontal: 34,
+    borderRadius: 30,
+    marginBottom: 20,
+    width: '110%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  allowButtonText: {
+    color: '#fff',
+    fontWeight: '450',
+    fontSize: 17,
+    fontFamily: 'Area Normal'
+  },
+  maybeLaterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  maybeLaterText: {
+    color: '#000',
+    fontSize: 18,
+    textDecorationLine: 'underline',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    width: 270,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    fontFamily: 'SF Pro Text'
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    fontweight: '400'
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    borderTopWidth: 0.5,
+    borderTopColor: '#C6C6C8',
+  },
+  modalDontAllowButton: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 0.5,
+    borderRightColor: '#C6C6C8',
+  },
+  modalDontAllowText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  modalOKButton: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOKText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
 });

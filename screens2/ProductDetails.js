@@ -228,8 +228,7 @@ export default function ProductDetails({ navigation, route }) {
 
   useEffect(() => {
     if (!productUrl) {
-      Alert.alert('Error', 'No product URL provided');
-      navigation.goBack();
+      // Allow empty URL - user can enter details manually
       return;
     }
     
@@ -286,7 +285,7 @@ export default function ProductDetails({ navigation, route }) {
         await scrapeFacebookData(productUrl);
       } else {
         console.log('⚠️ No product URL available for extraction');
-        Alert.alert('Error', 'No product URL available for extraction');
+        // Allow user to enter details manually
       }
       
     } catch (error) {

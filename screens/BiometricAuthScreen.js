@@ -13,8 +13,24 @@ import {
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logo from '../assets/Logo_Dark.png';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function BiometricAuthScreen({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const [authLabel, setAuthLabel] = useState('Biometric');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [hasBiometricHardware, setHasBiometricHardware] = useState(false);

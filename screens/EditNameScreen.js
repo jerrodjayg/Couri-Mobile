@@ -14,8 +14,24 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
 import { useUser } from '../contexts/UserContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditNameScreen({ navigation, route }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const { user } = useUser();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');

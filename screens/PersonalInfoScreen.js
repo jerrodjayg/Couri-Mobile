@@ -19,11 +19,27 @@ import {
 } from 'react-native';
 import base64 from 'react-native-base64';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 export default function PersonalInfoScreen({ navigation, route }) {
   console.log('🔍 PersonalInfoScreen DEBUG - Component mounting');
   console.log('🔍 PersonalInfoScreen DEBUG - Route params:', route?.params);
+
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
   console.log('🔍 PersonalInfoScreen DEBUG - Supabase client:', typeof supabase);
   console.log('🔍 PersonalInfoScreen DEBUG - Supabase client methods:', Object.keys(supabase || {}));
   
@@ -337,6 +353,12 @@ export default function PersonalInfoScreen({ navigation, route }) {
 
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  
+  // Phone number validation function - must be exactly 10 digits
+  const isValidPhoneNumber = (phone) => {
+    const cleaned = phone.replace(/\D/g, ''); // Remove all non-digits
+    return cleaned.length === 10;
+  };
 
   console.log('🔍 PersonalInfoScreen DEBUG - About to define allRequiredFieldsFilled function');
   const allRequiredFieldsFilled = () => {
@@ -377,6 +399,12 @@ export default function PersonalInfoScreen({ navigation, route }) {
     if (!isValidEmail(form.email)) {
       console.log('🔍 PersonalInfoScreen DEBUG - Invalid email format');
       setError('invalidEmail');
+      return;
+    }
+
+    if (!isValidPhoneNumber(form.phone)) {
+      console.log('🔍 PersonalInfoScreen DEBUG - Invalid phone number format');
+      setError('invalidPhone');
       return;
     }
 
@@ -451,7 +479,7 @@ export default function PersonalInfoScreen({ navigation, route }) {
     });
 
     // Navigate to BiometricSetup first, then to PushNoti
-    navigation.navigate('BiometricSetup', { 
+    navigation.replace('BiometricSetup', { 
       userInfo: form,
       savedUser: null, // No saved user yet
       isGoogleAuth: route.params?.isGoogleAuth || false,
@@ -471,6 +499,9 @@ export default function PersonalInfoScreen({ navigation, route }) {
         break;
       case 'invalidEmail':
         message = 'Enter a valid email address';
+        break;
+      case 'invalidPhone':
+        message = 'Please enter a valid 10-digit phone number';
         break;
       case 'emailExists':
         message = 'This email is already assigned to an account';

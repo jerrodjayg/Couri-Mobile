@@ -7,6 +7,7 @@ import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { useFacebookAuth } from '../hooks/useFacebookAuth';
 import { useAppleAuth } from '../hooks/useAppleAuth';
 import { UserService } from '../utils/userService';
+import { useFocusEffect } from '@react-navigation/native';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -133,6 +134,21 @@ WebBrowser.maybeCompleteAuthSession();
 };
 
 export default function CreateAccountScreen({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   console.log('🔍 CreateAccountScreen DEBUG - Component mounting');
   console.log('🔍 CreateAccountScreen DEBUG - Navigation prop:', navigation);
   console.log('🔍 CreateAccountScreen DEBUG - Available routes:', navigation?.getState()?.routes?.map(r => r.name));
@@ -188,9 +204,11 @@ export default function CreateAccountScreen({ navigation }) {
  Alert.alert('Error', 'Please enter your mobile number');
  return;
  }
- if (phone.length < 10) {
- console.log('❌ CreateAccountScreen DEBUG - Validation failed: Phone number too short');
- Alert.alert('Error', 'Please enter a valid phone number');
+ // Check if phone number has exactly 10 digits
+ const cleanPhone = phone.replace(/\D/g, '');
+ if (cleanPhone.length !== 10) {
+ console.log('❌ CreateAccountScreen DEBUG - Validation failed: Phone number must be exactly 10 digits');
+ Alert.alert('Error', 'Please enter a valid 10-digit phone number');
  return;
  }
  
@@ -237,10 +255,10 @@ const handleGoogleSignIn = async () => {
   
   // Add timeout to detect if Google auth doesn't proceed
   const errorTimeoutId = setTimeout(() => {
-    console.log('⏱️ Google auth timeout - showing error screen');
+    console.log('⏱️ Google auth timeout - resetting loading state');
     setLoading(false);
     setIsHandlingGoogleSignIn(false);
-    navigation.navigate('GoogleAuthError');
+    // Don't navigate to error screen, just reset state
   }, 5000); // 5 seconds
   
   try {
@@ -367,28 +385,24 @@ const handleGoogleSignIn = async () => {
       }
       
       console.log('❌ No user data found in any location');
-      // Reset loading states before navigation
+      // Reset loading states and return
       setLoading(false);
       setIsHandlingGoogleSignIn(false);
-      navigation.navigate('GoogleAuthError');
       return;
       
     } else if (result.type === 'error') {
       console.log('❌ Google sign-in failed with error type');
-      // Only navigate to error screen if it's not a user cancellation
+      // Reset loading states and return
       if (result.shouldShowErrorScreen !== false) {
-        // Reset loading states before navigation
         setLoading(false);
         setIsHandlingGoogleSignIn(false);
-        navigation.navigate('GoogleAuthError');
         return;
       }
     } else {
       console.log('❌ Google sign-in failed with unknown type:', result.type);
-      // Reset loading states before navigation
+      // Reset loading states and return
       setLoading(false);
       setIsHandlingGoogleSignIn(false);
-      navigation.navigate('GoogleAuthError');
       return;
     }
     
@@ -398,11 +412,10 @@ const handleGoogleSignIn = async () => {
     // Clear the timeout
     clearTimeout(errorTimeoutId);
     
-    // Reset loading states before navigation
+    // Reset loading states and return
     setLoading(false);
     setIsHandlingGoogleSignIn(false);
-    // Navigate to Google Auth Error screen for any error
-    navigation.navigate('GoogleAuthError');
+    // Don't navigate to error screen, just reset state
   }
 };
 
