@@ -2,9 +2,25 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { getTransactionsByMonth } from '../utils/transactionService';
+import { getTransactionsByMonth, cleanupUntitledTransactions } from '../utils/transactionService';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function Transactions({ navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const [transactionsByMonth, setTransactionsByMonth] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -15,6 +31,13 @@ export default function Transactions({ navigation }) {
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      
+      // Clean up any untitled transactions first
+      const removedCount = await cleanupUntitledTransactions();
+      if (removedCount > 0) {
+        console.log(`🧹 Removed ${removedCount} untitled transactions`);
+      }
+      
       const transactions = await getTransactionsByMonth();
       setTransactionsByMonth(transactions);
       console.log('📱 Loaded transactions:', transactions);

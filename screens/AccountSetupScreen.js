@@ -15,8 +15,24 @@ import {
   Image,
 } from 'react-native';
 import { supabase } from './supabaseClient';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function AccountSetupScreen({ navigation, route }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',

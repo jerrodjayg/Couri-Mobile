@@ -11,6 +11,8 @@ import { setInviteCache } from './utils/inviteCache';
 
 import UploadPhotoScreen from './screens/UploadPhotoScreen';
 import SplashScreen from './screens/SplashScreen';
+import BiometricAuthScreen from './screens/BiometricAuthScreen';
+import BiometricSetupScreen from './screens/BiometricSetupScreen';
 import HomeScreen from './screens/HomeScreen';
 import CreateAccountScreen from './screens/CreateAccountScreen';
 import LogInScreen from './screens/LogInScreen';
@@ -20,6 +22,10 @@ import AccountSetupScreen from './screens/AccountSetupScreen';
 import MyAccountScreen from './screens/MyAccountScreen';
 import LoginSecurityScreen from './screens/LoginSecurityScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import EditNameScreen from './screens/EditNameScreen';
+import EditEmailScreen from './screens/EditEmailScreen';
+import EditAddressScreen from './screens/EditAddressScreen';
+import EditPhoneScreen from './screens/EditPhoneScreen';
 import PersonalInfoScreen from './screens/PersonalInfoScreen';
 import PushNotiScreen from './screens/PushNotiScreen';
 import FaceIDScreen from './screens/FaceIDScreen';
@@ -43,6 +49,7 @@ import PlaidConnect from './screens2/PlaidConnect';
 import Share from './screens2/Share';
 import ProductDetails from './screens2/ProductDetails';
 import InviteScreen from './src/screens/InviteScreen';
+import TutorialScreen from './screens/TutorialScreen';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -235,16 +242,22 @@ export default function App() {
    >
    <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
  <Stack.Screen name="Splash" component={SplashScreen} />
+ <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />
+ <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
  <Stack.Screen name="Home" component={HomeScreen} />
  <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
  <Stack.Screen name="Login" component={LogInScreen} />
  <Stack.Screen name="CodeVerify" component={CodeVerify} />
  <Stack.Screen name="AccountSetup" component={AccountSetupScreen} />
- <Stack.Screen name="Welcomepage" component={Welcomepage} />
+ <Stack.Screen name="Welcomepage" component={Welcomepage} options={{ gestureEnabled: false }} />
  <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen} />
  <Stack.Screen name="MyAccount" component={MyAccountScreen} />
  <Stack.Screen name="LoginSecurity" component={LoginSecurityScreen} />
  <Stack.Screen name="Profile" component={ProfileScreen} />
+ <Stack.Screen name="EditName" component={EditNameScreen} />
+ <Stack.Screen name="EditEmail" component={EditEmailScreen} />
+ <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+ <Stack.Screen name="EditPhone" component={EditPhoneScreen} />
  <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
  <Stack.Screen name="PushNoti" component={PushNotiScreen} />
  <Stack.Screen name="FaceID" component={FaceIDScreen} />
@@ -268,6 +281,7 @@ export default function App() {
         <Stack.Screen name="PlaidConnect" component={PlaidConnect} />
         <Stack.Screen name="Share" component={Share} />
         <Stack.Screen name="Invite" component={InviteScreen} />
+        <Stack.Screen name="Tutorial" component={TutorialScreen} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>

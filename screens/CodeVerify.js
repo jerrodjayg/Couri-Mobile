@@ -10,8 +10,24 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from './supabaseClient';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function CodeVerify({ route, navigation }) {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { phone, type } = route.params;

@@ -58,9 +58,16 @@ export const getTransactions = async () => {
 export const getTransactionsByMonth = async () => {
   try {
     const transactions = await getTransactions();
+    
+    // Filter out transactions with "Untitled Product" or empty titles
+    const validTransactions = transactions.filter(transaction => {
+      const title = transaction.productTitle || transaction.title || '';
+      return title.trim().length > 0 && title !== 'Untitled Product' && title !== 'Untitled Item';
+    });
+    
     const grouped = {};
     
-    transactions.forEach(transaction => {
+    validTransactions.forEach(transaction => {
       const month = transaction.month || new Date(transaction.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
       if (!grouped[month]) {
         grouped[month] = [];
@@ -69,6 +76,7 @@ export const getTransactionsByMonth = async () => {
     });
     
     console.log('📅 Transactions grouped by month:', Object.keys(grouped));
+    console.log('📊 Filtered out', transactions.length - validTransactions.length, 'untitled transactions');
     return grouped;
   } catch (error) {
     console.error('❌ Error grouping transactions by month:', error);
@@ -108,5 +116,32 @@ export const deleteTransaction = async (transactionId) => {
   } catch (error) {
     console.error('❌ Error deleting transaction:', error);
     return false;
+  }
+};
+
+// Clean up untitled transactions
+export const cleanupUntitledTransactions = async () => {
+  try {
+    const transactions = await getTransactions();
+    
+    // Filter out transactions with "Untitled Product" or empty titles
+    const validTransactions = transactions.filter(transaction => {
+      const title = transaction.productTitle || transaction.title || '';
+      return title.trim().length > 0 && title !== 'Untitled Product' && title !== 'Untitled Item';
+    });
+    
+    const removedCount = transactions.length - validTransactions.length;
+    
+    if (removedCount > 0) {
+      await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(validTransactions));
+      console.log(`✅ Cleaned up ${removedCount} untitled transactions`);
+    } else {
+      console.log('✅ No untitled transactions to clean up');
+    }
+    
+    return removedCount;
+  } catch (error) {
+    console.error('❌ Error cleaning up untitled transactions:', error);
+    return 0;
   }
 };

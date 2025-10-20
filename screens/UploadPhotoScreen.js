@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function UploadPhotoScreen({ navigation, route }) {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -19,6 +20,21 @@ export default function UploadPhotoScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
   const [completeUserInfo, setCompleteUserInfo] = useState(null);
   const { userInfo, savedUser } = route.params || {};
+
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
 
   // DEBUG: Add comprehensive logging for user data flow
   useEffect(() => {
@@ -105,6 +121,13 @@ export default function UploadPhotoScreen({ navigation, route }) {
     try {
       setIsLoading(true);
       
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need permission to access your photos.');
+        setIsLoading(false);
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -112,7 +135,7 @@ export default function UploadPhotoScreen({ navigation, route }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
@@ -129,7 +152,8 @@ export default function UploadPhotoScreen({ navigation, route }) {
       
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Sorry, we need camera permissions to make this work!');
+        Alert.alert('Permission Denied', 'We need permission to access your camera.');
+        setIsLoading(false);
         return;
       }
 
@@ -139,7 +163,7 @@ export default function UploadPhotoScreen({ navigation, route }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
@@ -318,27 +342,29 @@ export default function UploadPhotoScreen({ navigation, route }) {
       
       console.log('🔍 UploadPhotoScreen DEBUG - Complete merged existing data (skip):', completeExistingData);
 
-      // Store user data without photo but with initials - EXPLICITLY NO PROFILE PICTURE
+      // Store user data without NEW photo but PRESERVE existing profile picture if it exists
       const userData = {
         ...completeExistingData,  // Use merged data instead of just effectiveUserInfo
         isGoogleAuth: route.params?.isGoogleAuth || false,
         userInitials: userInitials,
         hasSkippedPhoto: true,
-        avatar_url: '', // Explicitly set to empty
-        profileImageUri: '', // Explicitly set to empty
+        // PRESERVE existing profile picture if it exists, don't clear it
+        avatar_url: completeExistingData?.avatar_url || '', // Keep existing or empty
+        profileImageUri: completeExistingData?.profileImageUri || '', // Keep existing or empty
       };
 
       await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
       
-      // Store COMPLETE user data in userProfileData for other screens - EXPLICITLY NO PROFILE PICTURE
+      // Store COMPLETE user data in userProfileData for other screens - PRESERVE existing profile picture
       // This ensures all user information is preserved even when skipping photo
       const completeUserProfileData = {
         // PRESERVE ALL EXISTING USER DATA FIRST using merged data
         ...completeExistingData,
         // Then add/update specific fields
         id: completeExistingData?.id || 'temp_user',
-        avatar_url: '', // Explicitly set to empty
-        profileImageUri: '', // Explicitly set to empty
+        // PRESERVE existing profile picture if it exists, don't clear it
+        avatar_url: completeExistingData?.avatar_url || '', // Keep existing or empty
+        profileImageUri: completeExistingData?.profileImageUri || '', // Keep existing or empty
         hasSkippedPhoto: true,
         userInitials: userInitials,
         // Ensure these fields exist (but don't override if they're already in completeExistingData)
@@ -648,21 +674,22 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: '50%',
-    right: 15,
-    width: 30,
-    height: 20,
+    top: '47%',
+    right: 14,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     transform: [
       { translateY: -100 }
     ],
-    zIndex: 1002,
+    zIndex: 1003,
+    elevation: 10,
   },
   closeButtonText: {
-    fontSize: 24,
-    color: '#000',
-    fontWeight: 'bold',
+    fontSize: 33,
+    color: '#fff',
+    fontWeight: 'normal',
   },
   modalTitle: {
     fontSize: 18,
@@ -693,7 +720,7 @@ const styles = StyleSheet.create({
   modalPlusSign: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
+    right: 3,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -712,7 +739,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   titleUnderline: {
-    width: '100%',
+    width: '112%',
     height: 1,
     backgroundColor: '#e0e0e0',
     marginBottom: 20,
@@ -721,7 +748,7 @@ const styles = StyleSheet.create({
     width: 1,
     height: 80,
     backgroundColor: '#e0e0e0',
-    marginHorizontal: 20,
+    marginHorizontal: 0,
     marginTop: -20,
   },
 });

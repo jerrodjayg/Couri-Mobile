@@ -9,6 +9,7 @@ import {
   Image,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
@@ -17,15 +18,45 @@ import { supabase } from '../screens/supabaseClient';
 export default function ProductScreen({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [urlInput, setUrlInput] = useState('');
+  const [sizeWarningModalVisible, setSizeWarningModalVisible] = useState(false);
   const { user, customUser, setCustomUser } = useUser();
   
   // Get the transaction type from route params
-  const { type } = route.params || {};
+  const { type, showSizeWarning } = route.params || {};
   const isSelling = type === 'sell';
 
   const handleBack = () => {
     navigation.goBack();
   };
+
+  const handleUrlChange = (text) => {
+    setUrlInput(text);
+    
+    // Auto-navigate when a valid URL is entered
+    if (text.startsWith('https://') && text.length > 10) {
+      console.log('✅ Valid HTTPS URL detected, navigating automatically');
+      setTimeout(() => {
+        navigation.navigate('ProductDetails', { 
+          productUrl: text,
+          userAddress: userProfile,
+          transactionType: type,
+          userProfile: userProfile
+        });
+      }, 500); // Small delay to ensure smooth transition
+    }
+  };
+
+
+  // Show size warning modal after 1 second when screen loads if showSizeWarning is true
+  useEffect(() => {
+    if (showSizeWarning) {
+      const timer = setTimeout(() => {
+        setSizeWarningModalVisible(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showSizeWarning]);
 
   // Fetch user profile from AsyncStorage or context
   useEffect(() => {
@@ -112,6 +143,51 @@ export default function ProductScreen({ navigation, route }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
+      {/* Size Warning Modal */}
+      <Modal visible={sizeWarningModalVisible} transparent animationType="fade" onRequestClose={() => setSizeWarningModalVisible(false)}>
+        <View style={sizeWarningModalStyles.overlay}>
+          <View style={sizeWarningModalStyles.modalContent}>
+            {/* Icon */}
+            <View style={sizeWarningModalStyles.iconContainer}>
+              <View style={sizeWarningModalStyles.iconCircle}>
+                <Image 
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Mark 2 Dark.png' }}
+                  style={sizeWarningModalStyles.iconImage}
+                  resizeMode="contain"
+                  onError={() => console.log('❌ Failed to load mark2_dark.png from Supabase')}
+                />
+              </View>
+            </View>
+            
+            {/* Title */}
+            <Text style={sizeWarningModalStyles.title}>Heads up!</Text>
+            
+            {/* Body Text */}
+            <Text style={sizeWarningModalStyles.bodyText}>
+              Couri drivers use their personal cars, so all{'\n'} items need to fit in a standard trunk or back {'\n'} seat. Large items (like couches or large{'\n'} appliances) can't be delivered at this time. <Text style={sizeWarningModalStyles.boldText}>Oversized items may be canceled.</Text>
+            </Text>
+            
+            {/* Buttons */}
+            <TouchableOpacity
+              style={sizeWarningModalStyles.understandButton}
+              onPress={() => setSizeWarningModalVisible(false)}
+            >
+              <Text style={sizeWarningModalStyles.understandButtonText}>I understand</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={sizeWarningModalStyles.cancelButton}
+              onPress={() => {
+                setSizeWarningModalVisible(false);
+                navigation.goBack();
+              }}
+            >
+              <Text style={sizeWarningModalStyles.cancelButtonText}>Cancel transaction</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      
       {/* Navigation Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
@@ -169,7 +245,7 @@ export default function ProductScreen({ navigation, route }) {
             placeholder="Paste listing URL (optional)"
             placeholderTextColor="#9CA3AF"
             value={urlInput}
-            onChangeText={setUrlInput}
+            onChangeText={handleUrlChange}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -180,49 +256,6 @@ export default function ProductScreen({ navigation, route }) {
         <Text style={styles.instructionText}>
           Enter a product URL from Facebook Marketplace, Craigslist, or any other P2P site. We'll connect it to your Couri service.
         </Text>
-        
-        {/* Submit Button */}
-        <TouchableOpacity 
-          style={styles.submitButton} 
-          onPress={() => {
-            console.log('🚀 Continue button pressed');
-            console.log('🔗 URL Input value:', urlInput);
-            
-            // Validate URL before navigating
-            if (urlInput.startsWith('https://')) {
-              console.log('✅ Valid HTTPS URL, navigating directly to ProductDetails');
-              navigation.navigate('ProductDetails', { 
-                productUrl: urlInput,
-                userAddress: userProfile,
-                transactionType: type, // Pass along the transaction type
-                userProfile: userProfile
-              });
-            } else if (urlInput.trim() === '') {
-              console.log('✅ No URL provided, navigating to ProductDetails for manual input');
-              navigation.navigate('ProductDetails', { 
-                productUrl: '',
-                userAddress: userProfile,
-                transactionType: type, // Pass along the transaction type
-                userProfile: userProfile
-              });
-            } else {
-              console.log('❌ Invalid URL - does not start with https://');
-              // Show error message for non-HTTPS URLs
-              Alert.alert(
-                'Invalid Link',
-                'We weren\'t able to recognize that link. Please try again, or input product info manually.',
-                [
-                  {
-                    text: 'OK',
-                    style: 'default'
-                  }
-                ]
-              );
-            }
-          }}
-        >
-          <Text style={styles.submitButtonText}>Continue</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -393,5 +426,92 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+});
+
+const sizeWarningModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 352,
+    width: '110%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  iconContainer: {
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconImage: {
+    width: 30,
+    height: 30,
+  },
+  title: {
+    fontSize: 32,
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontWeight: '400',
+    fontFamily: 'Area Normal'
+  },
+  bodyText: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+    fontStyle: 'normal',
+    fontWeight: '400',
+    fontFamily: 'Area Normal'
+  },
+  boldText: {
+    fontWeight: 'bold',
+  },
+  understandButton: {
+    backgroundColor: '#171715',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  understandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#000',
+    fontSize: 16,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+    fontStyle: 'semibold'
   },
 });

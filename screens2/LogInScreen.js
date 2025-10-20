@@ -443,10 +443,10 @@ export default function LogInScreen({ navigation }) {
       return;
     }
     
-    // Clean the phone number and check if it has exactly 10 digits
+    // Clean the phone number and check if it has at least 10 digits
     const cleanPhone = phoneNumber.replace(/\D/g, '');
-    if (cleanPhone.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+    if (cleanPhone.length < 10) {
+      Alert.alert('Error', 'Please enter a valid mobile number with at least 10 digits');
       return;
     }
             navigation.navigate('Home');

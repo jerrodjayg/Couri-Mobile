@@ -9,8 +9,24 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 const Legal = ({ navigation }) => {
+  // Disable swipe back gesture
+  useFocusEffect(
+    React.useCallback(() => {
+      navigation.getParent()?.setOptions({
+        gestureEnabled: false,
+      });
+      
+      return () => {
+        navigation.getParent()?.setOptions({
+          gestureEnabled: true,
+        });
+      };
+    }, [navigation])
+  );
+
   const handleBackPress = () => {
     navigation.goBack();
   };
