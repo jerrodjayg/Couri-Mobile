@@ -213,24 +213,9 @@ export function useGoogleAuth() {
               
               if (code) {
                 console.log('🔑 Attempting manual code exchange with code:', code.substring(0, 10) + '...');
-                console.log('🔍 useGoogleAuth DEBUG - Creating exchange promise...');
                 
-                // Add timeout to prevent hanging - increased to 30 seconds
-                const exchangePromise = supabase.auth.exchangeCodeForSession(code);
-                console.log('🔍 useGoogleAuth DEBUG - Exchange promise created');
-                
-                const timeoutPromise = new Promise((_, reject) => 
-                  setTimeout(() => {
-                    console.log('🔍 useGoogleAuth DEBUG - Exchange timeout reached (30 seconds)');
-                    reject(new Error('Code exchange timeout'));
-                  }, 30000)
-                );
-                
-                console.log('🔍 useGoogleAuth DEBUG - Racing exchange promise with timeout...');
-                const { data: exchangeData, error: exchangeError } = await Promise.race([
-                  exchangePromise,
-                  timeoutPromise
-                ]);
+                // Exchange the code for a session
+                const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
                 
                 console.log('🔍 useGoogleAuth DEBUG - Exchange completed');
                 console.log('🔍 useGoogleAuth DEBUG - Exchange error:', exchangeError);
