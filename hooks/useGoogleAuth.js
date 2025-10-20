@@ -18,8 +18,8 @@ export function useGoogleAuth() {
     if (loading) return;
     setLoading(true);
 
-    // Add timeout to prevent infinite loading (longer timeout for mobile)
-    const timeoutDuration = Platform.OS === 'web' ? 30000 : 60000; // 30s web, 60s mobile
+    // Add timeout to prevent infinite loading (longer timeout for mobile/Expo Go)
+    const timeoutDuration = Platform.OS === 'web' ? 30000 : 90000; // 30s web, 90s mobile/Expo Go
     const timeoutId = setTimeout(() => {
       console.error('❌ Google sign-in timeout - taking too long');
       setLoading(false);
@@ -118,6 +118,7 @@ export function useGoogleAuth() {
         } else if (Platform.OS === 'android') {
           console.log('📱 Android detected - using WebBrowser...');
           console.log('⏰ Starting Android OAuth flow...');
+          console.log('📱 Running in Expo Go - OAuth may take longer');
           
           try {
             await WebBrowser.warmUpAsync();
@@ -133,6 +134,7 @@ export function useGoogleAuth() {
         } else {
           console.log('📱 iOS detected - using WebBrowser...');
           console.log('⏰ Starting iOS OAuth flow...');
+          console.log('📱 Running in Expo Go - OAuth may take longer');
           
           console.log('📱 Opening iOS auth session...');
           result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
