@@ -31,8 +31,8 @@ export function useGoogleAuth() {
       console.log('🔄 Starting Supabase Google OAuth...');
       console.log('📱 Platform:', Platform.OS);
       console.log('🔗 Redirect URL:', redirectTo);
-      console.log('🌐 Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
-      console.log('🌐 Window available:', typeof window !== 'undefined');
+      console.log('🌐 Current URL:', Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.href : 'N/A');
+      console.log('🌐 Window available:', Platform.OS === 'web' && typeof window !== 'undefined');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -86,7 +86,7 @@ export function useGoogleAuth() {
                   alert('Please allow popups for this site, then try again. Or the page will redirect to Google.');
                 }
                 setTimeout(() => {
-                  if (typeof window !== 'undefined') {
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
                     window.location.href = data.url;
                   }
                 }, 2000);
@@ -95,7 +95,7 @@ export function useGoogleAuth() {
               }
             } else {
               console.log('❌ Window not available - trying direct redirect');
-              if (typeof window !== 'undefined') {
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
                 window.location.href = data.url;
               }
             }
@@ -107,7 +107,7 @@ export function useGoogleAuth() {
             console.error('❌ Failed to open OAuth window:', openError);
             // Fallback: direct redirect
             console.log('🔄 Falling back to direct redirect...');
-            if (typeof window !== 'undefined') {
+            if (Platform.OS === 'web' && typeof window !== 'undefined') {
               window.location.href = data.url;
             }
             result = { type: 'success', url: data.url };
