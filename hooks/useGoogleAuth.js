@@ -18,14 +18,15 @@ export function useGoogleAuth() {
     if (loading) return;
     setLoading(true);
 
-    // Add timeout to prevent infinite loading
+    // Add timeout to prevent infinite loading (longer timeout for mobile)
+    const timeoutDuration = Platform.OS === 'web' ? 30000 : 60000; // 30s web, 60s mobile
     const timeoutId = setTimeout(() => {
       console.error('❌ Google sign-in timeout - taking too long');
       setLoading(false);
       if (typeof alert !== 'undefined') {
         alert('Google sign-in is taking too long. Please try again.');
       }
-    }, 30000); // 30 second timeout
+    }, timeoutDuration);
 
     try {
       console.log('🔄 Starting Supabase Google OAuth...');
@@ -66,6 +67,7 @@ export function useGoogleAuth() {
         console.log('🌐 Opening OAuth URL...');
         console.log('🔗 OAuth URL:', data.url);
         console.log('🎯 Expected redirect:', 'com.anonymous.jerrod://');
+        console.log('⏰ Timeout duration:', timeoutDuration + 'ms');
 
         let result;
         
@@ -115,6 +117,7 @@ export function useGoogleAuth() {
           
         } else if (Platform.OS === 'android') {
           console.log('📱 Android detected - using WebBrowser...');
+          console.log('⏰ Starting Android OAuth flow...');
           
           try {
             await WebBrowser.warmUpAsync();
@@ -123,22 +126,17 @@ export function useGoogleAuth() {
             console.log('📱 WebBrowser warm-up failed:', warmUpError.message);
           }
 
-          // Add timeout handling for Android
-          result = await Promise.race([
-            WebBrowser.openAuthSessionAsync(data.url, redirectTo),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Sign-in timeout')), 105000) // 105 second timeout (60 + 45)
-            )
-          ]);
+          console.log('📱 Opening Android auth session...');
+          result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+          console.log('📱 Android auth session completed:', result?.type);
+          
         } else {
           console.log('📱 iOS detected - using WebBrowser...');
-          // Add timeout handling for iOS
-          result = await Promise.race([
-            WebBrowser.openAuthSessionAsync(data.url, redirectTo),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Sign-in timeout')), 105000) // 105 second timeout (60 + 45)
-            )
-          ]);
+          console.log('⏰ Starting iOS OAuth flow...');
+          
+          console.log('📱 Opening iOS auth session...');
+          result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+          console.log('📱 iOS auth session completed:', result?.type);
         }
 
         console.log('📱 OAuth result:', result);
