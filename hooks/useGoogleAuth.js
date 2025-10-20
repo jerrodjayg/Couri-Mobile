@@ -11,7 +11,7 @@ export function useGoogleAuth() {
 
   // Create redirect URI based on platform
   const redirectTo = Platform.OS === 'web' 
-    ? window.location.origin  // Redirect back to the main app URL
+    ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:19006')  // Redirect back to the main app URL
     : 'com.anonymous.jerrod://';
 
   const signIn = async () => {
@@ -22,7 +22,9 @@ export function useGoogleAuth() {
     const timeoutId = setTimeout(() => {
       console.error('❌ Google sign-in timeout - taking too long');
       setLoading(false);
-      alert('Google sign-in is taking too long. Please try again.');
+      if (typeof alert !== 'undefined') {
+        alert('Google sign-in is taking too long. Please try again.');
+      }
     }, 30000); // 30 second timeout
 
     try {
@@ -74,17 +76,28 @@ export function useGoogleAuth() {
           
           // Try to open OAuth URL in new tab
           try {
-            const newWindow = window.open(data.url, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
-            
-            if (!newWindow) {
-              console.error('❌ Popup blocked - trying direct redirect');
-              // If popup is blocked, show user message and try direct redirect
-              alert('Please allow popups for this site, then try again. Or the page will redirect to Google.');
-              setTimeout(() => {
-                window.location.href = data.url;
-              }, 2000);
+            if (typeof window !== 'undefined' && window.open) {
+              const newWindow = window.open(data.url, '_blank', 'width=500,height=600,scrollbars=yes,resizable=yes');
+              
+              if (!newWindow) {
+                console.error('❌ Popup blocked - trying direct redirect');
+                // If popup is blocked, show user message and try direct redirect
+                if (typeof alert !== 'undefined') {
+                  alert('Please allow popups for this site, then try again. Or the page will redirect to Google.');
+                }
+                setTimeout(() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.href = data.url;
+                  }
+                }, 2000);
+              } else {
+                console.log('✅ OAuth opened in new tab');
+              }
             } else {
-              console.log('✅ OAuth opened in new tab');
+              console.log('❌ Window not available - trying direct redirect');
+              if (typeof window !== 'undefined') {
+                window.location.href = data.url;
+              }
             }
             
             // Return success regardless
@@ -94,7 +107,9 @@ export function useGoogleAuth() {
             console.error('❌ Failed to open OAuth window:', openError);
             // Fallback: direct redirect
             console.log('🔄 Falling back to direct redirect...');
-            window.location.href = data.url;
+            if (typeof window !== 'undefined') {
+              window.location.href = data.url;
+            }
             result = { type: 'success', url: data.url };
           }
           
