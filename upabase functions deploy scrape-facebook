@@ -1,0 +1,10 @@
+[33mcommit e8cc3672d603e272bf6e3d86c5e3f9f4c666362b[m
+Author: Jeanluc Folly <jeanlucfollu@gmail.com>
+Date:   Mon Oct 13 19:38:56 2025 -0400
+
+    UI improvements: disable scrolling on web-invite-squarespace, replace Facebook Marketplace Scraper with Couri Delivery AI, remove URL display from scraper page, and enhance product title cleaning to remove random symbols
+
+ screens2/ProductDetails.js  | 15 [32m++++++++++[m[31m-----[m
+ web-invite-squarespace.html | 25 [32m++++++++++++++++++++++++[m[31m-[m
+ web-invite.html             | 31 [32m+++++++++++++++++++++++++++++[m[31m--[m
+ 3 files changed, 63 insertions(+), 8 deletions(-)

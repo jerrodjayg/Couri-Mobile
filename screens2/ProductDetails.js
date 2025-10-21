@@ -1004,23 +1004,49 @@ export default function ProductDetails({ navigation, route }) {
 
   const scrapeFacebookData = async (url) => {
     try {
-      console.log('🔍 Starting Facebook data scraping...');
+      console.log('🔍 Starting Facebook data scraping via backend proxy...');
       setIsScraping(true);
       setLoading(true);
       
-      console.log('🌐 Attempting to scrape data from:', url);
+      console.log('🌐 Calling Supabase Edge Function to scrape:', url);
       
-      // Set a timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
+      // Call our backend proxy to bypass CORS and Facebook's restrictions
+      const projectRef = process.env.EXPO_PUBLIC_SUPABASE_PROJECT_REF || 'nfkykasruwdzpcjuufdu';
+      const response = await fetch(`https://${projectRef}.functions.supabase.co/scrape-facebook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Backend scraping failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
       
-      // Try multiple approaches to get the data
+      if (result.success && result.data) {
+        console.log('✅ Successfully scraped data via backend:', result.data);
+        
+        const extractedData = result.data;
+        
+        // Set the extracted data
+        setExtractedData(extractedData);
+        await saveToSupabase(extractedData);
+        
+        return;
+      } else {
+        console.error('❌ Backend scraping returned no data');
+      }
+      
+      // Fallback: Try old approach if backend fails
+      console.log('🔄 Backend failed, trying fallback approaches...');
       let extractedData = null;
       
       // Approach 1: Try to fetch the page directly
       try {
-        console.log('🔄 Approach 1: Direct fetch with enhanced headers...');
+        console.log('🔄 Fallback Approach 1: Direct fetch with enhanced headers...');
         
         const fetchPromise = fetch(url, {
           method: 'GET',
