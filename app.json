@@ -22,7 +22,6 @@
       "config":{
         "googleMapsApiKey": "AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw"
       },
-      "useAppleSignIn": true,
       "bundleIdentifier": "com.anonymous.jerrod",
       "supportsTablet": true,
       "associatedDomains": [

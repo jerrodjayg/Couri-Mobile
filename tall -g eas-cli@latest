@@ -1,0 +1,20 @@
+[33mb14dd54[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mnew-main[m[33m, [m[1;31morigin/new-main[m[33m)[m Downgrade Reanimated to v3 and disable New Architecture to fix build
+[33mba3a79c[m Add Reanimated Babel plugin for New Architecture support
+[33m63fc6d9[m Update React Native Reanimated to latest version for New Architecture compatibility
+[33m607b817[m Enable New Architecture to fix React Native Reanimated build error
+[33m9c9adb0[m Add new Supabase Edge Functions for invite system
+[33m72d645b[m Bump version to 2.0.0 for Universal Links and invitation system release
+[33m4fe37a0[m Increase timeout to 90 seconds for Expo Go and add specific debugging
+[33m038dacd[m Improve Google Auth timeout handling and add better debugging for mobile platforms
+[33m6c8bbbb[m Fix Google Auth setTimeout callback error by simplifying timeout handling
+[33m0993ea2[m Fix invite API to use existing transactions table instead of missing invites table
+[33me19b970[m Fix window object access on mobile platforms in Google Auth
+[33m777b58d[m Fix Google Auth error handling for web platform compatibility
+[33mb0ea59a[m Merge remote changes while preserving Universal Links functionality
+[33ma0172ab[m Implement tutorial screens, phone validation, progress bar updates, and UI improvements
+[33m874058a[m Fix delete account error for phone number users - Remove 'User not authenticated' error message - Allow account deletion even without user ID or email - Gracefully handle missing user data during deletion
+[33m37358ff[m Add biometric setup screen before notifications - Create BiometricSetupScreen with Face ID/Touch ID detection - Update navigation flow: PersonalInfoScreen  BiometricSetup  PushNoti - Users can now enable biometrics during account creation - Automatic detection of Face ID vs Touch ID/Fingerprint
+[33md06a24b[m Fix delete account error - Remove references to non-existent profiles table and use correct users table - Delete account now works without console errors
+[33me90e1ce[m Fix app navigation to persist user session between app launches - Users now stay on Welcomepage when reopening the app unless they explicitly logout or delete account - Added AsyncStorage check before session validation in SplashScreen and Welcomepage
+[33m6ce0961[m Fix nested VirtualizedList error and complete all authentication features
+[33m416c74f[m Configure Universal Links with Team ID S4VHGX8378 for gocouri.com
