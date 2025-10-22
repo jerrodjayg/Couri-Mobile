@@ -115,15 +115,9 @@ export async function listMyInvites(options = { mine: true }) {
   try {
     console.log('📋 Fetching my invites...');
     
-    // Get current session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.access_token) {
-      throw new Error('User not authenticated');
-    }
-
     // For now, return empty array since we don't have the invites table
     // This prevents the error and allows the app to work
+    // We don't need authentication for returning an empty array
     console.log('⚠️ listMyInvites: Using transactions table - returning empty array for now');
     return [];
   } catch (error) {
