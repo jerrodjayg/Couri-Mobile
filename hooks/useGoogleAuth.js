@@ -14,7 +14,7 @@ export function useGoogleAuth() {
     ? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:19006')  // Redirect back to the main app URL
     : 'com.anonymous.jerrod://';
 
-  const signIn = async () => {
+  const signIn = async (retryCount = 0) => {
     if (loading) return;
     setLoading(true);
 
@@ -35,6 +35,25 @@ export function useGoogleAuth() {
       console.log('🌐 Current URL:', Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.href : 'N/A');
       console.log('🌐 Window available:', Platform.OS === 'web' && typeof window !== 'undefined');
 
+      // Test network connectivity first
+      console.log('🌐 Testing network connectivity...');
+      try {
+        const testResponse = await fetch('https://www.google.com', { 
+          method: 'HEAD', 
+          timeout: 5000 
+        });
+        console.log('✅ Network connectivity test passed:', testResponse.status);
+      } catch (networkError) {
+        console.error('❌ Network connectivity test failed:', networkError.message);
+        if (retryCount < 2) {
+          console.log(`🔄 Retrying network test (attempt ${retryCount + 1}/3)...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return signIn(retryCount + 1);
+        }
+        throw new Error('No internet connection. Please check your network and try again.');
+      }
+
+      console.log('🔄 Calling Supabase OAuth...');
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -54,7 +73,19 @@ export function useGoogleAuth() {
           status: error.status,
           platform: Platform.OS
         });
-        throw error;
+        
+        // Provide more specific error messages
+        if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          throw new Error('Network error. Please check your internet connection and try again.');
+        } else if (error.status === 0) {
+          throw new Error('Connection failed. Please check your internet connection.');
+        } else if (error.status >= 500) {
+          throw new Error('Server error. Please try again in a few moments.');
+        } else if (error.status === 400) {
+          throw new Error('Invalid request. Please check your OAuth configuration.');
+        } else {
+          throw error;
+        }
       }
 
       if (!data?.url) {

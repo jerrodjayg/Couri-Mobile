@@ -87,11 +87,18 @@ export class UserService {
       console.log('🔍 checkUserExists: Starting database query for email:', email);
       const startTime = Date.now();
       
-      const { data, error } = await supabase
+      // Add a timeout wrapper to prevent hanging
+      const queryPromise = supabase
         .from('users')
         .select('id, first_name, last_name, email, avatar_url')
         .ilike('email', email.toLowerCase())
         .maybeSingle();
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout')), 8000)
+      );
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
       
       const endTime = Date.now();
       const queryTime = endTime - startTime;
@@ -100,6 +107,11 @@ export class UserService {
       
       if (error && error.code !== 'PGRST116') {
         console.log('🔍 checkUserExists error:', error);
+        // If it's a connection error, return false to treat as new user
+        if (error.message && error.message.includes('timeout')) {
+          console.log('🔍 checkUserExists: Connection timeout, treating as new user');
+          return { exists: false, user: null };
+        }
       }
       
       const result = { exists: !!data, user: data || null };
@@ -107,6 +119,7 @@ export class UserService {
       return result;
     } catch (e) {
       console.log('🔍 checkUserExists fatal:', e);
+      // Always return false on any error to prevent hanging
       return { exists: false, user: null };
     }
   }
