@@ -326,45 +326,7 @@ export default function ConfirmAddress({ navigation, route }) {
     try {
       console.log('🔍 Saving new address:', newAddress);
       
-      // Get user email for database update
-      let userEmail = null;
-      if (user?.email) {
-        userEmail = user.email;
-      } else if (userProfile?.email) {
-        userEmail = userProfile.email;
-      } else if (route?.params?.userData?.email) {
-        userEmail = route.params.userData.email;
-      }
-
-      if (!userEmail) {
-        Alert.alert('Error', 'Unable to identify user. Please try again.');
-        return;
-      }
-
-      // Save address to database
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          address_line_1: newAddress.street,
-          address_line_2: newAddress.address2 || null,
-          city: newAddress.city,
-          state: newAddress.state,
-          zip_code: newAddress.zipCode,
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', userEmail.toLowerCase())
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Error saving address:', error);
-        Alert.alert('Error', 'Failed to save address. Please try again.');
-        return;
-      }
-
-      console.log('✅ Address saved successfully:', data);
-
-      // Update local state
+      // Update local state first (always works)
       const savedAddress = {
         street: newAddress.street,
         city: newAddress.city,
@@ -373,10 +335,99 @@ export default function ConfirmAddress({ navigation, route }) {
       };
       setUserAddress(savedAddress);
 
-      // Cache the address
+      // Cache the address in AsyncStorage (always works)
       await AsyncStorage.setItem('userAddress', JSON.stringify(savedAddress));
 
-      // Close modal and show success
+      // Update the userProfileData as well
+      const currentProfileData = await AsyncStorage.getItem('userProfileData');
+      if (currentProfileData) {
+        const profile = JSON.parse(currentProfileData);
+        await AsyncStorage.setItem('userProfileData', JSON.stringify({
+          ...profile,
+          address1: newAddress.street,
+          address2: newAddress.address2,
+          city: newAddress.city,
+          state: newAddress.state,
+          zip: newAddress.zipCode,
+          zip_code: newAddress.zipCode,
+          street: newAddress.street
+        }));
+        console.log('✅ Address saved to local storage');
+      }
+
+      // Try to save to database ONLY if user is authenticated
+      if (user?.id) {
+        console.log('🔄 User is authenticated, attempting to save to database...');
+        
+        try {
+          // Check if user exists in database
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, email')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (existingUser) {
+            // User exists - update their address
+            console.log('✅ User exists in database, updating address...');
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({
+                address_line_1: newAddress.street,
+                address_line_2: newAddress.address2 || null,
+                city: newAddress.city,
+                state: newAddress.state,
+                zip_code: newAddress.zipCode,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id);
+
+            if (updateError) {
+              console.error('⚠️ Error updating address in database:', updateError);
+              // Don't show error to user - address is already saved locally
+            } else {
+              console.log('✅ Address saved to database successfully');
+            }
+          } else {
+            // User doesn't exist - try to insert
+            console.log('⚠️ User does not exist in database, creating record...');
+            const userName = userProfile?.full_name || userProfile?.name || user.user_metadata?.full_name || 'User';
+            const names = userName.split(' ');
+            const firstName = names[0] || '';
+            const lastName = names.slice(1).join(' ') || '';
+
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: user.id,
+                email: user.email,
+                first_name: firstName,
+                last_name: lastName,
+                address_line_1: newAddress.street,
+                address_line_2: newAddress.address2 || null,
+                city: newAddress.city,
+                state: newAddress.state,
+                zip_code: newAddress.zipCode,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (insertError) {
+              console.error('⚠️ Error creating user record:', insertError);
+              // Don't show error to user - address is already saved locally
+            } else {
+              console.log('✅ User record created with address in database');
+            }
+          }
+        } catch (dbError) {
+          console.error('⚠️ Database operation failed (non-critical):', dbError);
+          // Address is already saved locally, so this is just a warning
+        }
+      } else {
+        console.log('⚠️ User not authenticated via Supabase, saving address locally only');
+      }
+
+      // Close modal and reset form
       setShowAddAddressModal(false);
       setNewAddress({
         street: '',
@@ -386,6 +437,7 @@ export default function ConfirmAddress({ navigation, route }) {
         zipCode: ''
       });
 
+      Alert.alert('Success', 'Address saved successfully!');
 
     } catch (error) {
       console.error('❌ Error in handleSaveAddress:', error);

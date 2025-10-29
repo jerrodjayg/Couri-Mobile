@@ -832,8 +832,8 @@ export default function ProductDetails({ navigation, route }) {
 
   // Handle save product
   const handleSubmit = () => {
-    // Navigate to Share screen with product data
-    navigation.navigate('Share', {
+    // Navigate to ConfirmAddress screen with product data
+    navigation.navigate('ConfirmAddress', {
       productUrl: productUrl,
       productPrice: extractedData.price,
       productTitle: extractedData.productName,
@@ -841,7 +841,8 @@ export default function ProductDetails({ navigation, route }) {
       userAddress: userAddress,
       userProfile: userProfile,
       transactionType: transactionType,
-      sellerName: extractedData.sellerName || 'Facebook Seller'
+      sellerName: extractedData.sellerName || 'Facebook Seller',
+      extractedData: extractedData
     });
   };
 

@@ -17,16 +17,43 @@ export function UserProvider({ children }) {
  }, [setCustomUser]);
 
  useEffect(() => {
- // Get initial session
- supabase.auth.getSession().then(({ data: { session } }) => {
-   console.log('🔍 UserProvider - Initial session:', session?.user?.id);
-   setUser(session?.user ?? null);
-   setLoading(false);
- });
+ // Get initial session with error handling
+ supabase.auth.getSession()
+   .then(({ data: { session }, error }) => {
+     if (error) {
+       console.error('❌ Error getting initial session:', error);
+       // If there's an error with refresh token, try to recover
+       if (error.message?.includes('Invalid Refresh Token') || error.message?.includes('Refresh Token Not Found')) {
+         console.log('🔄 Invalid refresh token detected, clearing session');
+         supabase.auth.signOut().then(() => {
+           console.log('🔄 Session cleared successfully');
+         });
+       }
+     } else {
+       console.log('🔍 UserProvider - Initial session:', session?.user?.id);
+       setUser(session?.user ?? null);
+     }
+     setLoading(false);
+   })
+   .catch((error) => {
+     console.error('❌ Unexpected error in getSession:', error);
+     setLoading(false);
+   });
 
  // Listen for auth changes
- const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+ const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
    console.log('🔄 Auth state changed:', _event, session?.user?.id);
+   
+   // Handle TOKEN_REFRESHED event specifically
+   if (_event === 'TOKEN_REFRESHED') {
+     console.log('🔄 Token refreshed successfully');
+   }
+   
+   // Handle SIGNED_OUT event
+   if (_event === 'SIGNED_OUT') {
+     console.log('🔄 User signed out');
+   }
+   
    setUser(session?.user ?? null);
    setLoading(false);
  });

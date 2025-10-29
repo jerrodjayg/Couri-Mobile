@@ -147,10 +147,26 @@ export default function SplashScreen({ navigation }) {
           return;
         }
         
-        const { data } = await supabase.auth.getSession();
+        // Get session with proper error handling
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        
+        // Handle invalid refresh token errors
+        if (sessionError) {
+          console.log('⚠️ SplashScreen: Session error:', sessionError.message);
+          
+          // If there's an invalid refresh token, clear it and continue to Home
+          if (sessionError.message?.includes('Invalid Refresh Token') || 
+              sessionError.message?.includes('Refresh Token Not Found')) {
+            console.log('🔄 SplashScreen: Invalid refresh token detected, clearing session');
+            await supabase.auth.signOut().catch(() => {});
+            // Continue to Home screen below
+          } else {
+            console.log('⚠️ SplashScreen: Other session error, continuing to Home');
+          }
+        }
         
         // If user has a valid session, check if they exist in database
-        if (data?.session?.user) {
+        if (data?.session?.user && !sessionError) {
           const { data: userData, error } = await supabase
             .from('users')
             .select('id, email')
