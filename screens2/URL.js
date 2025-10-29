@@ -34,9 +34,9 @@ export default function ProductScreen({ navigation, route }) {
     
     // Auto-navigate when a valid URL is entered
     if (text.startsWith('https://') && text.length > 10) {
-      console.log('✅ Valid HTTPS URL detected, navigating automatically');
+      console.log('✅ Valid HTTPS URL detected, navigating to FacebookEmbed');
       setTimeout(() => {
-        navigation.navigate('ProductDetails', { 
+        navigation.navigate('FacebookEmbed', { 
           productUrl: text,
           userAddress: userProfile,
           transactionType: type,

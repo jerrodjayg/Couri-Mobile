@@ -40,7 +40,6 @@ import Legal from './screens/Legal';
 import URL from './screens2/URL';
 import ProductPrice from './screens2/ProductPrice';
 import ConfirmAddress from './screens2/ConfirmAddress';
-import PickupAddress from './screens2/PickupAddress';
 import TrackingScreen from './screens2/TrackingScreen';
 import ConfirmAvailability from './screens2/ConfirmAvailability';
 import DelayArrival from './screens2/delayArrival';
@@ -48,6 +47,7 @@ import Payment from './screens2/Payment';
 import PlaidConnect from './screens2/PlaidConnect';
 import Share from './screens2/Share';
 import ProductDetails from './screens2/ProductDetails';
+import FacebookEmbed from './screens2/FacebookEmbed';
 import CouriAIVerification from './screens2/CouriAIVerification';
 import InviteScreen from './src/screens/InviteScreen';
 import TutorialScreen from './screens/TutorialScreen';
@@ -271,10 +271,10 @@ export default function App() {
  <Stack.Screen name="Notification" component={Notification} />
  <Stack.Screen name="Legal" component={Legal} />
          <Stack.Screen name="URL" component={URL} />
+        <Stack.Screen name="FacebookEmbed" component={FacebookEmbed} />
         <Stack.Screen name="ProductDetails" component={ProductDetails} />
         <Stack.Screen name="CouriAIVerification" component={CouriAIVerification} />
         <Stack.Screen name="ProductPrice" component={ProductPrice} />
-        <Stack.Screen name="PickupAddress" component={PickupAddress} />
         <Stack.Screen name="TrackingScreen" component={TrackingScreen} />
         <Stack.Screen name="ConfirmAvailability" component={ConfirmAvailability} />
         <Stack.Screen name="delayArrival" component={DelayArrival} />
