@@ -27,15 +27,20 @@ export default function ProductPrice({ navigation, route }) {
   const params = route?.params || {};
   const {
     url,
+    productUrl,
     productTitle: incomingTitle,
     productImage: incomingImage,
     productName,
     imageUrl,
     sellerName: incomingSellerName,
+    extractedData,
+    transactionType,
   } = params;
 
-  const productTitle = incomingTitle || productName || '';
-  const productImage = incomingImage || imageUrl || '';
+  // Use extractedData if available (from manual input)
+  const productTitle = extractedData?.productName || incomingTitle || productName || '';
+  const productImage = extractedData?.imageUrl || incomingImage || imageUrl || '';
+  const finalUrl = url || productUrl;
 
   useEffect(() => {
     // Load cached user profile for header avatar
@@ -45,7 +50,14 @@ export default function ProductPrice({ navigation, route }) {
     if (incomingSellerName) {
       setSellerName(incomingSellerName);
     }
-  }, [url, incomingSellerName]);
+
+    // Set price from extractedData if available (from manual input)
+    if (extractedData?.price) {
+      // Remove $ sign if present
+      const priceValue = extractedData.price.replace('$', '');
+      setProductPrice(priceValue);
+    }
+  }, [url, incomingSellerName, extractedData]);
 
   const loadUserProfile = async () => {
     try {
@@ -67,7 +79,11 @@ export default function ProductPrice({ navigation, route }) {
           productPrice: productPrice,
           productTitle: productTitle,
           productImage: productImage,
+          extractedData: extractedData,
         });
+      } else if (!maybeUrl) {
+        // Manual input - no URL validation needed
+        Alert.alert('Info', 'This is a manually entered product. No URL validation required.');
       } else {
         Alert.alert(
           'Invalid Link',
@@ -112,17 +128,19 @@ export default function ProductPrice({ navigation, route }) {
       return;
     }
 
-    if (!url || typeof url !== 'string') {
-      Alert.alert('Missing link', 'Please add a product link first.');
-      return;
-    }
+    // For manual input, URL is optional
+    const isManualInput = !finalUrl;
 
-    navigation.navigate('Share', {
-      productUrl: url,
+    navigation.navigate('ConfirmAddress', {
+      productUrl: finalUrl || 'Manual Input',
       productPrice: productPrice,
       productTitle: productTitle,
       productImage: productImage,
-      sellerName: sellerName, // Add seller name
+      sellerName: sellerName,
+      extractedData: extractedData, // Pass along extracted data
+      transactionType: transactionType,
+      isManualInput: isManualInput,
+      userProfile: userProfile,
     });
   };
 
@@ -189,7 +207,9 @@ export default function ProductPrice({ navigation, route }) {
               <Text style={styles.productTitle}>{productTitle || 'Product'}</Text>
               <View style={styles.sourceContainer}>
                 <Text style={styles.sourceText} numberOfLines={2}>
-                  {typeof url === 'string' && url.length > 0 ? url : 'No URL provided'}
+                  {finalUrl && typeof finalUrl === 'string' && finalUrl.length > 0 
+                    ? finalUrl 
+                    : extractedData?.category || 'Manually Added Product'}
                 </Text>
               </View>
             </View>

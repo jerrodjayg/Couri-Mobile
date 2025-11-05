@@ -1742,7 +1742,12 @@ export default function Welcomepage({ route, navigation }) {
         }}
         onGetStarted={(option) => {
           setModalVisible(false);
-          navigation.navigate('URL', { type: option, userProfile, showSizeWarning: true });
+          // Sellers go to SellerProductForm, Buyers go to URL screen
+          if (option === 'sell') {
+            navigation.navigate('SellerProductForm', { type: option, userProfile, showSizeWarning: true });
+          } else {
+            navigation.navigate('URL', { type: option, userProfile, showSizeWarning: true });
+          }
         }}
       />
 

@@ -49,6 +49,8 @@ import Share from './screens2/Share';
 import ProductDetails from './screens2/ProductDetails';
 import FacebookEmbed from './screens2/FacebookEmbed';
 import CouriAIVerification from './screens2/CouriAIVerification';
+import ManualProductInput from './screens2/ManualProductInput';
+import SellerProductForm from './screens2/SellerProductForm';
 import InviteScreen from './src/screens/InviteScreen';
 import TutorialScreen from './screens/TutorialScreen';
 
@@ -274,6 +276,8 @@ export default function App() {
         <Stack.Screen name="FacebookEmbed" component={FacebookEmbed} />
         <Stack.Screen name="ProductDetails" component={ProductDetails} />
         <Stack.Screen name="CouriAIVerification" component={CouriAIVerification} />
+        <Stack.Screen name="ManualProductInput" component={ManualProductInput} />
+        <Stack.Screen name="SellerProductForm" component={SellerProductForm} />
         <Stack.Screen name="ProductPrice" component={ProductPrice} />
         <Stack.Screen name="TrackingScreen" component={TrackingScreen} />
         <Stack.Screen name="ConfirmAvailability" component={ConfirmAvailability} />

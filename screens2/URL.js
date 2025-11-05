@@ -239,23 +239,63 @@ export default function ProductScreen({ navigation, route }) {
 
       {/* Main Content */}
       <View style={styles.mainContent}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Paste listing URL (optional)"
-            placeholderTextColor="#9CA3AF"
-            value={urlInput}
-            onChangeText={handleUrlChange}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-          />
-          <View style={styles.inputUnderline} />
-        </View>
-        
-        <Text style={styles.instructionText}>
-          Enter a product URL from Facebook Marketplace, Craigslist, or any other P2P site. We'll connect it to your Couri service.
-        </Text>
+        {isSelling ? (
+          <>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Paste listing URL (optional)"
+                placeholderTextColor="#9CA3AF"
+                value={urlInput}
+                onChangeText={handleUrlChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              <View style={styles.inputUnderline} />
+            </View>
+            
+            <Text style={styles.instructionText}>
+              Enter a product URL from Facebook Marketplace, Craigslist, or any other P2P site. We'll connect it to your Couri service.
+            </Text>
+          </>
+        ) : (
+          <>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Paste listing URL (optional)"
+                placeholderTextColor="#000"
+                value={urlInput}
+                onChangeText={handleUrlChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              <View style={styles.inputUnderline} />
+            </View>
+            
+            <Text style={styles.instructionText}>
+              Enter a product URL from FB Marketplace, eBay, or other P2P sites. Couri AI will fetch details, images, and check authenticity.
+            </Text>
+
+            {/* OR Separator */}
+            <View style={styles.separatorContainer}>
+              <Text style={styles.separatorText}>or</Text>
+            </View>
+
+            {/* Manual Input Button */}
+            <TouchableOpacity 
+              style={styles.manualInputButton}
+              onPress={() => navigation.navigate('ManualProductInput', {
+                type,
+                userProfile
+              })}
+            >
+              <Text style={styles.manualInputButtonText}>Input product info manually</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -389,18 +429,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 26,
     fontWeight: '400',
-    color: '#374151',
+    color: '#000',
     marginBottom: 12,
     textAlign: 'left',
+    fontStyle: 'Regular'
   },
   textInput: {
-    fontSize: 26,
-    color: '#000000',
+    fontSize: 28,
+    color: '#000',
     paddingVertical: 12,
     paddingHorizontal: 0,
     borderBottomWidth: 0,
     marginBottom: 0,
     textAlign: 'left',
+    fontWeight: 400,
+    fontFamily: 'Areal Normal'
   },
   inputUnderline: {
     height: 2,
@@ -409,10 +452,38 @@ const styles = StyleSheet.create({
   },
   instructionText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#000',
     lineHeight: 20,
     textAlign: 'left',
     paddingHorizontal: 0,
+    fontWeight: 400,
+    fontFamily: "Area Normal Trial"
+  },
+  separatorContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  separatorText: {
+    fontSize: 24,
+    color: '#000',
+    fontWeight: '600',
+    fontStyle: 'semibold'
+  },
+  manualInputButton: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  manualInputButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'Arer Normal Trial'
   },
   submitButton: {
     backgroundColor: '#1F2937',
