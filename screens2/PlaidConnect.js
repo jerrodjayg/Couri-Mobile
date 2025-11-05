@@ -8,16 +8,16 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
 import OptimizedImage from '../components/OptimizedImage';
 import imagePreloader from '../utils/imagePreloader';
+import { supabase } from '../screens/supabaseClient';
 
 export default function PlaidConnect({ navigation, route }) {
   const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
+
   const [plaidLogoError, setPlaidLogoError] = useState(false);
-  
-  // Debug: Log the current state
-  console.log('🖼️ PlaidConnect - plaidLogoError state:', plaidLogoError);
 
   // Preload Plaid-specific images when component mounts
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function PlaidConnect({ navigation, route }) {
         return names[0].charAt(0).toUpperCase();
       }
     }
-    
+   
     if (profile?.name) {
       const names = profile.name.split(' ');
       if (names.length >= 2) {
@@ -53,23 +53,125 @@ export default function PlaidConnect({ navigation, route }) {
         return names[0].charAt(0).toUpperCase();
       }
     }
-    
+   
     return 'U';
   };
 
-  const handleContinue = () => {
-    console.log('🔗 User wants to continue with Plaid connection');
-    // Here you would typically integrate with Plaid SDK
-    // For now, we'll navigate to the next step (Share screen)
-    navigation.navigate('Share', {
-      ...(route.params || {}),            // ✅ forward everything (title/image, etc.)
-      productUrl,
-      productPrice,
-      userAddress,
-      pickupAddress,
-      transactionType,
-      userProfile
-    });
+  const handleContinue = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('plaid-create-link', {
+        body: { products: ['auth'] },
+      });
+
+      if (error) {
+        console.error('❌ [PlaidConnect] Failed to create Plaid link token:', error);
+        Alert.alert('Plaid Error', 'Could not start bank connection. Please try again.');
+        return;
+      }
+
+      const linkToken = data?.link_token;
+
+      if (!linkToken) {
+        console.error('❌ [PlaidConnect] No link_token returned from backend');
+        Alert.alert('Plaid Error', 'Missing link token. Please try again.');
+        return;
+      }
+
+      // Open Plaid Link using the v11.6+ API (create → open)
+      try {
+        const PlaidSDK = require('react-native-plaid-link-sdk');
+       
+        // Get create and open functions
+        let create = null;
+        let open = null;
+       
+        if (PlaidSDK && typeof PlaidSDK === 'object') {
+          create = PlaidSDK.create;
+          open = PlaidSDK.open;
+         
+          // Check default export if needed
+          if ((!create || typeof create !== 'function') && PlaidSDK.default) {
+            if (typeof PlaidSDK.default === 'object') {
+              create = PlaidSDK.default.create;
+              open = PlaidSDK.default.open;
+            } else if (typeof PlaidSDK.default === 'function') {
+              create = PlaidSDK.default;
+            }
+          }
+        } else if (typeof PlaidSDK === 'function') {
+          create = PlaidSDK;
+        }
+       
+        if (typeof create !== 'function' || typeof open !== 'function') {
+          throw new Error('Plaid SDK functions not available. Please rebuild the app.');
+        }
+
+        // Preload Link
+        const createResult = create({ token: linkToken });
+        if (createResult && typeof createResult.then === 'function') {
+          await createResult;
+        }
+
+        // Open Link
+        open({
+          onSuccess: (success) => {
+            console.log('✅ [PlaidConnect] Plaid connection successful:', success);
+            // Navigate to Share screen after successful Plaid connection
+            navigation.replace('Share', {
+              ...(route.params || {}),
+              productUrl,
+              productPrice,
+              userAddress,
+              pickupAddress,
+              transactionType,
+              userProfile,
+              plaidLinkToken: linkToken,
+              plaidSuccess: success,
+            });
+          },
+
+          onExit: (exit) => {
+            console.log('⚠️ [PlaidConnect] Plaid Link exited:', exit);
+            // Navigate to Share screen even if user exits (they can still proceed)
+            navigation.replace('Share', {
+              ...(route.params || {}),
+              productUrl,
+              productPrice,
+              userAddress,
+              pickupAddress,
+              transactionType,
+              userProfile,
+              plaidLinkToken: linkToken,
+              plaidExit: exit,
+            });
+          },
+        });
+
+        return; // Prevent fallback navigation
+      } catch (e) {
+        console.error('❌ [PlaidConnect] Plaid SDK error:', e?.message || e);
+        Alert.alert(
+          'Plaid SDK Error',
+          `Could not initialize Plaid Link. ${e?.message || 'Please rebuild the app after installing the SDK.'}`
+        );
+
+        // Fallback: proceed to next screen with token
+        console.log('⚠️ [PlaidConnect] Using fallback navigation to Share');
+        navigation.replace('Share', {
+          ...(route.params || {}),
+          productUrl,
+          productPrice,
+          userAddress,
+          pickupAddress,
+          transactionType,
+          userProfile,
+          plaidLinkToken: linkToken,
+        });
+      }
+    } catch (err) {
+      console.error('❌ [PlaidConnect] Unexpected error:', err);
+      Alert.alert('Plaid Error', 'Unexpected error. Please try again.');
+    }
   };
 
   const handleBack = () => {
@@ -79,39 +181,39 @@ export default function PlaidConnect({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+     
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={handleBack}
         >
-          <Image 
-            source={require('../assets/backarrow.png')} 
+          <Image
+            source={require('../assets/backarrow.png')}
             style={styles.backButtonImage}
           />
         </TouchableOpacity>
-        
+       
         {/* Plaid Logo */}
         <View style={styles.plaidLogoContainer}>
-          <OptimizedImage 
-            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo.png' }} 
+          <OptimizedImage
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo.png' }}
             style={styles.plaidHeaderLogo}
             showLoadingIndicator={false}
           />
           <Text style={styles.plaidText}>PLAID</Text>
-          <OptimizedImage 
-            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo2.png' }} 
+          <OptimizedImage
+            source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/plaid-logo2.png' }}
             style={styles.plaidHeaderLogo2}
             showLoadingIndicator={false}
           />
         </View>
-        
+       
         {/* Profile Section */}
         <TouchableOpacity onPress={() => navigation.navigate('MyAccount', { userData: userProfile })} style={styles.profileContainer}>
           {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
-            <OptimizedImage 
-              source={{ uri: userProfile.avatar_url }} 
+            <OptimizedImage
+              source={{ uri: userProfile.avatar_url }}
               style={styles.profileImage}
               showLoadingIndicator={false}
               placeholder={
@@ -139,14 +241,14 @@ export default function PlaidConnect({ navigation, route }) {
           <View style={styles.connectionIconContainer}>
             <View style={styles.connectionIcon}>
               <View style={styles.couriCircle}>
-                <Image 
-                  source={require('../assets/mark2_dark.png')} 
+                <Image
+                  source={require('../assets/mark2_dark.png')}
                   style={styles.couriIconImage}
                 />
               </View>
               <View style={styles.plaidCircle}>
-                <OptimizedImage 
-                  source={plaidLogoError ? require('../assets/plaid-logo.png') : { uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/assets/plaid-logo.png' }} 
+                <OptimizedImage
+                  source={plaidLogoError ? require('../assets/plaid-logo.png') : { uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/assets/plaid-logo.png' }}
                   style={styles.plaidLogoImage}
                   showLoadingIndicator={false}
                   onError={(error) => {
@@ -267,7 +369,6 @@ const styles = StyleSheet.create({
     height: 24,
     resizeMode: 'contain',
   },
-
   plaidText: {
     fontSize: 18,
     fontWeight: '600',

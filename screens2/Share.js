@@ -33,6 +33,9 @@ export default function Share({ navigation, route }) {
     productImage,
     offerId,
     sellerName, // Add seller name
+    plaidSuccess, // Plaid connection success data
+    plaidLinkToken, // Plaid link token
+    plaidExit, // Plaid exit data (if user exited)
   } = route.params || {};
 
   // Resolve possible aliases from previous screens
@@ -48,6 +51,19 @@ export default function Share({ navigation, route }) {
   // State for web invitation
   const [webInviteUrl, setWebInviteUrl] = useState('');
   const [isCreatingWebInvite, setIsCreatingWebInvite] = useState(false);
+
+  // Log Plaid connection status when component mounts
+  useEffect(() => {
+    if (plaidSuccess) {
+      console.log('✅ [Share] Plaid connection successful:', plaidSuccess);
+      console.log('✅ [Share] Public token:', plaidSuccess.publicToken);
+      console.log('✅ [Share] Metadata:', plaidSuccess.metadata);
+    } else if (plaidExit) {
+      console.log('⚠️ [Share] Plaid Link exited:', plaidExit);
+    } else if (plaidLinkToken) {
+      console.log('⚠️ [Share] Plaid link token received but no success/exit data');
+    }
+  }, [plaidSuccess, plaidExit, plaidLinkToken]);
 
   // Web invitation system - no URL shortening needed
 
