@@ -76,6 +76,9 @@ Deno.serve(async (req: Request) => {
       createBody.ios_bundle_id = 'com.anonymous.jerrod'
     }
 
+    console.log(`[plaid-create-link] Creating link token in ${PLAID_ENV} environment`)
+    console.log(`[plaid-create-link] Plaid base URL: ${plaidBase}`)
+
     const resp = await fetch(`${plaidBase}/link/token/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,13 +88,35 @@ Deno.serve(async (req: Request) => {
     const data = await resp.json()
 
     if (!resp.ok) {
-      console.error('Plaid link/token error:', data)
-      return jsonResponse({ error: 'Failed to create link token', details: data }, resp.status)
+      console.error('[plaid-create-link] Plaid API error:', JSON.stringify(data, null, 2))
+      const errorMessage = data?.error_message || data?.error_code || 'Unknown Plaid error'
+      return jsonResponse({ 
+        error: 'Failed to create link token', 
+        message: errorMessage,
+        details: data,
+        plaidErrorCode: data?.error_code,
+        plaidErrorType: data?.error_type
+      }, resp.status)
     }
 
+    if (!data?.link_token) {
+      console.error('[plaid-create-link] No link_token in Plaid response:', JSON.stringify(data, null, 2))
+      return jsonResponse({ 
+        error: 'Invalid response from Plaid',
+        message: 'Plaid API returned success but no link_token',
+        details: data
+      }, 500)
+    }
+
+    console.log('[plaid-create-link] Successfully created link token')
     return jsonResponse({ success: true, link_token: data.link_token })
   } catch (err) {
-    console.error('Unhandled error creating Plaid link token:', err)
-    return jsonResponse({ error: 'Internal server error' }, 500)
+    console.error('[plaid-create-link] Unhandled error:', err)
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    return jsonResponse({ 
+      error: 'Internal server error',
+      message: errorMessage,
+      details: err instanceof Error ? { name: err.name, stack: err.stack } : undefined
+    }, 500)
   }
 })
