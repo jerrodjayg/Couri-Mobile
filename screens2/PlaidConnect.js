@@ -18,6 +18,7 @@ export default function PlaidConnect({ navigation, route }) {
   const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
 
   const [plaidLogoError, setPlaidLogoError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Preload Plaid-specific images when component mounts
   useEffect(() => {
@@ -58,24 +59,47 @@ export default function PlaidConnect({ navigation, route }) {
   };
 
   const handleContinue = async () => {
+    if (isLoading) return; // Prevent multiple clicks
+    
+    setIsLoading(true);
     try {
+      console.log('🔄 [PlaidConnect] Creating Plaid link token...');
+      
       const { data, error } = await supabase.functions.invoke('plaid-create-link', {
         body: { products: ['auth'] },
       });
 
       if (error) {
         console.error('❌ [PlaidConnect] Failed to create Plaid link token:', error);
-        Alert.alert('Plaid Error', 'Could not start bank connection. Please try again.');
+        console.error('❌ [PlaidConnect] Error details:', JSON.stringify(error, null, 2));
+        
+        // Show more detailed error message
+        const errorMessage = error.message || error.error || 'Unknown error';
+        const errorDetails = error.details ? `\n\nDetails: ${JSON.stringify(error.details)}` : '';
+        Alert.alert(
+          'Plaid Error', 
+          `Could not start bank connection.\n\n${errorMessage}${errorDetails}\n\nPlease check your Plaid credentials and try again.`
+        );
+        setIsLoading(false);
         return;
       }
+
+      console.log('✅ [PlaidConnect] Response received:', data);
 
       const linkToken = data?.link_token;
 
       if (!linkToken) {
         console.error('❌ [PlaidConnect] No link_token returned from backend');
-        Alert.alert('Plaid Error', 'Missing link token. Please try again.');
+        console.error('❌ [PlaidConnect] Response data:', JSON.stringify(data, null, 2));
+        Alert.alert(
+          'Plaid Error', 
+          `Missing link token. Please try again.\n\nResponse: ${JSON.stringify(data)}`
+        );
+        setIsLoading(false);
         return;
       }
+
+      console.log('✅ [PlaidConnect] Link token received:', linkToken.substring(0, 20) + '...');
 
       // Open Plaid Link using the v11.6+ API (create → open)
       try {
@@ -170,7 +194,12 @@ export default function PlaidConnect({ navigation, route }) {
       }
     } catch (err) {
       console.error('❌ [PlaidConnect] Unexpected error:', err);
-      Alert.alert('Plaid Error', 'Unexpected error. Please try again.');
+      Alert.alert(
+        'Plaid Error', 
+        `Unexpected error. Please try again.\n\n${err?.message || String(err)}`
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -322,8 +351,14 @@ export default function PlaidConnect({ navigation, route }) {
         </View>
 
         {/* Continue Button */}
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Continue</Text>
+        <TouchableOpacity 
+          style={[styles.continueButton, isLoading && styles.continueButtonDisabled]} 
+          onPress={handleContinue}
+          disabled={isLoading}
+        >
+          <Text style={styles.continueButtonText}>
+            {isLoading ? 'Connecting...' : 'Continue'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -546,6 +581,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  continueButtonDisabled: {
+    opacity: 0.6,
   },
   // Profile Styles
   profileContainer: {
