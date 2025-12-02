@@ -58,6 +58,20 @@ export default function PlaidConnect({ navigation, route }) {
   };
 
   const handleContinue = async () => {
+    // Navigate directly to Share screen (Plaid server connection commented out for now)
+    console.log('✅ [PlaidConnect] Navigating to Share screen');
+    navigation.replace('Share', {
+      ...(route.params || {}),
+      productUrl,
+      productPrice,
+      userAddress,
+      pickupAddress,
+      transactionType,
+      userProfile,
+    });
+
+    // TODO: Uncomment below to enable Plaid server connection
+    /*
     try {
       const { data, error } = await supabase.functions.invoke('plaid-create-link', {
         body: { products: ['auth'] },
@@ -172,6 +186,7 @@ export default function PlaidConnect({ navigation, route }) {
       console.error('❌ [PlaidConnect] Unexpected error:', err);
       Alert.alert('Plaid Error', 'Unexpected error. Please try again.');
     }
+    */
   };
 
   const handleBack = () => {
