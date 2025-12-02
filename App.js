@@ -53,6 +53,13 @@ import ManualProductInput from './screens2/ManualProductInput';
 import SellerProductForm from './screens2/SellerProductForm';
 import InviteScreen from './src/screens/InviteScreen';
 import TutorialScreen from './screens/TutorialScreen';
+import DelivertoBuyer from './screens3/DelivertoBuyer';
+import PhotoTaken from './screens3/PhotoTaken';
+import DriverAtBuyerDoor from './screens3/DriverAtBuyerDoor';
+import HandtoBuyer from './screens3/HandtoBuyer';
+import ProducDropoffPic from './screens3/ProducDropoffPic';
+import AtSellerHouse from './screens3/AtSellerHouse';
+import RetrieveFromSeller from './screens3/RetrieveFromSeller';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -288,6 +295,13 @@ export default function App() {
         <Stack.Screen name="Share" component={Share} />
         <Stack.Screen name="Invite" component={InviteScreen} />
         <Stack.Screen name="Tutorial" component={TutorialScreen} />
+        <Stack.Screen name="DelivertoBuyer" component={DelivertoBuyer} />
+        <Stack.Screen name="PhotoTaken" component={PhotoTaken} />
+        <Stack.Screen name="DriverAtBuyerDoor" component={DriverAtBuyerDoor} />
+        <Stack.Screen name="HandtoBuyer" component={HandtoBuyer} />
+        <Stack.Screen name="ProducDropoffPic" component={ProducDropoffPic} />
+        <Stack.Screen name="AtSellerHouse" component={AtSellerHouse} />
+        <Stack.Screen name="RetrieveFromSeller" component={RetrieveFromSeller} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>

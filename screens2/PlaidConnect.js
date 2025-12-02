@@ -62,6 +62,21 @@ export default function PlaidConnect({ navigation, route }) {
     if (isLoading) return; // Prevent multiple clicks
     
     setIsLoading(true);
+
+    // Navigate directly to Share screen (Plaid server connection commented out for now)
+    console.log('✅ [PlaidConnect] Navigating to Share screen');
+    navigation.replace('Share', {
+      ...(route.params || {}),
+      productUrl,
+      productPrice,
+      userAddress,
+      pickupAddress,
+      transactionType,
+      userProfile,
+    });
+
+    // TODO: Uncomment below to enable Plaid server connection
+    /*
     try {
       console.log('🔄 [PlaidConnect] Creating Plaid link token...');
       
@@ -201,6 +216,7 @@ export default function PlaidConnect({ navigation, route }) {
     } finally {
       setIsLoading(false);
     }
+    */
   };
 
   const handleBack = () => {
