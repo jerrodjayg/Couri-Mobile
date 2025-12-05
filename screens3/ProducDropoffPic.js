@@ -140,15 +140,8 @@ export default function ProducDropoffPic({ navigation, route }) {
   const handleDeliveryComplete = () => {
     if (!capturedPhoto) return;
     
-    // Navigate to next screen
-    navigation.navigate('Welcomepage', {
-      dropoffPhotoUri: capturedPhoto,
-      deliveryPhotoUri,
-      productDetails,
-      orderDetails,
-      userProfile,
-      deliveryComplete: true,
-    });
+    // Navigate back to Splash screen
+    navigation.navigate('Splash');
   };
 
   // Handle contact support

@@ -13,6 +13,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -53,6 +54,8 @@ export default function DriverPasswordScreen({ navigation, route }) {
 
     // Check if code is correct
     if (code === '2154') {
+      // Dismiss keyboard before showing modal
+      Keyboard.dismiss();
       // Show modal instead of navigating directly
       setShowModal(true);
     } else {

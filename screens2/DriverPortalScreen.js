@@ -9,13 +9,27 @@ import {
   Image,
 } from 'react-native';
 
-export default function DriverPortalScreen({ navigation }) {
+export default function DriverPortalScreen({ navigation, route }) {
   const [isOnline, setIsOnline] = useState(false);
   const [servicesToday, setServicesToday] = useState(7);
+  
+  // Get the selected driver name from route params
+  const driverName = route?.params?.selectedPerson || 'Driver';
 
   const handleGoOnline = () => {
-    setIsOnline(!isOnline);
-    console.log(`Driver ${isOnline ? 'went offline' : 'went online'}`);
+    if (!isOnline) {
+      // Going online
+      setIsOnline(true);
+      console.log('Driver went online');
+      // Navigate to AtSellerHouse after 2 seconds
+      setTimeout(() => {
+        navigation.navigate('AtSellerHouse', { driverName });
+      }, 2000);
+    } else {
+      // Going offline
+      setIsOnline(false);
+      console.log('Driver went offline');
+    }
   };
 
   const handleSeeAllServices = () => {
@@ -43,7 +57,7 @@ export default function DriverPortalScreen({ navigation }) {
         </View>
         <TouchableOpacity onPress={handleProfilePress} style={styles.profileContainer}>
           <View style={styles.profileImage}>
-            <Text style={styles.profileInitials}>B</Text>
+            <Text style={styles.profileInitials}>{driverName.charAt(0).toUpperCase()}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -76,7 +90,7 @@ export default function DriverPortalScreen({ navigation }) {
             <Text style={styles.checkmark}>✓</Text>
           </View>
           <View style={styles.userDetails}>
-            <Text style={styles.userName}>Brandon</Text>
+            <Text style={styles.userName}>{driverName}</Text>
             <View style={styles.servicesRow}>
               <Text style={styles.servicesText}>{servicesToday} services today</Text>
               <Text style={styles.dot}>•</Text>

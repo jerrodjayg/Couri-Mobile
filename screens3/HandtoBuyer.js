@@ -152,14 +152,8 @@ export default function HandtoBuyer({ navigation, route }) {
 
   // Handle Delivery Complete button
   const handleDeliveryComplete = () => {
-    // Navigate to next screen
-    navigation.navigate('Welcomepage', {
-      deliveryPhotoUri,
-      productDetails,
-      orderDetails,
-      userProfile,
-      deliveryComplete: true,
-    });
+    // Navigate back to Splash screen
+    navigation.navigate('Splash');
   };
 
   // Handle Buyer isn't home button

@@ -11,6 +11,7 @@ import { setInviteCache } from './utils/inviteCache';
 
 import UploadPhotoScreen from './screens/UploadPhotoScreen';
 import SplashScreen from './screens/SplashScreen';
+import PromptScreen from './screens/PromptScreen';
 import BiometricAuthScreen from './screens/BiometricAuthScreen';
 import BiometricSetupScreen from './screens/BiometricSetupScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -253,8 +254,9 @@ export default function App() {
      }}
    >
    <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
- <Stack.Screen name="Splash" component={SplashScreen} />
- <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />
+<Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Prompt" component={PromptScreen} />
+        <Stack.Screen name="BiometricAuth" component={BiometricAuthScreen} />
  <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
  <Stack.Screen name="Home" component={HomeScreen} />
  <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
