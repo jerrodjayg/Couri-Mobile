@@ -96,14 +96,14 @@ export default function SplashScreen({ navigation }) {
             }, 2000);
             return;
           } else {
-            console.log('✅ SplashScreen: No saved data found, navigating to Home');
+            console.log('✅ SplashScreen: No saved data found, navigating to Prompt');
             setTimeout(() => {
               Animated.timing(fadeAnim, {
                 toValue: 0,
                 duration: 1000,
                 useNativeDriver: true,
               }).start(() => {
-                navigation.replace('Home');
+                navigation.replace('Prompt');
               });
             }, 2000);
             return;
@@ -189,27 +189,27 @@ export default function SplashScreen({ navigation }) {
           }
         }
         
-        // No session or user not in database - go to Home screen
-        console.log('✅ SplashScreen: No saved data and no session, navigating to Home');
+        // No session or user not in database - go to Prompt screen
+        console.log('✅ SplashScreen: No saved data and no session, navigating to Prompt');
         setTimeout(() => {
           Animated.timing(fadeAnim, {
             toValue: 0,
             duration: 1000,
             useNativeDriver: true,
           }).start(() => {
-            navigation.replace('Home');
+            navigation.replace('Prompt');
           });
         }, 2000);
       } catch (error) {
         console.error('❌ SplashScreen: Error checking session:', error);
-        // On error, go to Home screen
+        // On error, go to Prompt screen
         setTimeout(() => {
           Animated.timing(fadeAnim, {
             toValue: 0,
             duration: 1000,
             useNativeDriver: true,
           }).start(() => {
-            navigation.replace('Home');
+            navigation.replace('Prompt');
           });
         }, 2000);
       }

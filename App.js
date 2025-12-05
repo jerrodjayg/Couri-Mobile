@@ -32,6 +32,7 @@ import FaceIDScreen from './screens/FaceIDScreen';
 import PhoneInputScreen from './screens/PhoneInputScreen';
 import SupportScreen from './screens/SupportScreen';
 import BankInfo from './screens/BankInfo';
+import DriverPasswordScreen from './screens/DriverPasswordScreen';
 import Transactions from './screens/Transactions';
 import TransactionDetails from './screens/TransactionDetails';
 import ChatHistory from './screens/ChatHistory';
@@ -51,6 +52,7 @@ import FacebookEmbed from './screens2/FacebookEmbed';
 import CouriAIVerification from './screens2/CouriAIVerification';
 import ManualProductInput from './screens2/ManualProductInput';
 import SellerProductForm from './screens2/SellerProductForm';
+import DriverPortalScreen from './screens2/DriverPortalScreen';
 import InviteScreen from './src/screens/InviteScreen';
 import TutorialScreen from './screens/TutorialScreen';
 import DelivertoBuyer from './screens3/DelivertoBuyer';
@@ -259,6 +261,7 @@ export default function App() {
  <Stack.Screen name="Login" component={LogInScreen} />
  <Stack.Screen name="CodeVerify" component={CodeVerify} />
  <Stack.Screen name="AccountSetup" component={AccountSetupScreen} />
+ <Stack.Screen name="DriverPassword" component={DriverPasswordScreen} />
  <Stack.Screen name="Welcomepage" component={Welcomepage} options={{ gestureEnabled: false }} />
  <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen} />
  <Stack.Screen name="MyAccount" component={MyAccountScreen} />
@@ -285,6 +288,7 @@ export default function App() {
         <Stack.Screen name="CouriAIVerification" component={CouriAIVerification} />
         <Stack.Screen name="ManualProductInput" component={ManualProductInput} />
         <Stack.Screen name="SellerProductForm" component={SellerProductForm} />
+        <Stack.Screen name="DriverPortal" component={DriverPortalScreen} />
         <Stack.Screen name="ProductPrice" component={ProductPrice} />
         <Stack.Screen name="TrackingScreen" component={TrackingScreen} />
         <Stack.Screen name="ConfirmAvailability" component={ConfirmAvailability} />
