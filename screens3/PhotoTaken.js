@@ -88,8 +88,8 @@ export default function PhotoTaken({ navigation, route }) {
 
   // Handle Ready for Delivery
   const handleReadyForDelivery = () => {
-    // Navigate to DriverAtBuyerDoor screen
-    navigation.navigate('DriverAtBuyerDoor', {
+    // Navigate to HeadToBuyer screen
+    navigation.navigate('HeadToBuyer', {
       deliveryPhotoUri,
       productDetails,
       orderDetails,
@@ -168,7 +168,7 @@ export default function PhotoTaken({ navigation, route }) {
             style={styles.readyButton}
             onPress={handleReadyForDelivery}
           >
-            <Text style={styles.readyButtonText}>Ready for Delivery</Text>
+            <Text style={styles.readyButtonText}>Begin Delivery</Text>
           </TouchableOpacity>
         </View>
 

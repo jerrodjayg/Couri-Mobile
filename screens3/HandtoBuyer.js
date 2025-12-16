@@ -152,8 +152,13 @@ export default function HandtoBuyer({ navigation, route }) {
 
   // Handle Delivery Complete button
   const handleDeliveryComplete = () => {
-    // Navigate back to Splash screen
-    navigation.navigate('Splash');
+    // Navigate to DriverPortal with showServiceComplete flag
+    navigation.navigate('DriverPortal', {
+      showServiceComplete: true,
+      basePay: '$21.50',
+      serviceTime: '25 min',
+      todaysEarnings: '$43.00',
+    });
   };
 
   // Handle Buyer isn't home button
