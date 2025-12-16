@@ -140,8 +140,13 @@ export default function ProducDropoffPic({ navigation, route }) {
   const handleDeliveryComplete = () => {
     if (!capturedPhoto) return;
     
-    // Navigate back to Splash screen
-    navigation.navigate('Splash');
+    // Navigate to DriverPortal with showServiceComplete flag
+    navigation.navigate('DriverPortal', {
+      showServiceComplete: true,
+      basePay: '$21.50',
+      serviceTime: '25 min',
+      todaysEarnings: '$43.00',
+    });
   };
 
   // Handle contact support

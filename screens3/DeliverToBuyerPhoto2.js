@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function DelivertoBuyer({ navigation, route }) {
+export default function DeliverToBuyerPhoto2({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -26,6 +26,7 @@ export default function DelivertoBuyer({ navigation, route }) {
     userProfile: routeUserProfile,
     productDetails,
     orderDetails,
+    buyerInfo,
   } = route.params || {};
 
   // Disable swipe back gesture
@@ -34,7 +35,7 @@ export default function DelivertoBuyer({ navigation, route }) {
       navigation.getParent()?.setOptions({
         gestureEnabled: false,
       });
-      
+
       return () => {
         navigation.getParent()?.setOptions({
           gestureEnabled: true,
@@ -50,23 +51,21 @@ export default function DelivertoBuyer({ navigation, route }) {
 
   const loadUserProfile = async () => {
     try {
-      // Try to get from route params first
       if (routeUserProfile) {
         setUserProfile(routeUserProfile);
-        console.log('✅ DelivertoBuyer - Loaded user profile from route params');
+        console.log('✅ DeliverToBuyerPhoto2 - Loaded user profile from route params');
         return;
       }
 
-      // Otherwise load from AsyncStorage
       const storedProfile = await AsyncStorage.getItem('userProfileData');
       const tempUserData = await AsyncStorage.getItem('tempUserData');
-      
+
       if (storedProfile || tempUserData) {
         const profileData = storedProfile ? JSON.parse(storedProfile) : {};
         const tempData = tempUserData ? JSON.parse(tempUserData) : {};
         const mergedProfile = { ...profileData, ...tempData };
-        
-        console.log('✅ DelivertoBuyer - Loaded user profile from AsyncStorage:', mergedProfile);
+
+        console.log('✅ DeliverToBuyerPhoto2 - Loaded user profile from AsyncStorage:', mergedProfile);
         setUserProfile(mergedProfile);
       }
     } catch (error) {
@@ -81,7 +80,7 @@ export default function DelivertoBuyer({ navigation, route }) {
     const lastName = userProfile.lastName || userProfile.last_name || '';
     const name = `${firstName} ${lastName}`.trim();
     if (!name) return userProfile.email?.charAt(0)?.toUpperCase() || 'U';
-    return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase();
+    return name.split(' ').map((n) => n.charAt(0)).join('').toUpperCase();
   };
 
   // Get profile image
@@ -96,7 +95,7 @@ export default function DelivertoBuyer({ navigation, route }) {
   const handleTakePhoto = async () => {
     try {
       setIsLoading(true);
-      
+
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         alert('Permission Denied', 'We need permission to access your camera.');
@@ -129,33 +128,21 @@ export default function DelivertoBuyer({ navigation, route }) {
   };
 
   // Handle use photo
-  const handleUsePhoto = async () => {
-    try {
-      // Store the delivery photo
-      await AsyncStorage.setItem('deliveryPhoto', capturedPhoto);
-      
-      // Navigate to PhotoTaken screen
-      navigation.navigate('PhotoTaken', {
-        deliveryPhotoUri: capturedPhoto,
-        productDetails,
-        orderDetails,
-        userProfile,
-      });
-    } catch (error) {
-      console.error('Error saving delivery photo:', error);
-    }
+  const handleUsePhoto = () => {
+    setShowPreview(false);
+    // Photo is now set, button will be enabled
   };
 
   // Handle Ready for Delivery
   const handleReadyForDelivery = () => {
     if (!capturedPhoto) return;
-    
-    // Navigate to HeadToBuyer screen
-    navigation.navigate('HeadToBuyer', {
+
+    navigation.navigate('DriverAtBuyerDoor', {
       deliveryPhotoUri: capturedPhoto,
       productDetails,
       orderDetails,
       userProfile,
+      buyerInfo,
     });
   };
 
@@ -169,32 +156,26 @@ export default function DelivertoBuyer({ navigation, route }) {
     return (
       <View style={styles.previewContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#000" />
-        
+
         {/* Header text */}
         <SafeAreaView style={styles.previewHeader}>
           <Text style={styles.previewHeaderText}>Deliver to buyer</Text>
         </SafeAreaView>
-        
+
         {/* Photo preview */}
-        <Image 
-          source={{ uri: capturedPhoto }} 
+        <Image
+          source={{ uri: capturedPhoto }}
           style={styles.previewImage}
           resizeMode="cover"
         />
-        
+
         {/* Bottom buttons */}
         <View style={styles.previewButtonsContainer}>
-          <TouchableOpacity 
-            style={styles.previewButton}
-            onPress={handleRetake}
-          >
+          <TouchableOpacity style={styles.previewButton} onPress={handleRetake}>
             <Text style={styles.previewButtonText}>Retake</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.previewButton}
-            onPress={handleUsePhoto}
-          >
+
+          <TouchableOpacity style={styles.previewButton} onPress={handleUsePhoto}>
             <Text style={styles.previewButtonText}>Use Photo</Text>
           </TouchableOpacity>
         </View>
@@ -205,27 +186,21 @@ export default function DelivertoBuyer({ navigation, route }) {
   // Render main screen
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+      <StatusBar barStyle="dark-content" backgroundColor="#FBFBF9" />
+
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Image 
-              source={require('../assets/backarrow.png')} 
-              style={styles.backArrowImage}
-            />
+            <Image source={require('../assets/backarrow.png')} style={styles.backArrowImage} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>DELIVERY</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('MyAccount')}
           >
             {getProfileImage() ? (
-              <Image
-                source={{ uri: getProfileImage() }}
-                style={styles.profileImage}
-              />
+              <Image source={{ uri: getProfileImage() }} style={styles.profileImage} />
             ) : (
               <View style={styles.profileFallback}>
                 <Text style={styles.profileInitials}>{getUserInitials()}</Text>
@@ -234,61 +209,59 @@ export default function DelivertoBuyer({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {/* Camera Icon */}
-        <View style={styles.cameraIconContainer}>
-          <View style={styles.cameraIconBox}>
-            <Image 
-              source={require('../assets/camera.png')} 
-              style={styles.cameraIcon}
-              resizeMode="contain"
-            />
-          </View>
+        {/* Icon - Camera or Checkmark */}
+        <View style={styles.iconContainer}>
+          {capturedPhoto ? (
+            <View style={styles.checkmarkCircle}>
+              <Text style={styles.checkmarkIcon}>✓</Text>
+            </View>
+          ) : (
+            <View style={styles.cameraCircle}>
+              <Image source={require('../assets/camera.png')} style={styles.cameraIcon} />
+            </View>
+          )}
         </View>
 
         {/* Content */}
         <View style={styles.content}>
           <Text style={styles.conditionLabel}>CONDITION VERIFICATION</Text>
-          <Text style={styles.title}>Take a product photo{'\n'}before you deliver</Text>
+          <Text style={styles.title}>Take a product photo before you deliver</Text>
           <Text style={styles.description}>
-            To protect against mishandling claims, take a photo of the product when you arrive at the buyer's location, before dropping it off.
+            To protect against mishandling claims, take a photo of the product when you arrive at
+            the buyer's location, before dropping it off.
           </Text>
 
-          {/* Take Photo Button */}
-          <TouchableOpacity 
-            style={styles.takePhotoContainer}
-            onPress={handleTakePhoto}
-            disabled={isLoading}
-          >
-            <View style={styles.takePhotoBox}>
-              <View style={styles.photoIconContainer}>
-                <Image 
-                  source={require('../assets/gallery.png')} 
-                  style={styles.photoIcon}
-                  resizeMode="contain"
-                />
+          {/* Photo Box */}
+          <View style={styles.photoBoxContainer}>
+            {capturedPhoto ? (
+              <View style={styles.photoWithImage}>
+                <Image source={{ uri: capturedPhoto }} style={styles.capturedPhotoImage} />
+                {/* Retake button overlay */}
+                <TouchableOpacity style={styles.retakeButton} onPress={handleTakePhoto}>
+                  <Text style={styles.retakeIcon}>📷</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.takePhotoText}>Take Photo</Text>
-              <View style={styles.plusButton}>
-                <Text style={styles.plusText}>+</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.takePhotoBox} onPress={handleTakePhoto}>
+                <View style={styles.photoIconWrapper}>
+                  <Text style={styles.photoIcon}>🖼️</Text>
+                </View>
+                <Text style={styles.takePhotoText}>Take Photo</Text>
+                {/* Plus button */}
+                <TouchableOpacity style={styles.plusButton} onPress={handleTakePhoto}>
+                  <Text style={styles.plusText}>+</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Ready for Delivery Button */}
-          <TouchableOpacity 
-            style={[
-              styles.readyButton,
-              !capturedPhoto && styles.readyButtonDisabled
-            ]}
+          <TouchableOpacity
+            style={[styles.readyButton, !capturedPhoto && styles.readyButtonDisabled]}
             onPress={handleReadyForDelivery}
             disabled={!capturedPhoto}
           >
-            <Text style={[
-              styles.readyButtonText,
-              !capturedPhoto && styles.readyButtonTextDisabled
-            ]}>
-              Begin Delivery
-            </Text>
+            <Text style={styles.readyButtonText}>Ready for Delivery</Text>
           </TouchableOpacity>
         </View>
 
@@ -296,10 +269,7 @@ export default function DelivertoBuyer({ navigation, route }) {
         <View style={styles.bottomSection}>
           <View style={styles.divider} />
           <Text style={styles.wrongText}>Did something go wrong?</Text>
-          <TouchableOpacity 
-            style={styles.supportButton}
-            onPress={handleContactSupport}
-          >
+          <TouchableOpacity style={styles.supportButton} onPress={handleContactSupport}>
             <Text style={styles.supportIcon}>🎧</Text>
             <Text style={styles.supportButtonText}>Contact support</Text>
           </TouchableOpacity>
@@ -312,7 +282,7 @@ export default function DelivertoBuyer({ navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FBFBF9',
   },
   container: {
     flex: 1,
@@ -323,154 +293,197 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   backButton: {
     padding: 5,
   },
   backArrowImage: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 20,
     resizeMode: 'contain',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '500',
     color: '#000',
+    letterSpacing: 0.36,
   },
   profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#000',
+    borderColor: '#171715',
   },
   profileImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 20,
+    borderRadius: 19,
   },
   profileFallback: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#D2691E',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 19,
   },
   profileInitials: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
   },
-  cameraIconContainer: {
-    paddingHorizontal: 20,
+  iconContainer: {
+    paddingHorizontal: 23,
     paddingTop: 20,
   },
-  cameraIconBox: {
-    width: 50,
-    height: 50,
+  cameraCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F9F5F1',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderColor: '#D3D3D3',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cameraIcon: {
-    width: 24,
-    height: 24,
-    opacity: 0.6,
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+  checkmarkCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#2DD4A8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmarkIcon: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 26,
     paddingTop: 20,
   },
   conditionLabel: {
     fontSize: 12,
-    color: '#8B7355',
+    color: '#82827F',
     fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 12,
+    letterSpacing: 1.2,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '400',
     color: '#000',
     marginBottom: 16,
-    lineHeight: 36,
+    lineHeight: 40,
   },
   description: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    lineHeight: 24,
     marginBottom: 30,
   },
-  takePhotoContainer: {
+  photoBoxContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 30,
   },
   takePhotoBox: {
+    width: 115,
+    height: 114,
+    borderRadius: 6,
+    backgroundColor: 'rgba(130, 130, 127, 0.1)',
+    borderWidth: 1,
+    borderColor: '#D3D3D3',
+    justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
-  photoIconContainer: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+  photoIconWrapper: {
+    marginBottom: 7,
   },
   photoIcon: {
-    width: 32,
-    height: 32,
-    opacity: 0.5,
+    fontSize: 24,
+    opacity: 0.6,
   },
   takePhotoText: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: '#171715',
+    letterSpacing: 0.14,
   },
   plusButton: {
     position: 'absolute',
-    bottom: 28,
-    right: -8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#000',
+    bottom: -15,
+    right: -15,
+    width: 37,
+    height: 37,
+    borderRadius: 19,
+    backgroundColor: '#171715',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   plusText: {
+    fontSize: 24,
     color: '#fff',
-    fontSize: 18,
     fontWeight: '300',
     marginTop: -2,
   },
-  readyButton: {
-    backgroundColor: '#000',
-    borderRadius: 30,
-    paddingVertical: 18,
+  photoWithImage: {
+    width: 115,
+    height: 114,
+    borderRadius: 6,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  capturedPhotoImage: {
+    width: 115,
+    height: 114,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#000',
+  },
+  retakeButton: {
+    position: 'absolute',
+    bottom: -15,
+    right: -15,
+    width: 37,
+    height: 37,
+    borderRadius: 19,
+    backgroundColor: '#171715',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+  },
+  retakeIcon: {
+    fontSize: 16,
+    color: '#fff',
+  },
+  readyButton: {
+    backgroundColor: '#171715',
+    borderRadius: 100,
+    paddingVertical: 16,
+    alignItems: 'center',
+    // Shadow effect
+    shadowColor: '#171715',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 0,
+    elevation: 4,
   },
   readyButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#82827F',
   },
   readyButtonText: {
-    color: '#fff',
+    color: '#FBFBF9',
     fontSize: 16,
     fontWeight: '600',
-  },
-  readyButtonTextDisabled: {
-    color: '#fff',
   },
   bottomSection: {
     paddingHorizontal: 20,
@@ -480,32 +493,32 @@ const styles = StyleSheet.create({
   divider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#82827F',
+    opacity: 0.3,
     marginBottom: 20,
   },
   wrongText: {
     fontSize: 14,
-    color: '#333',
+    fontWeight: '600',
+    color: '#000',
     marginBottom: 16,
   },
   supportButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    backgroundColor: '#EFEFED',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 60,
   },
   supportIcon: {
     fontSize: 16,
-    marginRight: 8,
+    marginRight: 4,
   },
   supportButtonText: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontWeight: '700',
+    color: '#171715',
   },
   // Preview screen styles
   previewContainer: {
@@ -553,4 +566,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-

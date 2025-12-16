@@ -63,6 +63,10 @@ import HandtoBuyer from './screens3/HandtoBuyer';
 import ProducDropoffPic from './screens3/ProducDropoffPic';
 import AtSellerHouse from './screens3/AtSellerHouse';
 import RetrieveFromSeller from './screens3/RetrieveFromSeller';
+import DriverAcceptDelivery from './screens3/DriverAcceptDelivery';
+import HeadToSeller from './screens3/HeadToSeller';
+import HeadToBuyer from './screens3/HeadToBuyer';
+import DeliverToBuyerPhoto2 from './screens3/DeliverToBuyerPhoto2';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -308,6 +312,10 @@ export default function App() {
         <Stack.Screen name="ProducDropoffPic" component={ProducDropoffPic} />
         <Stack.Screen name="AtSellerHouse" component={AtSellerHouse} />
         <Stack.Screen name="RetrieveFromSeller" component={RetrieveFromSeller} />
+        <Stack.Screen name="DriverAcceptDelivery" component={DriverAcceptDelivery} />
+        <Stack.Screen name="HeadToSeller" component={HeadToSeller} />
+        <Stack.Screen name="HeadToBuyer" component={HeadToBuyer} />
+        <Stack.Screen name="DeliverToBuyerPhoto2" component={DeliverToBuyerPhoto2} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>
