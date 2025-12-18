@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Pressable, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image, Alert} from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Pressable, SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
@@ -62,12 +62,12 @@ const upsertProfile = async (session) => {
 
   // Always try users table as fallback (since profiles table has issues)
   console.log('🔄 Trying users table as fallback...');
-  
+
   // Split the full name into first and last name
   const nameParts = name.split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
-  
+
   console.log('🔄 Splitting name:', { fullName: name, firstName, lastName });
 
   // Try to update existing user first, then insert if not found
@@ -142,7 +142,7 @@ export default function LogInScreen({ navigation }) {
       navigation.getParent()?.setOptions({
         gestureEnabled: false,
       });
-      
+
       return () => {
         navigation.getParent()?.setOptions({
           gestureEnabled: true,
@@ -175,25 +175,25 @@ export default function LogInScreen({ navigation }) {
       // Reset loading states when user returns to this screen
       setIsProcessingSignIn(false);
       console.log('🔍 LogInScreen DEBUG - Screen focused, reset loading states');
-      
+
       // Refresh biometric availability in case user enabled it in another screen
       try {
         const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
         const hasEnabledBiometrics = biometricEnabled === 'true';
-        
+
         if (hasEnabledBiometrics && !hasUserEnabledBiometrics) {
           console.log('🔍 LogInScreen DEBUG - User enabled biometrics, refreshing availability');
           // Re-check biometric availability
           const hasHardware = await LocalAuthentication.hasHardwareAsync();
           const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-          
+
           // Check if user has previously logged in (not a brand new user)
           const hasLoggedInBefore = await AsyncStorage.getItem('hasLoggedInBefore');
           const isReturningUser = hasLoggedInBefore === 'true';
-          
+
           // Only show biometric login if user is a returning user
           const shouldShowBiometric = hasHardware && isEnrolled && hasEnabledBiometrics && isReturningUser;
-          
+
           setHasBiometricHardware(shouldShowBiometric);
           setHasUserEnabledBiometrics(hasEnabledBiometrics);
         }
@@ -211,15 +211,15 @@ export default function LogInScreen({ navigation }) {
       try {
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-        
+
         // Check if user has previously enabled biometrics
         const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
         const hasEnabledBiometrics = biometricEnabled === 'true';
-        
+
         // Check if user has previously logged in (not a brand new user)
         const hasLoggedInBefore = await AsyncStorage.getItem('hasLoggedInBefore');
         const isReturningUser = hasLoggedInBefore === 'true';
-        
+
         console.log('🔍 Biometric check:', {
           hasHardware,
           isEnrolled,
@@ -228,19 +228,19 @@ export default function LogInScreen({ navigation }) {
           hasLoggedInBefore,
           isReturningUser
         });
-        
+
         // Only show biometric login if:
         // 1. Device has biometric hardware AND is enrolled
         // 2. User has previously enabled biometrics
         // 3. User is a returning user (not brand new)
         const shouldShowBiometric = hasHardware && isEnrolled && hasEnabledBiometrics && isReturningUser;
-        
+
         setHasBiometricHardware(shouldShowBiometric);
         setHasUserEnabledBiometrics(hasEnabledBiometrics);
-        
+
         if (hasHardware && isEnrolled) {
           const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-          
+
           if (Platform.OS === 'ios') {
             if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
               setBiometricLabel('Face ID');
@@ -275,7 +275,7 @@ export default function LogInScreen({ navigation }) {
       // First check if user has saved data in AsyncStorage
       const tempUserData = await AsyncStorage.getItem('tempUserData');
       const userProfileData = await AsyncStorage.getItem('userProfileData');
-      
+
       if (!tempUserData && !userProfileData) {
         Alert.alert(
           'No Account Found',
@@ -318,7 +318,7 @@ export default function LogInScreen({ navigation }) {
 
       if (result.success) {
         console.log('✅ Biometric authentication successful');
-        
+
         // Load user data from AsyncStorage
         let userData = null;
         if (tempUserData) {
@@ -330,12 +330,12 @@ export default function LogInScreen({ navigation }) {
         if (userData) {
           // Verify user exists in Supabase database before logging in
           const userEmail = userData.email || userData.userEmail;
-          
+
           console.log('📦 Full userData from AsyncStorage:', JSON.stringify(userData, null, 2));
           console.log('📧 Extracted email:', userEmail);
           console.log('📧 Email type:', typeof userEmail);
           console.log('📧 Email length:', userEmail?.length);
-          
+
           if (!userEmail) {
             Alert.alert(
               'No Account Found',
@@ -358,17 +358,17 @@ export default function LogInScreen({ navigation }) {
             console.log('🔍 Checking if user exists in Supabase:', userEmail);
             console.log('🔍 Checking with email (lowercase):', userEmail.toLowerCase());
             console.log('🔍 About to query users table...');
-            
+
             // Add timeout to database query (5 seconds)
             const queryPromise = supabase
               .from('users')
               .select('*')
               .eq('email', userEmail.toLowerCase());
-            
-            const timeoutPromise = new Promise((_, reject) => 
+
+            const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database query timeout')), 5000)
             );
-            
+
             // Race between query and timeout
             const { data: existingUsers, error: checkError } = await Promise.race([
               queryPromise,
@@ -376,7 +376,7 @@ export default function LogInScreen({ navigation }) {
             ]).catch(err => {
               console.log('⚠️ Database query failed or timed out:', err.message);
               console.log('ℹ️ Proceeding with cached data only (RLS may be blocking database access)');
-              
+
               // Return empty result so we can skip to cached data
               return { data: null, error: { message: err.message } };
             });
@@ -387,7 +387,7 @@ export default function LogInScreen({ navigation }) {
             console.log('🔍 Data type:', typeof existingUsers);
             console.log('🔍 Is array?:', Array.isArray(existingUsers));
             console.log('🔍 Number of users found:', existingUsers?.length || 0);
-            
+
             if (existingUsers) {
               console.log('🔍 First user in array:', existingUsers[0]);
             }
@@ -404,17 +404,17 @@ export default function LogInScreen({ navigation }) {
               console.log('⚠️ User not found in database or query blocked by RLS');
               console.log('🔍 Searched for email:', userEmail.toLowerCase());
               console.log('🔍 Query returned:', existingUsers);
-              
+
               // If we have cached data and the query just timed out (not an actual error),
               // allow login with cached data
               if (checkError && checkError.message === 'Database query timeout') {
                 console.log('ℹ️ Database query timed out (likely RLS blocking)');
                 console.log('✅ Using cached data from AsyncStorage for Face ID login');
-                
+
                 // Mark that user has logged in before (for biometric login visibility)
                 await AsyncStorage.setItem('hasLoggedInBefore', 'true');
                 console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for timeout fallback');
-                
+
                 // Navigate to Welcomepage with cached user data
                 navigation.replace('Welcomepage', {
                   name: userData.firstName || userData.name || 'there',
@@ -422,7 +422,7 @@ export default function LogInScreen({ navigation }) {
                 });
                 return;
               }
-              
+
               // If it's a real "not found" (not just RLS blocking), show error
               Alert.alert(
                 'No Account Found',
@@ -447,7 +447,7 @@ export default function LogInScreen({ navigation }) {
             console.log('✅ User ID:', existingUser.id);
             console.log('✅ User first name:', existingUser.first_name);
             console.log('✅ User last name:', existingUser.last_name);
-            
+
             // Update userData with database info to ensure consistency
             userData = {
               ...userData,
@@ -462,13 +462,13 @@ export default function LogInScreen({ navigation }) {
               state: existingUser.state || userData.state,
               zip: existingUser.zip_code || userData.zip,
             };
-            
+
             console.log('✅ Face ID login successful, proceeding to Welcomepage');
-            
+
             // Mark that user has logged in before (for biometric login visibility)
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
             console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for biometric login');
-            
+
             // Navigate to Welcomepage with user data from database
             navigation.replace('Welcomepage', {
               name: userData.firstName || userData.name || 'there',
@@ -478,11 +478,11 @@ export default function LogInScreen({ navigation }) {
             console.error('❌ Error verifying user in Supabase:', error);
             console.log('ℹ️ Database verification failed, but proceeding with cached data');
             console.log('✅ Using AsyncStorage data for Face ID login');
-            
+
             // Mark that user has logged in before (for biometric login visibility)
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
             console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for biometric login fallback');
-            
+
             // Allow login with cached data even if database check fails
             navigation.replace('Welcomepage', {
               name: userData.firstName || userData.name || 'there',
@@ -505,14 +505,14 @@ export default function LogInScreen({ navigation }) {
       Alert.alert('Error', 'Please enter your mobile number');
       return;
     }
-    
+
     // Clean the phone number and check if it has exactly 10 digits
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     if (cleanPhone.length !== 10) {
       Alert.alert('Error', 'Please enter a valid 10-digit phone number');
       return;
     }
-            navigation.navigate('Home');
+    navigation.navigate('Home');
   };
 
   const handleAppleSignIn = async () => {
@@ -551,14 +551,14 @@ export default function LogInScreen({ navigation }) {
       let attempts = 0;
       const maxAttempts = 20; // Increased to 20 attempts
       const interval = 500; // Check every 500ms
-      
+
       const checkSession = async () => {
         attempts++;
         console.log(`🔍 LogInScreen DEBUG - Session check attempt ${attempts}/${maxAttempts}`);
-        
+
         try {
           const { data: { session }, error } = await supabase.auth.getSession();
-          
+
           if (error) {
             console.log(`🔍 LogInScreen DEBUG - Session error:`, error.message);
           } else if (session?.user) {
@@ -568,28 +568,28 @@ export default function LogInScreen({ navigation }) {
           } else {
             console.log(`🔍 LogInScreen DEBUG - No session yet, attempt ${attempts}/${maxAttempts}`);
           }
-          
+
           if (attempts >= maxAttempts) {
             console.log('🔍 LogInScreen DEBUG - Max attempts reached, rejecting');
             reject(new Error('Session establishment timeout'));
             return;
           }
-          
+
           // Continue checking
           setTimeout(checkSession, interval);
         } catch (sessionErr) {
           console.log(`🔍 LogInScreen DEBUG - Session check error:`, sessionErr.message);
-          
+
           if (attempts >= maxAttempts) {
             reject(sessionErr);
             return;
           }
-          
+
           // Continue checking
           setTimeout(checkSession, interval);
         }
       };
-      
+
       // Start checking after a brief delay to allow auth state change to process
       setTimeout(checkSession, 1000);
     });
@@ -600,13 +600,13 @@ export default function LogInScreen({ navigation }) {
     if (isLoading || isProcessingSignIn) {
       return;
     }
-    
+
     // Quick network check before starting OAuth
     console.log('🌐 Performing quick network check...');
     try {
-      const networkTest = await fetch('https://www.google.com', { 
-        method: 'HEAD', 
-        timeout: 3000 
+      const networkTest = await fetch('https://www.google.com', {
+        method: 'HEAD',
+        timeout: 3000
       });
       console.log('✅ Network check passed:', networkTest.status);
     } catch (networkError) {
@@ -618,14 +618,14 @@ export default function LogInScreen({ navigation }) {
       );
       return;
     }
-    
+
     console.log('🔄 Starting Google sign-in process...');
     setIsProcessingSignIn(true);
-    
+
     // Track OAuth flow state to determine when to show errors
     let oauthStarted = false;
     let oauthCompleted = false;
-    
+
     // Timeout for OAuth browser not opening (10 seconds)
     const browserTimeoutId = setTimeout(() => {
       if (!oauthStarted) {
@@ -633,7 +633,7 @@ export default function LogInScreen({ navigation }) {
         setIsProcessingSignIn(false);
       }
     }, 10000);
-    
+
     // Timeout for OAuth completion but not reaching welcome screen (30 seconds)
     const completionTimeoutId = setTimeout(() => {
       if (oauthStarted && !oauthCompleted) {
@@ -641,30 +641,30 @@ export default function LogInScreen({ navigation }) {
         setIsProcessingSignIn(false);
       }
     }, 30000);
-    
+
     try {
       const currentSession = await supabase.auth.getSession();
     } catch (sessionError) {
       // Non-blocking error, continue with OAuth
     }
-    
+
     try {
-      
+
       // Wrap signInGoogle with a longer timeout to allow OAuth to complete
       const signInPromise = signInGoogle();
-      const signInTimeoutPromise = new Promise((_, reject) => 
+      const signInTimeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('signInGoogle timeout')), 30000)
       );
-      
+
       console.log('🔍 LogInScreen DEBUG - Racing signInGoogle with timeout...');
       const result = await Promise.race([signInPromise, signInTimeoutPromise]);
       console.log('✅ LogInScreen DEBUG - signInGoogle completed successfully');
       console.log('📱 Google sign-in result:', result);
-      
+
       // Mark OAuth as started (browser opened)
       oauthStarted = true;
       console.log('🔄 OAuth browser opened successfully');
-      
+
       // Clear the browser timeout since OAuth started successfully
       clearTimeout(browserTimeoutId);
 
@@ -677,14 +677,14 @@ export default function LogInScreen({ navigation }) {
       // Wait for session to be established (Google OAuth can take a moment)
       let userEmail = null;
       let userData = null;
-      
+
       // First check if the result already has session data
       if (result.session?.user) {
         userData = result.session.user;
         userEmail = userData.email;
       } else {
         // Wait for session with improved logic using Promise-based approach
-        
+
         try {
           // Wait for session to be established with a more reliable approach
           const sessionData = await waitForSession();
@@ -700,29 +700,29 @@ export default function LogInScreen({ navigation }) {
       if (!userEmail) {
         // Check if we have a valid OAuth result with a code
         if (result?.url && result.url.includes('code=')) {
-          
+
           try {
             // Extract the code from the URL
             const url = new URL(result.url);
-            
+
             const code = url.searchParams.get('code');
-            
+
             if (code) {
-              
+
               try {
                 const exchangePromise = supabase.auth.exchangeCodeForSession(code);
-                
-                const timeoutPromise = new Promise((_, reject) => 
+
+                const timeoutPromise = new Promise((_, reject) =>
                   setTimeout(() => {
                     reject(new Error('Code exchange timeout'));
                   }, 30000)
                 );
-                
+
                 const { data: exchangeData, error: exchangeError } = await Promise.race([
                   exchangePromise,
                   timeoutPromise
                 ]);
-                
+
                 if (exchangeError) {
                   // Fall through to error handling
                 } else if (exchangeData?.session?.user) {
@@ -737,7 +737,7 @@ export default function LogInScreen({ navigation }) {
             // URL parsing error, continue with fallback
           }
         }
-        
+
         // If still no email, reset loading state and return
         if (!userEmail) {
           // Reset loading states before returning
@@ -756,7 +756,7 @@ export default function LogInScreen({ navigation }) {
           await supabase.auth.signOut();
           await AsyncStorage.removeItem('userLastAction');
           console.log('✅ Cleared auth session for previously deleted user');
-          
+
           // Show message and redirect to create account
           Alert.alert(
             'Account Deleted',
@@ -780,13 +780,13 @@ export default function LogInScreen({ navigation }) {
       }
 
       // Check if this email already exists in our DB (users table)
-      
+
       // Add timeout to prevent hanging - reduced to 10 seconds for better UX
       const checkUserPromise = UserService.checkUserExists(email);
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Database check timeout')), 10000)
       );
-      
+
       let exists, existingUser;
       try {
         const result = await Promise.race([checkUserPromise, timeoutPromise]);
@@ -795,7 +795,7 @@ export default function LogInScreen({ navigation }) {
       } catch (error) {
         // Database check failed or timed out
         console.log('⚠️ Database check failed or timed out:', error);
-        
+
         // If database check fails, check if this might be a deleted user scenario
         // by checking if we have a valid auth session but no database record
         if (userData && userData.id) {
@@ -807,7 +807,7 @@ export default function LogInScreen({ navigation }) {
             console.log('⚠️ Failed to sign out orphaned session:', signOutError);
           }
         }
-        
+
         // Treat as new user and proceed
         exists = false;
         existingUser = null;
@@ -829,8 +829,8 @@ export default function LogInScreen({ navigation }) {
             profileImageUri: userData.user_metadata?.avatar_url || userData.user_metadata?.picture || '',
             isGoogleAuth: true,
             hasSkippedPhoto: false, // Google users have profile pictures
-            userInitials: userData.user_metadata?.full_name ? 
-              userData.user_metadata.full_name.split(' ').map(n => n.charAt(0)).join('').toUpperCase() : 
+            userInitials: userData.user_metadata?.full_name ?
+              userData.user_metadata.full_name.split(' ').map(n => n.charAt(0)).join('').toUpperCase() :
               userData.email.charAt(0).toUpperCase()
           };
 
@@ -852,43 +852,43 @@ export default function LogInScreen({ navigation }) {
           // Store the Google user data in AsyncStorage for the session
           await AsyncStorage.setItem('tempUserData', JSON.stringify(googleUserData));
           await AsyncStorage.setItem('userProfileData', JSON.stringify(googleUserData));
-          
+
           // Navigate to BiometricSetup for new Google users (same as create account flow)
           console.log('🚀 NEW USER NAVIGATION DEBUG - About to navigate to BiometricSetup');
-          
+
           try {
             // Mark that user has logged in before (for biometric login visibility)
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
-            
-            navigation.replace('BiometricSetup', { 
+
+            navigation.replace('BiometricSetup', {
               userInfo: googleUserData,
               savedUser: null, // No saved user yet
               isGoogleAuth: true,
               googleUserData: googleUserData
             });
             console.log('✅ NEW USER NAVIGATION DEBUG - Navigation.replace() called successfully');
-            
+
             // Wait a moment and check if navigation actually happened
             setTimeout(() => {
               // Navigation completed
             }, 1000);
-            
+
           } catch (navError) {
             console.error('❌ Navigation error:', navError);
           }
-          
+
           // Mark OAuth as completed (user reached BiometricSetup)
           oauthCompleted = true;
           console.log('✅ OAuth flow completed successfully - new user reached BiometricSetup');
-          
+
           // Clear the completion timeout since OAuth completed successfully
           clearTimeout(completionTimeoutId);
-          
+
           return;
 
         } catch (error) {
           console.error('❌ Error creating new Google user session:', error);
-          
+
           // Fallback: sign out and reset loading state
           await supabase.auth.signOut();
           // Reset loading states before returning
@@ -902,10 +902,10 @@ export default function LogInScreen({ navigation }) {
       // Use the new function to handle existing Google users gracefully
       try {
         const result = await UserService.handleExistingGoogleUser(userData, existingUser);
-        
+
         // Use the updated user data if available
         const userToUse = result.user;
-        
+
         // Store complete user data in AsyncStorage for the app to use
         try {
           const completeUserData = {
@@ -932,14 +932,14 @@ export default function LogInScreen({ navigation }) {
           // Store in both tempUserData and userProfileData for consistency
           await AsyncStorage.setItem('tempUserData', JSON.stringify(completeUserData));
           await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserData));
-          
-          
+
+
         } catch (storageError) {
           console.log('⚠️ AsyncStorage error (non-blocking):', storageError);
         }
 
         // Navigate to Welcomepage for returning users with complete data
-        
+
         const userDataToPass = {
           id: userToUse.id || 'temp_user',
           email: email,
@@ -957,71 +957,71 @@ export default function LogInScreen({ navigation }) {
           profileImageUri: userData.user_metadata?.avatar_url || userToUse.avatar_url || '',
           isGoogleAuth: true
         };
-        
+
         // Use only the first name for the greeting
         const firstName = userDataToPass.firstName || 'there';
         console.log('🔍 NAVIGATION DEBUG - First name for returning user:', firstName);
         console.log('🔍 NAVIGATION DEBUG - Current navigation state before replace:', navigation.getState());
         console.log('🔍 NAVIGATION DEBUG - Available routes:', navigation.getState()?.routes?.map(r => r.name));
         console.log('🔍 NAVIGATION DEBUG - User data to pass to Welcomepage:', userDataToPass);
-        
+
         try {
           // Mark that user has logged in before (for biometric login visibility)
           await AsyncStorage.setItem('hasLoggedInBefore', 'true');
           console.log('✅ NAVIGATION DEBUG - Set hasLoggedInBefore flag for returning user');
-          
+
           // Pass the complete user data to Welcomepage
           console.log('🚀 NAVIGATION DEBUG - About to call navigation.replace("Welcomepage")');
-          navigation.replace('Welcomepage', { 
+          navigation.replace('Welcomepage', {
             name: firstName,
             userData: userDataToPass
           });
           console.log('✅ NAVIGATION DEBUG - Navigation.replace() called successfully for returning user');
-          
+
           // Wait a moment and check if navigation actually happened
           setTimeout(() => {
             console.log('🔍 LogInScreen DEBUG - Navigation state after 1 second (returning user):', navigation.getState());
           }, 1000);
-          
+
         } catch (navError) {
           console.error('❌ LogInScreen DEBUG - Navigation error for returning user:', navError);
           console.error('❌ LogInScreen DEBUG - Navigation error message:', navError.message);
         }
-        
+
         console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage completed with complete user data');
-        
+
         // Mark OAuth as completed (user reached welcome screen)
         oauthCompleted = true;
         console.log('✅ OAuth flow completed successfully - user reached welcome screen');
-        
+
         // Clear the completion timeout since OAuth completed successfully
         clearTimeout(completionTimeoutId);
 
       } catch (error) {
         console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
-        
+
         // Check if it's specifically a signInGoogle timeout
         if (error.message === 'signInGoogle timeout') {
           console.error('❌ signInGoogle function timed out after 4 seconds');
           console.error('❌ This suggests the OAuth flow is not starting or completing');
           console.error('❌ Check if Google OAuth is properly configured');
         }
-        
+
         // Reset loading states and return
         setIsProcessingSignIn(false);
       }
-     } catch (error) {
-       console.error('❌ Google sign-in error (outer catch):', error);
-       console.error('❌ Error message:', error.message);
-       console.error('❌ Error stack:', error.stack);
-       console.error('❌ Full error details:', JSON.stringify(error, null, 2));
-       
+    } catch (error) {
+      console.error('❌ Google sign-in error (outer catch):', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      console.error('❌ Full error details:', JSON.stringify(error, null, 2));
+
       // Clear the timeouts
       clearTimeout(browserTimeoutId);
       clearTimeout(completionTimeoutId);
-       
-       // Reset loading states and return
-       setIsProcessingSignIn(false);
+
+      // Reset loading states and return
+      setIsProcessingSignIn(false);
     } finally {
       // Always ensure loading state is reset, even if there are unexpected errors
       console.log('🔄 Google sign-in process completed, resetting loading state');
@@ -1029,7 +1029,7 @@ export default function LogInScreen({ navigation }) {
       clearTimeout(completionTimeoutId);
       setIsProcessingSignIn(false);
     }
-   };
+  };
 
 
 
@@ -1065,91 +1065,91 @@ export default function LogInScreen({ navigation }) {
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
-      
+
       // CRITICAL FIX: Don't auto-navigate if user doesn't exist in database or if we're processing sign-in
       if (event === 'SIGNED_IN' && session?.user && !isProcessingSignIn) {
         console.log('🔍 LogInScreen DEBUG - Auth state change: SIGNED_IN detected');
-        
+
         // Check if this user actually exists in our database before navigating
-                 try {
-           const email = session.user.email?.toLowerCase();
-           console.log('🔍 LogInScreen DEBUG - Email from session:', email);
-           
-           if (email) {
-             console.log('🔍 LogInScreen DEBUG - Checking database existence for auth state change...');
-             console.log('🔍 LogInScreen DEBUG - About to call UserService.checkUserExists...');
-             
-             const { exists, user: existingUser } = await UserService.checkUserExists(email);
-             console.log('🔍 LogInScreen DEBUG - Database check result:', { exists, existingUser });
-             
-             if (exists) {
-               console.log('🔍 LogInScreen DEBUG - User exists in database, allowing navigation');
-               
-               // Prepare complete user data for Welcomepage
-               const userDataToPass = {
-                 id: existingUser.id || session.user.id,
-                 email: email,
-                 firstName: existingUser.first_name || session.user.user_metadata?.given_name || '',
-                 lastName: existingUser.last_name || session.user.user_metadata?.family_name || '',
-                 name: existingUser.first_name && existingUser.last_name ? `${existingUser.first_name} ${existingUser.last_name}` : existingUser.first_name || existingUser.last_name || '',
-                 full_name: existingUser.first_name && existingUser.last_name ? `${existingUser.first_name} ${existingUser.last_name}` : existingUser.first_name || existingUser.last_name || '',
-                 phone: existingUser.phone || '',
-                 address1: existingUser.address_line_1 || '',
-                 address2: existingUser.address_line_2 || '',
-                 city: existingUser.city || '',
-                 state: existingUser.state || '',
-                 zip: existingUser.zip_code || '',
-                 avatar_url: session.user.user_metadata?.avatar_url || existingUser.avatar_url || '',
-                 profileImageUri: session.user.user_metadata?.avatar_url || existingUser.avatar_url || '',
-                 isGoogleAuth: true
-               };
-               
-               // Use only the first name for the greeting
-               const firstName = userDataToPass.firstName || 'there';
-               console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage with firstName:', firstName);
-               console.log('🔍 LogInScreen DEBUG - About to call navigation.replace...');
-               
-               try {
-                 navigation.replace('Welcomepage', { 
-                   name: firstName,
-                   userData: userDataToPass
-                 });
-                 console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful with complete user data');
-               } catch (navError) {
-                 console.error('❌ LogInScreen DEBUG - Navigation error:', navError);
-               }
-             } else {
-               console.log('🔍 LogInScreen DEBUG - User NOT found in database, preventing auto-navigation');
-               console.log('🔍 LogInScreen DEBUG - Signing out from Supabase...');
-               // Sign out the session since user doesn't exist in database
-               await supabase.auth.signOut();
-               console.log('🔍 LogInScreen DEBUG - Sign out completed, staying on LogInScreen');
-               // Don't navigate - keep user on LogInScreen
-             }
-           } else {
-             console.log('🔍 LogInScreen DEBUG - No email in session, preventing navigation');
-             console.log('🔍 LogInScreen DEBUG - Signing out from Supabase...');
-             await supabase.auth.signOut();
-             console.log('🔍 LogInScreen DEBUG - Sign out completed, staying on LogInScreen');
-           }
-                  } catch (error) {
-           console.error('🔍 LogInScreen DEBUG - Error checking database in auth state change:', error);
-           console.log('🔍 LogInScreen DEBUG - Error details:', {
-             message: error.message,
-             stack: error.stack,
-             type: error.type
-           });
-           // On error, sign out and stay on LogInScreen
-           console.log('🔍 LogInScreen DEBUG - Signing out due to error...');
-           await supabase.auth.signOut();
-           console.log('🔍 LogInScreen DEBUG - Sign out completed after error, staying on LogInScreen');
-         }
-       }
-       
-       console.log('🔍 LogInScreen DEBUG - Auth state change handler completed for event:', event);
-     });
-     return () => listener.subscription.unsubscribe();
-   }, [navigation]);
+        try {
+          const email = session.user.email?.toLowerCase();
+          console.log('🔍 LogInScreen DEBUG - Email from session:', email);
+
+          if (email) {
+            console.log('🔍 LogInScreen DEBUG - Checking database existence for auth state change...');
+            console.log('🔍 LogInScreen DEBUG - About to call UserService.checkUserExists...');
+
+            const { exists, user: existingUser } = await UserService.checkUserExists(email);
+            console.log('🔍 LogInScreen DEBUG - Database check result:', { exists, existingUser });
+
+            if (exists) {
+              console.log('🔍 LogInScreen DEBUG - User exists in database, allowing navigation');
+
+              // Prepare complete user data for Welcomepage
+              const userDataToPass = {
+                id: existingUser.id || session.user.id,
+                email: email,
+                firstName: existingUser.first_name || session.user.user_metadata?.given_name || '',
+                lastName: existingUser.last_name || session.user.user_metadata?.family_name || '',
+                name: existingUser.first_name && existingUser.last_name ? `${existingUser.first_name} ${existingUser.last_name}` : existingUser.first_name || existingUser.last_name || '',
+                full_name: existingUser.first_name && existingUser.last_name ? `${existingUser.first_name} ${existingUser.last_name}` : existingUser.first_name || existingUser.last_name || '',
+                phone: existingUser.phone || '',
+                address1: existingUser.address_line_1 || '',
+                address2: existingUser.address_line_2 || '',
+                city: existingUser.city || '',
+                state: existingUser.state || '',
+                zip: existingUser.zip_code || '',
+                avatar_url: session.user.user_metadata?.avatar_url || existingUser.avatar_url || '',
+                profileImageUri: session.user.user_metadata?.avatar_url || existingUser.avatar_url || '',
+                isGoogleAuth: true
+              };
+
+              // Use only the first name for the greeting
+              const firstName = userDataToPass.firstName || 'there';
+              console.log('🔍 LogInScreen DEBUG - Navigating to Welcomepage with firstName:', firstName);
+              console.log('🔍 LogInScreen DEBUG - About to call navigation.replace...');
+
+              try {
+                navigation.replace('Welcomepage', {
+                  name: firstName,
+                  userData: userDataToPass
+                });
+                console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful with complete user data');
+              } catch (navError) {
+                console.error('❌ LogInScreen DEBUG - Navigation error:', navError);
+              }
+            } else {
+              console.log('🔍 LogInScreen DEBUG - User NOT found in database, preventing auto-navigation');
+              console.log('🔍 LogInScreen DEBUG - Signing out from Supabase...');
+              // Sign out the session since user doesn't exist in database
+              await supabase.auth.signOut();
+              console.log('🔍 LogInScreen DEBUG - Sign out completed, staying on LogInScreen');
+              // Don't navigate - keep user on LogInScreen
+            }
+          } else {
+            console.log('🔍 LogInScreen DEBUG - No email in session, preventing navigation');
+            console.log('🔍 LogInScreen DEBUG - Signing out from Supabase...');
+            await supabase.auth.signOut();
+            console.log('🔍 LogInScreen DEBUG - Sign out completed, staying on LogInScreen');
+          }
+        } catch (error) {
+          console.error('🔍 LogInScreen DEBUG - Error checking database in auth state change:', error);
+          console.log('🔍 LogInScreen DEBUG - Error details:', {
+            message: error.message,
+            stack: error.stack,
+            type: error.type
+          });
+          // On error, sign out and stay on LogInScreen
+          console.log('🔍 LogInScreen DEBUG - Signing out due to error...');
+          await supabase.auth.signOut();
+          console.log('🔍 LogInScreen DEBUG - Sign out completed after error, staying on LogInScreen');
+        }
+      }
+
+      console.log('🔍 LogInScreen DEBUG - Auth state change handler completed for event:', event);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1158,8 +1158,8 @@ export default function LogInScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Pressable onPress={() => navigation.goBack()}>
-              <Image 
-                source={require('../assets/backarrow.png')} 
+              <Image
+                source={require('../assets/backarrow.png')}
                 style={styles.backArrowImage}
               />
             </Pressable>
@@ -1186,8 +1186,8 @@ export default function LogInScreen({ navigation }) {
 
           <View style={styles.socialBox}>
             <Text style={styles.socialLabel}>or continue with</Text>
-            
-            
+
+
             <View style={styles.providerRow}>
               {/* Apple */}
               <TouchableOpacity
@@ -1232,7 +1232,7 @@ export default function LogInScreen({ navigation }) {
 
           {/* Biometric Login Section - Moved to bottom */}
           {hasBiometricHardware && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.biometricButton}
               onPress={handleBiometricLogin}
             >
@@ -1246,26 +1246,14 @@ export default function LogInScreen({ navigation }) {
             </TouchableOpacity>
           )}
 
-           <View style={styles.signUpRow}>
-             <Text style={styles.bottomText}>Don't have an account? </Text>
-             <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
-               <Text style={[styles.bottomText, styles.link]}>Sign Up</Text>
-             </TouchableOpacity>
-           </View>
+          <View style={styles.signUpRow}>
+            <Text style={styles.bottomText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
+              <Text style={[styles.bottomText, styles.link]}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
 
-           {/* Debug: Reset loading state button - remove this in production */}
-           {(isProcessingSignIn || isLoading) && (
-             <TouchableOpacity 
-               style={[styles.button, { backgroundColor: '#ff6b6b', marginTop: 10 }]}
-               onPress={() => {
-                 console.log('🔄 Manual reset of loading states');
-                 setIsProcessingSignIn(false);
-                 setIsLoading(false);
-               }}
-             >
-               <Text style={[styles.buttonText, { color: 'white' }]}>Reset Loading State</Text>
-             </TouchableOpacity>
-           )}
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

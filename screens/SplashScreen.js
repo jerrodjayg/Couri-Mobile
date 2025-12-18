@@ -269,8 +269,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 77,
-    height: 34,
+    width: 154,
+    height: 68,
   },
   // Modal Styles
   modalOverlay: {
