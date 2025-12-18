@@ -135,7 +135,8 @@ const upsertProfile = async (session) => {
   // Error handling is now done in the individual update/insert operations above
 };
 
-export default function LogInScreen({ navigation }) {
+export default function LogInScreen({ navigation, route }) {
+  const isDriverFlow = route.params?.isDriverFlow || false;
   // Disable swipe back gesture
   useFocusEffect(
     React.useCallback(() => {
@@ -415,11 +416,15 @@ export default function LogInScreen({ navigation }) {
                 await AsyncStorage.setItem('hasLoggedInBefore', 'true');
                 console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for timeout fallback');
 
-                // Navigate to Welcomepage with cached user data
-                navigation.replace('Welcomepage', {
-                  name: userData.firstName || userData.name || 'there',
-                  userData: userData
-                });
+                // Navigate to appropriate screen based on flow
+                if (isDriverFlow) {
+                  navigation.replace('DriverPortal');
+                } else {
+                  navigation.replace('Welcomepage', {
+                    name: userData.firstName || userData.name || 'there',
+                    userData: userData
+                  });
+                }
                 return;
               }
 
@@ -463,17 +468,21 @@ export default function LogInScreen({ navigation }) {
               zip: existingUser.zip_code || userData.zip,
             };
 
-            console.log('✅ Face ID login successful, proceeding to Welcomepage');
+            console.log('✅ Face ID login successful, proceeding to appropriate screen');
 
             // Mark that user has logged in before (for biometric login visibility)
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
             console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for biometric login');
 
-            // Navigate to Welcomepage with user data from database
-            navigation.replace('Welcomepage', {
-              name: userData.firstName || userData.name || 'there',
-              userData: userData
-            });
+            // Navigate to appropriate screen based on flow
+            if (isDriverFlow) {
+              navigation.replace('DriverPortal');
+            } else {
+              navigation.replace('Welcomepage', {
+                name: userData.firstName || userData.name || 'there',
+                userData: userData
+              });
+            }
           } catch (error) {
             console.error('❌ Error verifying user in Supabase:', error);
             console.log('ℹ️ Database verification failed, but proceeding with cached data');
@@ -484,10 +493,14 @@ export default function LogInScreen({ navigation }) {
             console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for biometric login fallback');
 
             // Allow login with cached data even if database check fails
-            navigation.replace('Welcomepage', {
-              name: userData.firstName || userData.name || 'there',
-              userData: userData
-            });
+            if (isDriverFlow) {
+              navigation.replace('DriverPortal');
+            } else {
+              navigation.replace('Welcomepage', {
+                name: userData.firstName || userData.name || 'there',
+                userData: userData
+              });
+            }
           }
         } else {
           Alert.alert('Error', 'Unable to load user data. Please try again.');
@@ -536,7 +549,11 @@ export default function LogInScreen({ navigation }) {
         if (session?.user) {
           await upsertProfile(session);
           const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'there';
-          navigation.replace('Welcomepage', { name: fullName });
+          if (isDriverFlow) {
+            navigation.replace('DriverPortal');
+          } else {
+            navigation.replace('Welcomepage', { name: fullName });
+          }
         }
       }, 1000);
     } catch (err) {
@@ -853,20 +870,25 @@ export default function LogInScreen({ navigation }) {
           await AsyncStorage.setItem('tempUserData', JSON.stringify(googleUserData));
           await AsyncStorage.setItem('userProfileData', JSON.stringify(googleUserData));
 
-          // Navigate to BiometricSetup for new Google users (same as create account flow)
-          console.log('🚀 NEW USER NAVIGATION DEBUG - About to navigate to BiometricSetup');
+          // Navigate to appropriate screen based on flow
+          console.log('🚀 NEW USER NAVIGATION DEBUG - About to navigate');
 
           try {
             // Mark that user has logged in before (for biometric login visibility)
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
 
-            navigation.replace('BiometricSetup', {
-              userInfo: googleUserData,
-              savedUser: null, // No saved user yet
-              isGoogleAuth: true,
-              googleUserData: googleUserData
-            });
-            console.log('✅ NEW USER NAVIGATION DEBUG - Navigation.replace() called successfully');
+            if (isDriverFlow) {
+              navigation.replace('DriverPortal');
+              console.log('✅ NEW USER NAVIGATION DEBUG - Navigation.replace() to DriverPortal called successfully');
+            } else {
+              navigation.replace('BiometricSetup', {
+                userInfo: googleUserData,
+                savedUser: null, // No saved user yet
+                isGoogleAuth: true,
+                googleUserData: googleUserData
+              });
+              console.log('✅ NEW USER NAVIGATION DEBUG - Navigation.replace() to BiometricSetup called successfully');
+            }
 
             // Wait a moment and check if navigation actually happened
             setTimeout(() => {
@@ -970,13 +992,20 @@ export default function LogInScreen({ navigation }) {
           await AsyncStorage.setItem('hasLoggedInBefore', 'true');
           console.log('✅ NAVIGATION DEBUG - Set hasLoggedInBefore flag for returning user');
 
-          // Pass the complete user data to Welcomepage
-          console.log('🚀 NAVIGATION DEBUG - About to call navigation.replace("Welcomepage")');
-          navigation.replace('Welcomepage', {
-            name: firstName,
-            userData: userDataToPass
-          });
-          console.log('✅ NAVIGATION DEBUG - Navigation.replace() called successfully for returning user');
+          // Navigate to appropriate screen based on flow
+          if (isDriverFlow) {
+            console.log('🚀 NAVIGATION DEBUG - About to call navigation.replace("DriverPortal") for driver flow');
+            navigation.replace('DriverPortal');
+            console.log('✅ NAVIGATION DEBUG - Navigation.replace() called successfully for driver flow');
+          } else {
+            // Pass the complete user data to Welcomepage
+            console.log('🚀 NAVIGATION DEBUG - About to call navigation.replace("Welcomepage")');
+            navigation.replace('Welcomepage', {
+              name: firstName,
+              userData: userDataToPass
+            });
+            console.log('✅ NAVIGATION DEBUG - Navigation.replace() called successfully for returning user');
+          }
 
           // Wait a moment and check if navigation actually happened
           setTimeout(() => {
@@ -1053,7 +1082,11 @@ export default function LogInScreen({ navigation }) {
         if (session?.user) {
           await upsertProfile(session);
           const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'there';
-          navigation.replace('Welcomepage', { name: fullName });
+          if (isDriverFlow) {
+            navigation.replace('DriverPortal');
+          } else {
+            navigation.replace('Welcomepage', { name: fullName });
+          }
         }
       }, 1000);
     } catch (err) {
@@ -1110,11 +1143,16 @@ export default function LogInScreen({ navigation }) {
               console.log('🔍 LogInScreen DEBUG - About to call navigation.replace...');
 
               try {
-                navigation.replace('Welcomepage', {
-                  name: firstName,
-                  userData: userDataToPass
-                });
-                console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful with complete user data');
+                if (isDriverFlow) {
+                  navigation.replace('DriverPortal');
+                  console.log('✅ LogInScreen DEBUG - Navigation to DriverPortal successful');
+                } else {
+                  navigation.replace('Welcomepage', {
+                    name: firstName,
+                    userData: userDataToPass
+                  });
+                  console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage successful with complete user data');
+                }
               } catch (navError) {
                 console.error('❌ LogInScreen DEBUG - Navigation error:', navError);
               }

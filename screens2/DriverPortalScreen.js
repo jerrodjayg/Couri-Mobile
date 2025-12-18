@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,118 @@ import {
   Image,
   Modal,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Custom dark map style
+const darkMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0d0d0d' }] },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'administrative.country',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9e9e9e' }],
+  },
+  {
+    featureType: 'administrative.land_parcel',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#bdbdbd' }],
+  },
+  {
+    featureType: 'landscape',
+    elementType: 'geometry',
+    stylers: [{ color: '#0d0d0d' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#121212' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#616161' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#1f1f1f' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#141414' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#8a8a8a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#2a2a2a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#b3b3b3' }],
+  },
+  {
+    featureType: 'road.local',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#616161' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'transit.station',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#080808' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#3d3d3d' }],
+  },
+];
 
 export default function DriverPortalScreen({ navigation, route }) {
   const [isOnline, setIsOnline] = useState(false);
@@ -22,9 +131,58 @@ export default function DriverPortalScreen({ navigation, route }) {
     serviceTime: '25 min',
     todaysEarnings: '$43.00',
   });
+  const [driverLocation, setDriverLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationError, setLocationError] = useState(null);
+  const mapRef = useRef(null);
   
   // Get the selected driver name from route params
-  const driverName = route?.params?.selectedPerson || 'Driver';
+  const driverName = route?.params?.selectedPerson || 'Brandon';
+
+  // Get user's current location
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        setLocationLoading(true);
+        setLocationError(null);
+
+        // Request location permissions
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError('Location permission denied');
+          // Use fallback location (West Hollywood)
+          setDriverLocation({
+            latitude: 34.0900,
+            longitude: -118.3617,
+          });
+          setLocationLoading(false);
+          return;
+        }
+
+        // Get current location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        setDriverLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        setLocationLoading(false);
+      } catch (error) {
+        console.error('Error getting location:', error);
+        setLocationError('Could not get location');
+        // Use fallback location
+        setDriverLocation({
+          latitude: 34.0900,
+          longitude: -118.3617,
+        });
+        setLocationLoading(false);
+      }
+    };
+
+    getLocation();
+  }, []);
 
   // Check if we should show the service complete popup
   useEffect(() => {
@@ -72,6 +230,18 @@ export default function DriverPortalScreen({ navigation, route }) {
     // TODO: Navigate to driver profile screen
   };
 
+  // Recenter map to driver's current location
+  const handleRecenterMap = () => {
+    if (mapRef.current && driverLocation) {
+      mapRef.current.animateToRegion({
+        latitude: driverLocation.latitude,
+        longitude: driverLocation.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 500);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -97,21 +267,81 @@ export default function DriverPortalScreen({ navigation, route }) {
         <Text style={styles.statusTitle}>
           {isOnline ? "You're online" : "You're offline"}
         </Text>
-        <Text style={styles.statusSubtitle}>
-          {isOnline 
-            ? "Ready to receive new opportunities" 
-            : "Go online to receive new opportunities"
-          }
-        </Text>
+        <View style={styles.statusSubtitleRow}>
+          <Text style={styles.statusSubtitle}>
+            {isOnline 
+              ? "Waiting for opportunities..." 
+              : "Go online to receive new opportunities"
+            }
+          </Text>
+          {isOnline && (
+            <ActivityIndicator size="small" color="#007AFF" style={styles.waitingIndicator} />
+          )}
+        </View>
       </View>
 
       {/* Map Section */}
       <View style={styles.mapContainer}>
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderText}>Map will go here</Text>
-          <Text style={styles.mapSubtext}>Driver location tracking</Text>
-        </View>
+        {locationLoading ? (
+          <View style={styles.mapLoadingContainer}>
+            <ActivityIndicator size="large" color="#FFB6C1" />
+            <Text style={styles.loadingText}>Getting your location...</Text>
+          </View>
+        ) : (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={{
+              latitude: driverLocation?.latitude || 34.0900,
+              longitude: driverLocation?.longitude || -118.3617,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }}
+            customMapStyle={darkMapStyle}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+          >
+            {/* Driver location marker - changes color based on online status */}
+            {driverLocation && (
+              <Marker
+                coordinate={driverLocation}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={[
+                  styles.driverDotOuter,
+                  isOnline ? styles.driverDotOuterOnline : styles.driverDotOuterOffline
+                ]}>
+                  <View style={[
+                    styles.driverDotInner,
+                    isOnline ? styles.driverDotInnerOnline : styles.driverDotInnerOffline
+                  ]} />
+                </View>
+              </Marker>
+            )}
+          </MapView>
+        )}
+        
       </View>
+
+      {/* Recenter Button - positioned above bottom card */}
+      {!locationLoading && driverLocation && (
+        <TouchableOpacity 
+          style={styles.recenterButton}
+          onPress={handleRecenterMap}
+          activeOpacity={0.8}
+        >
+          <View style={styles.recenterIconContainer}>
+            <View style={styles.recenterCrosshair}>
+              <View style={styles.recenterDot} />
+              <View style={[styles.recenterLine, styles.recenterLineTop]} />
+              <View style={[styles.recenterLine, styles.recenterLineBottom]} />
+              <View style={[styles.recenterLine, styles.recenterLineLeft]} />
+              <View style={[styles.recenterLine, styles.recenterLineRight]} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Bottom Card */}
       <View style={styles.bottomCard}>
@@ -135,7 +365,7 @@ export default function DriverPortalScreen({ navigation, route }) {
           style={[styles.goOnlineButton, isOnline && styles.goOnlineButtonActive]} 
           onPress={handleGoOnline}
         >
-          <Text style={styles.goOnlineButtonText}>
+          <Text style={[styles.goOnlineButtonText, isOnline && styles.goOnlineButtonTextActive]}>
             {isOnline ? 'Go offline' : 'Go online'}
           </Text>
         </TouchableOpacity>
@@ -259,25 +489,125 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 22,
   },
+  statusSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  waitingIndicator: {
+    marginLeft: 8,
+  },
   mapContainer: {
     flex: 1,
-    backgroundColor: '#2c2c2e',
+    backgroundColor: '#0d0d0d',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mapLoadingContainer: {
+    flex: 1,
+    backgroundColor: '#0d0d0d',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  mapPlaceholder: {
-    alignItems: 'center',
+  loadingText: {
+    color: '#757575',
+    marginTop: 12,
+    fontSize: 14,
+  },
+  // Driver dot styles - changes color based on online/offline status
+  driverDotOuter: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  mapPlaceholderText: {
-    fontSize: 24,
-    color: '#fff',
-    marginBottom: 8,
+  driverDotOuterOffline: {
+    backgroundColor: 'rgba(30, 30, 30, 0.5)',
   },
-  mapSubtext: {
-    fontSize: 16,
-    color: '#8e8e93',
+  driverDotOuterOnline: {
+    backgroundColor: 'rgba(255, 182, 193, 0.35)',
+  },
+  driverDotInner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  driverDotInnerOffline: {
+    backgroundColor: '#1e1e1e',
+    borderWidth: 2,
+    borderColor: '#3a3a3a',
+    shadowColor: '#000',
+  },
+  driverDotInnerOnline: {
+    backgroundColor: '#FFB6C1',
+    shadowColor: '#FFB6C1',
+  },
+  // Recenter button styles
+  recenterButton: {
+    position: 'absolute',
+    bottom: 175,
+    right: 16,
+    zIndex: 100,
+  },
+  recenterIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  recenterCrosshair: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recenterDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    backgroundColor: 'transparent',
+  },
+  recenterLine: {
+    position: 'absolute',
+    backgroundColor: '#007AFF',
+  },
+  recenterLineTop: {
+    width: 2,
+    height: 6,
+    top: 0,
+    left: 11,
+  },
+  recenterLineBottom: {
+    width: 2,
+    height: 6,
+    bottom: 0,
+    left: 11,
+  },
+  recenterLineLeft: {
+    width: 6,
+    height: 2,
+    left: 0,
+    top: 11,
+  },
+  recenterLineRight: {
+    width: 6,
+    height: 2,
+    right: 0,
+    top: 11,
   },
   bottomCard: {
     position: 'absolute',
@@ -348,16 +678,22 @@ const styles = StyleSheet.create({
   goOnlineButton: {
     backgroundColor: '#000',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 100,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   goOnlineButtonActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#fff',
+    borderColor: '#000',
   },
   goOnlineButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  goOnlineButtonTextActive: {
+    color: '#000',
   },
   // Modal Styles
   modalOverlay: {

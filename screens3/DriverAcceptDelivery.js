@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,137 +8,127 @@ import {
   StatusBar,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Custom dark map style
+// Custom dark map style - matching the screenshot design
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#1d2c4d' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8ec3b9' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a3646' }] },
+  { elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0d0d0d' }] },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
   {
     featureType: 'administrative.country',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#4b6878' }],
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9e9e9e' }],
   },
   {
     featureType: 'administrative.land_parcel',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#64779e' }],
+    stylers: [{ color: '#bdbdbd' }],
   },
   {
-    featureType: 'administrative.province',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#4b6878' }],
-  },
-  {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#334e87' }],
-  },
-  {
-    featureType: 'landscape.natural',
+    featureType: 'landscape',
     elementType: 'geometry',
-    stylers: [{ color: '#14171b' }],
-  },
-  {
-    featureType: 'poi',
-    elementType: 'geometry',
-    stylers: [{ color: '#283d6a' }],
+    stylers: [{ color: '#0d0d0d' }],
   },
   {
     featureType: 'poi',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#6f9ba5' }],
+    stylers: [{ color: '#757575' }],
   },
   {
     featureType: 'poi',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#1d2c4d' }],
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
   },
   {
     featureType: 'poi.park',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#1a3130' }],
+    elementType: 'geometry',
+    stylers: [{ color: '#121212' }],
   },
   {
     featureType: 'poi.park',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#3C7680' }],
+    stylers: [{ color: '#616161' }],
   },
   {
     featureType: 'road',
     elementType: 'geometry',
-    stylers: [{ color: '#2c3a4b' }],
+    stylers: [{ color: '#1f1f1f' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#141414' }],
   },
   {
     featureType: 'road',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#98a5be' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#1d2c4d' }],
+    stylers: [{ color: '#8a8a8a' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'geometry',
-    stylers: [{ color: '#2c3a4b' }],
+    stylers: [{ color: '#2a2a2a' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'geometry.stroke',
-    stylers: [{ color: '#1f2835' }],
+    stylers: [{ color: '#1a1a1a' }],
   },
   {
     featureType: 'road.highway',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#b0d5ce' }],
+    stylers: [{ color: '#b3b3b3' }],
   },
   {
-    featureType: 'road.highway',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#14171b' }],
-  },
-  {
-    featureType: 'transit',
+    featureType: 'road.local',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#98a5be' }],
+    stylers: [{ color: '#616161' }],
   },
   {
     featureType: 'transit',
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#1d2c4d' }],
-  },
-  {
-    featureType: 'transit.line',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#283d6a' }],
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
   },
   {
     featureType: 'transit.station',
-    elementType: 'geometry',
-    stylers: [{ color: '#3a4762' }],
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
   },
   {
     featureType: 'water',
     elementType: 'geometry',
-    stylers: [{ color: '#0e1626' }],
+    stylers: [{ color: '#080808' }],
   },
   {
     featureType: 'water',
     elementType: 'labels.text.fill',
-    stylers: [{ color: '#4e6d70' }],
+    stylers: [{ color: '#3d3d3d' }],
   },
 ];
 
 export default function DriverAcceptDelivery({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationError, setLocationError] = useState(null);
+  const mapRef = useRef(null);
 
   // Get route parameters
   const {
@@ -152,7 +142,7 @@ export default function DriverAcceptDelivery({ navigation, route }) {
     expectedTime,
   } = route.params || {};
 
-  // Default locations (Los Angeles area as shown in Figma)
+  // Default locations (Los Angeles/West Hollywood area as shown in design)
   const defaultPickup = {
     latitude: 34.0837,
     longitude: -118.3610,
@@ -169,19 +159,137 @@ export default function DriverAcceptDelivery({ navigation, route }) {
 
   const pickup = pickupLocation || defaultPickup;
   const delivery = deliveryLocation || defaultDelivery;
-  
-  // Calculate map region to show both markers
-  const getMapRegion = () => {
-    const midLat = (pickup.latitude + delivery.latitude) / 2;
-    const midLng = (pickup.longitude + delivery.longitude) / 2;
-    const latDelta = Math.abs(pickup.latitude - delivery.latitude) * 1.8;
-    const lngDelta = Math.abs(pickup.longitude - delivery.longitude) * 1.8;
-    
+
+  // Generate a destination point (random street nearby for the home icon)
+  const getDestinationFromDriverLocation = (driverLoc) => {
+    if (!driverLoc) return null;
+    // Generate a point ~0.5-1km away (roughly 0.005-0.01 degrees)
+    const latOffset = 0.006 + Math.random() * 0.004;
+    const lngOffset = 0.003 + Math.random() * 0.003;
     return {
-      latitude: midLat,
-      longitude: midLng,
-      latitudeDelta: Math.max(latDelta, 0.02),
-      longitudeDelta: Math.max(lngDelta, 0.02),
+      latitude: driverLoc.latitude + latOffset,
+      longitude: driverLoc.longitude + lngOffset,
+    };
+  };
+
+  const [destinationLocation, setDestinationLocation] = useState(null);
+  
+  // Calculate map region to show driver and destination
+  const getMapRegion = () => {
+    if (driverLocation && destinationLocation) {
+      const midLat = (driverLocation.latitude + destinationLocation.latitude) / 2;
+      const midLng = (driverLocation.longitude + destinationLocation.longitude) / 2;
+      const latDelta = Math.abs(driverLocation.latitude - destinationLocation.latitude) * 2.5;
+      const lngDelta = Math.abs(driverLocation.longitude - destinationLocation.longitude) * 2.5;
+      
+      return {
+        latitude: midLat,
+        longitude: midLng,
+        latitudeDelta: Math.max(latDelta, 0.015),
+        longitudeDelta: Math.max(lngDelta, 0.015),
+      };
+    }
+    // Fallback to default West Hollywood area
+    return {
+      latitude: 34.0900,
+      longitude: -118.3617,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    };
+  };
+
+  // Get user's current location
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        setLocationLoading(true);
+        setLocationError(null);
+
+        // Request location permissions
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError('Location permission denied');
+          // Use fallback location (West Hollywood)
+          const fallbackLocation = {
+            latitude: 34.0900,
+            longitude: -118.3617,
+          };
+          setDriverLocation(fallbackLocation);
+          setDestinationLocation(getDestinationFromDriverLocation(fallbackLocation));
+          setLocationLoading(false);
+          return;
+        }
+
+        // Get current location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const currentLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+
+        setDriverLocation(currentLocation);
+        setDestinationLocation(getDestinationFromDriverLocation(currentLocation));
+        setLocationLoading(false);
+      } catch (error) {
+        console.error('Error getting location:', error);
+        setLocationError('Could not get location');
+        // Use fallback location
+        const fallbackLocation = {
+          latitude: 34.0900,
+          longitude: -118.3617,
+        };
+        setDriverLocation(fallbackLocation);
+        setDestinationLocation(getDestinationFromDriverLocation(fallbackLocation));
+        setLocationLoading(false);
+      }
+    };
+
+    getLocation();
+  }, []);
+
+  // Get the seller/person marker location
+  const getSellerMarkerLocation = () => {
+    if (!driverLocation) return null;
+    return {
+      latitude: driverLocation.latitude + 0.002,
+      longitude: driverLocation.longitude - 0.003,
+    };
+  };
+
+  // Generate dotted line path between home icon and person icon
+  const getDottedLineCoordinates = () => {
+    if (!driverLocation || !destinationLocation) return [];
+    
+    const sellerLocation = getSellerMarkerLocation();
+    if (!sellerLocation) return [];
+    
+    // Create a smooth curved path from home to person icon
+    const midPoint = {
+      latitude: (sellerLocation.latitude + destinationLocation.latitude) / 2,
+      longitude: (sellerLocation.longitude + destinationLocation.longitude) / 2 - 0.001,
+    };
+    
+    return [
+      destinationLocation,  // Start at home icon
+      midPoint,
+      sellerLocation,       // End at person icon
+    ];
+  };
+
+  // Get the position for the pink dot (on the dotted line)
+  const getPinkDotPosition = () => {
+    if (!driverLocation || !destinationLocation) return null;
+    
+    const sellerLocation = getSellerMarkerLocation();
+    if (!sellerLocation) return null;
+    
+    // Position the pink dot at about 40% along the line from home to person, shifted slightly left
+    return {
+      latitude: destinationLocation.latitude + (sellerLocation.latitude - destinationLocation.latitude) * 0.4,
+      longitude: destinationLocation.longitude + (sellerLocation.longitude - destinationLocation.longitude) * 0.4 - 0.00069,
     };
   };
 
@@ -272,51 +380,74 @@ export default function DriverAcceptDelivery({ navigation, route }) {
       
       {/* Map Background */}
       <View style={styles.mapContainer}>
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          initialRegion={getMapRegion()}
-          customMapStyle={darkMapStyle}
-          scrollEnabled={false}
-          zoomEnabled={false}
-          rotateEnabled={false}
-          pitchEnabled={false}
-        >
-          {/* Route line */}
-          <Polyline
-            coordinates={[
-              { latitude: pickup.latitude, longitude: pickup.longitude },
-              { latitude: delivery.latitude, longitude: delivery.longitude },
-            ]}
-            strokeColor="#FFFFFF"
-            strokeWidth={2}
-            lineDashPattern={[10, 5]}
-          />
-          
-          {/* Pickup Marker */}
-          <Marker
-            coordinate={{
-              latitude: pickup.latitude,
-              longitude: pickup.longitude,
-            }}
+        {locationLoading ? (
+          <View style={styles.mapLoadingContainer}>
+            <ActivityIndicator size="large" color="#FF69B4" />
+            <Text style={styles.loadingText}>Getting your location...</Text>
+          </View>
+        ) : (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={getMapRegion()}
+            customMapStyle={darkMapStyle}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            rotateEnabled={false}
+            pitchEnabled={false}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
           >
-            <View style={styles.pickupMarker}>
-              <Text style={styles.markerIcon}>👤</Text>
-            </View>
-          </Marker>
-          
-          {/* Delivery Marker */}
-          <Marker
-            coordinate={{
-              latitude: delivery.latitude,
-              longitude: delivery.longitude,
-            }}
-          >
-            <View style={styles.deliveryMarker}>
-              <Text style={styles.markerIcon}>🏠</Text>
-            </View>
-          </Marker>
-        </MapView>
+            {/* Dotted route line from driver to destination */}
+            {driverLocation && destinationLocation && (
+              <Polyline
+                coordinates={getDottedLineCoordinates()}
+                strokeColor="#FFFFFF"
+                strokeWidth={2}
+                lineDashPattern={[8, 6]}
+              />
+            )}
+            
+            {/* Destination Marker (home icon) - Start of dotted line */}
+            {destinationLocation && (
+              <Marker
+                coordinate={destinationLocation}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={styles.homeMarker}>
+                  <View style={styles.homeMarkerInner}>
+                    <Text style={styles.homeMarkerIcon}>🏠</Text>
+                  </View>
+                </View>
+              </Marker>
+            )}
+
+            {/* Pink dot marker - positioned on the dotted line */}
+            {driverLocation && destinationLocation && getPinkDotPosition() && (
+              <Marker
+                coordinate={getPinkDotPosition()}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={styles.pinkDotMarkerOuter}>
+                  <View style={styles.pinkDotMarkerInner} />
+                </View>
+              </Marker>
+            )}
+            
+            {/* Seller/Person Marker (blue) - End of dotted line */}
+            {driverLocation && getSellerMarkerLocation() && (
+              <Marker
+                coordinate={getSellerMarkerLocation()}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={styles.sellerMarker}>
+                  <Text style={styles.sellerMarkerIcon}>👤</Text>
+                </View>
+              </Marker>
+            )}
+          </MapView>
+        )}
         
         {/* Gradient overlay at top */}
         <View style={styles.gradientOverlay} />
@@ -347,11 +478,6 @@ export default function DriverAcceptDelivery({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-
-      {/* Route indicator circle */}
-      <View style={styles.routeIndicator}>
-        <View style={styles.routeIndicatorInner} />
-      </View>
 
       {/* Bottom Sheet */}
       <View style={styles.bottomSheet}>
@@ -435,7 +561,7 @@ export default function DriverAcceptDelivery({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#14171b',
+    backgroundColor: '#0d0d0d',
   },
   mapContainer: {
     position: 'absolute',
@@ -447,13 +573,25 @@ const styles = StyleSheet.create({
   map: {
     ...StyleSheet.absoluteFillObject,
   },
+  mapLoadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0d0d0d',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#757575',
+    marginTop: 12,
+    fontSize: 14,
+  },
   gradientOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 150,
-    backgroundColor: 'rgba(20, 23, 27, 0.7)',
+    height: 120,
+    backgroundColor: 'transparent',
+    // Creates a subtle fade effect
   },
   headerSafeArea: {
     position: 'absolute',
@@ -501,46 +639,66 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  routeIndicator: {
-    position: 'absolute',
-    top: 140,
-    alignSelf: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 200, 255, 0.3)',
+  // Pink dot marker (smaller, positioned on dotted line)
+  pinkDotMarkerOuter: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 182, 193, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 5,
   },
-  routeIndicatorInner: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#ffccff',
+  pinkDotMarkerInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#FFB6C1',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  pickupMarker: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#FFE8FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  deliveryMarker: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#FFE8FD',
+  // Seller marker (blue/teal)
+  sellerMarker: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#4FC3F7',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
+    shadowColor: '#4FC3F7',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  markerIcon: {
-    fontSize: 16,
+  sellerMarkerIcon: {
+    fontSize: 14,
+  },
+  // Home/Destination marker
+  homeMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#4FC3F7',
+  },
+  homeMarkerInner: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4FC3F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeMarkerIcon: {
+    fontSize: 14,
   },
   bottomSheet: {
     position: 'absolute',

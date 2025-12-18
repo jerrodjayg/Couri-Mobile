@@ -16,6 +16,7 @@ export default function PushNotiScreen({ navigation, route }) {
   const userFromParams = route?.params?.user;
   const isGoogleAuth = route?.params?.isGoogleAuth;
   const googleUserData = route?.params?.googleUserData;
+  const isDriverFlow = route?.params?.isDriverFlow || false;
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -877,13 +878,18 @@ const saveRegularUserToDatabase = async () => {
         googleUserData: googleUserData
       });
       
-      // Navigate to Tutorial for new users (account creation flow)
-      navigation.replace('Tutorial', { 
-        userInfo: userFromParams,
-        isNewUser: true,
-        isGoogleAuth: isGoogleAuth || false,
-        googleUserData: googleUserData
-      });
+      // Navigate based on flow type
+      if (isDriverFlow) {
+        navigation.replace('DriverPortal');
+      } else {
+        // Navigate to Tutorial for new users (account creation flow)
+        navigation.replace('Tutorial', { 
+          userInfo: userFromParams,
+          isNewUser: true,
+          isGoogleAuth: isGoogleAuth || false,
+          googleUserData: googleUserData
+        });
+      }
     } catch (error) {
       console.error('Error enabling notifications:', error);
       Alert.alert('Error', 'Failed to enable push notifications. Please try again.');
@@ -892,18 +898,23 @@ const saveRegularUserToDatabase = async () => {
 
      const handleMaybeLater = async () => {
        console.log('🔍 PushNotiScreen DEBUG - handleMaybeLater called');
-       console.log('🔍 PushNotiScreen DEBUG - Navigating to Welcomepage (maybe later)');
+       console.log('🔍 PushNotiScreen DEBUG - Navigating based on flow type');
        
        // Save location preference as disabled
        await AsyncStorage.setItem('locationEnabled', 'false');
        
-       // Navigate to Tutorial for new users (account creation flow)
-       navigation.replace('Tutorial', { 
-         userInfo: userFromParams,
-         isNewUser: true,
-         isGoogleAuth: isGoogleAuth || false,
-         googleUserData: googleUserData
-       });
+       // Navigate based on flow type
+       if (isDriverFlow) {
+         navigation.replace('DriverPortal');
+       } else {
+         // Navigate to Tutorial for new users (account creation flow)
+         navigation.replace('Tutorial', { 
+           userInfo: userFromParams,
+           isNewUser: true,
+           isGoogleAuth: isGoogleAuth || false,
+           googleUserData: googleUserData
+         });
+       }
      };
 
   return (

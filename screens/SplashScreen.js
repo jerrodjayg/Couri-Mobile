@@ -234,7 +234,7 @@ export default function SplashScreen({ navigation }) {
               style={styles.proceedButton}
               onPress={() => {
                 setDriverModalVisible(false);
-                navigation.navigate('Home');
+                navigation.navigate('Home', { isDriverFlow: true });
               }}
             >
               <Text style={styles.proceedButtonText}>Proceed</Text>

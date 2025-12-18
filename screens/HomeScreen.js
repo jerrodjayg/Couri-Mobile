@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
+  const isDriverFlow = route.params?.isDriverFlow || false;
   // Disable swipe back gesture
   useFocusEffect(
     React.useCallback(() => {
@@ -40,14 +41,14 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.buttonGroup}>
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => navigation.navigate('CreateAccount')}
+          onPress={() => navigation.navigate('CreateAccount', { isDriverFlow })}
         >
           <Text style={styles.primaryText}>Create Account</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.secondaryButton}
-          onPress={() => navigation.navigate('Login')}
+          onPress={() => navigation.navigate('Login', { isDriverFlow })}
         >
           <Text style={styles.secondaryText}>Log In</Text>
         </TouchableOpacity>
