@@ -1,19 +1,20 @@
 import { supabase } from './supabaseClient';
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  View, 
-  Image, 
-  StyleSheet, 
-  Animated, 
-  TouchableOpacity, 
-  Text, 
+import {
+  View,
+  Image,
+  StyleSheet,
+  Animated,
+  TouchableOpacity,
+  Text,
   Modal,
-  Pressable 
+  Pressable
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import imagePreloader from '../utils/imagePreloader';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 
 export default function SplashScreen({ navigation }) {
   // Disable swipe back gesture
@@ -22,7 +23,7 @@ export default function SplashScreen({ navigation }) {
       navigation.getParent()?.setOptions({
         gestureEnabled: false,
       });
-      
+
       return () => {
         navigation.getParent()?.setOptions({
           gestureEnabled: true,
@@ -34,6 +35,8 @@ export default function SplashScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [showPopup, setShowPopup] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [driverModalVisible, setDriverModalVisible] = useState(false);
 
   useEffect(() => {
     const preWarmLocationPermissions = async () => {
@@ -68,29 +71,27 @@ export default function SplashScreen({ navigation }) {
     setModalVisible(true);
   };
 
-  const handleBuySell = () => {
-    setModalVisible(false);
-    setShowPopup(false);
-    navigation.navigate('CreateAccount');
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role);
   };
 
-  const handleDriver = () => {
-    setModalVisible(false);
-    setShowPopup(false);
-    navigation.navigate('DriverPassword');
-  };
+  const handleGetStarted = () => {
+    if (!selectedRole) return;
 
-  const handleContinue = () => {
     setModalVisible(false);
     setShowPopup(false);
-    // Navigate to CreateAccount screen
-    navigation.navigate('CreateAccount');
+
+    if (selectedRole === 'buySell') {
+      navigation.navigate('Home');
+    } else if (selectedRole === 'driver') {
+      setDriverModalVisible(true);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Pressable 
-        style={styles.splashPressable} 
+      <Pressable
+        style={styles.splashPressable}
         onPress={handleSplashPress}
       >
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
@@ -102,7 +103,7 @@ export default function SplashScreen({ navigation }) {
         </Animated.View>
       </Pressable>
 
-      {/* Popup Modal */}
+      {/* Main Role Selection Modal */}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -113,11 +114,15 @@ export default function SplashScreen({ navigation }) {
         }}
       >
         <View style={styles.modalOverlay}>
-          <Pressable 
+          <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => {
-              setModalVisible(false);
-              setShowPopup(false);
+              if (selectedRole) {
+                setSelectedRole(null);
+              } else {
+                setModalVisible(false);
+                setShowPopup(false);
+              }
             }}
           />
           <View style={styles.modalContent}>
@@ -129,12 +134,15 @@ export default function SplashScreen({ navigation }) {
 
             {/* Role Selection Buttons */}
             <View style={styles.roleButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.roleButton}
-                onPress={handleBuySell}
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  selectedRole === 'buySell' && styles.roleButtonActive
+                ]}
+                onPress={() => handleRoleSelect('buySell')}
               >
-                <Image 
-                  source={require('../assets/shopping-cart-modal.png')} 
+                <Image
+                  source={require('../assets/shopping-cart-modal.png')}
                   style={styles.roleIcon}
                   resizeMode="contain"
                   onError={(error) => {
@@ -147,12 +155,15 @@ export default function SplashScreen({ navigation }) {
                 <Text style={styles.roleButtonText}>Buy / Sell</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.roleButton}
-                onPress={handleDriver}
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  selectedRole === 'driver' && styles.roleButtonActive
+                ]}
+                onPress={() => handleRoleSelect('driver')}
               >
-                <Image 
-                  source={require('../assets/car-icon.png')} 
+                <Image
+                  source={require('../assets/car-icon.png')}
                   style={styles.roleIcon}
                   resizeMode="contain"
                   onError={(error) => {
@@ -168,8 +179,8 @@ export default function SplashScreen({ navigation }) {
 
             {/* For approved Drivers note */}
             <View style={styles.driverNoteContainer}>
-              <Image 
-                source={require('../assets/lock-icon-modal.png')} 
+              <Image
+                source={require('../assets/lock-icon-modal.png')}
                 style={styles.lockIcon}
                 resizeMode="contain"
                 onError={(error) => {
@@ -182,12 +193,58 @@ export default function SplashScreen({ navigation }) {
               <Text style={styles.driverNoteText}>For approved Drivers</Text>
             </View>
 
-            {/* Continue Button */}
-            <TouchableOpacity 
-              style={styles.continueButton}
-              onPress={handleContinue}
+            {/* Get Started Button */}
+            <TouchableOpacity
+              style={[
+                styles.getStartedButton,
+                selectedRole ? styles.getStartedButtonActive : styles.getStartedButtonInactive
+              ]}
+              onPress={handleGetStarted}
+              disabled={!selectedRole}
             >
-              <Text style={styles.continueButtonText}>Continue</Text>
+              <Text style={[
+                styles.getStartedButtonText,
+                selectedRole ? styles.getStartedButtonTextActive : styles.getStartedButtonTextInactive
+              ]}>Get Started</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Driver Popup Modal */}
+      <Modal
+        visible={driverModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setDriverModalVisible(false)}
+      >
+        <View style={styles.driverModalOverlay}>
+          <View style={styles.driverModalContent}>
+            <View style={styles.alertIconContainer}>
+              <Feather name="alert-triangle" size={24} color="#000" />
+            </View>
+
+            <Text style={styles.driverPopupTitle}>Heads up!</Text>
+
+            <Text style={styles.driverPopupBody}>
+              The Driver experience is only available to <Text style={styles.boldText}>previously approved Couri Drivers</Text>. If you're not already a driver, please go back and select Buy / Sell to continue with Couri.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.proceedButton}
+              onPress={() => {
+                setDriverModalVisible(false);
+                navigation.navigate('Home');
+              }}
+            >
+              <Text style={styles.proceedButtonText}>Proceed</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.goBackButton}
+              onPress={() => setDriverModalVisible(false)}
+            >
+              <Text style={styles.goBackButtonText}>Go back</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -285,6 +342,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginHorizontal: 4,
   },
+  roleButtonActive: {
+    backgroundColor: 'rgba(93, 114, 251, 0.05)',
+    borderColor: '#5d72fb',
+  },
   roleIcon: {
     width: 24,
     height: 24,
@@ -296,7 +357,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000',
     textAlign: 'center',
-    letterSpacing: 0.16,
   },
   driverNoteContainer: {
     flexDirection: 'row',
@@ -318,8 +378,7 @@ const styles = StyleSheet.create({
     color: '#5d72fb',
     letterSpacing: 0.11,
   },
-  continueButton: {
-    backgroundColor: '#5d72fb',
+  getStartedButton: {
     borderRadius: 100,
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -328,11 +387,100 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
+    borderWidth: 1,
   },
-  continueButtonText: {
+  getStartedButtonInactive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E5E5',
+    // Per image 1: White with grey text.
+  },
+  getStartedButtonActive: {
+    backgroundColor: '#1b1b1b', // Blackish
+    borderColor: '#1b1b1b',
+  },
+  getStartedButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
     letterSpacing: 0.16,
+  },
+  getStartedButtonTextInactive: {
+    color: '#A1A1A1', // Grey text for inactive
+  },
+  getStartedButtonTextActive: {
+    color: '#FFFFFF', // White text for active
+  },
+
+  driverModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(27, 27, 27, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  driverModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 50,
+    paddingBottom: 50,
+    paddingHorizontal: 26,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 32,
+    elevation: 15,
+    minHeight: 500,
+    zIndex: 10,
+    alignItems: 'center',
+    width: '100%',
+  },
+  alertIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF0F0', // Light pink background
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  driverPopupTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  driverPopupBody: {
+    fontSize: 14,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  boldText: {
+    fontWeight: '700',
+  },
+  proceedButton: {
+    backgroundColor: '#1b1b1b',
+    borderRadius: 100,
+    paddingVertical: 16,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  proceedButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  goBackButton: {
+    padding: 8,
+  },
+  goBackButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
