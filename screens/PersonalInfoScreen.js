@@ -483,7 +483,8 @@ export default function PersonalInfoScreen({ navigation, route }) {
       userInfo: form,
       savedUser: null, // No saved user yet
       isGoogleAuth: route.params?.isGoogleAuth || false,
-      googleUserData: route.params?.googleUserData || null
+      googleUserData: route.params?.googleUserData || null,
+      isDriverFlow: route.params?.isDriverFlow || false
     });
   };
   console.log('🔍 PersonalInfoScreen DEBUG - onContinue function defined');

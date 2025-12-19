@@ -133,7 +133,8 @@ const upsertProfile = async (session) => {
   // Error handling is now done in the individual update/insert operations above
 };
 
-export default function CreateAccountScreen({ navigation }) {
+export default function CreateAccountScreen({ navigation, route }) {
+  const isDriverFlow = route.params?.isDriverFlow || false;
   // Disable swipe back gesture
   useFocusEffect(
     React.useCallback(() => {
@@ -243,7 +244,8 @@ export default function CreateAccountScreen({ navigation }) {
         city: '',
         state: '',
         zip: ''
-      }
+      },
+      isDriverFlow
     });
   };
 
@@ -319,7 +321,8 @@ export default function CreateAccountScreen({ navigation }) {
             },
             isGoogleAuth: true,
             googleUserData: userData,
-            isGoogleSignUp: true
+            isGoogleSignUp: true,
+            isDriverFlow
           });
           return;
         }
@@ -365,7 +368,8 @@ export default function CreateAccountScreen({ navigation }) {
               },
               isGoogleAuth: true,
               googleUserData: session.user,
-              isGoogleSignUp: true
+              isGoogleSignUp: true,
+              isDriverFlow
             });
             return;
           } else {
@@ -448,7 +452,8 @@ export default function CreateAccountScreen({ navigation }) {
           isGoogleAuth: false,
           googleUserData: session.user,
           // Add flag to indicate this is a social sign-up flow
-          isGoogleSignUp: true
+          isGoogleSignUp: true,
+          isDriverFlow
         });
       }
     }
@@ -528,7 +533,8 @@ export default function CreateAccountScreen({ navigation }) {
           isGoogleAuth: session.user.app_metadata?.provider === 'google',
           googleUserData: session.user,
           // Add flag to indicate this is a Google sign-up flow
-          isGoogleSignUp: true
+          isGoogleSignUp: true,
+          isDriverFlow
         });
       } else if (event === 'SIGNED_OUT') {
         console.log('🔄 User signed out');
