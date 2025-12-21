@@ -56,6 +56,7 @@ import SellerProductForm from './screens2/SellerProductForm';
 import DriverPortalScreen from './screens2/DriverPortalScreen';
 import InviteScreen from './src/screens/InviteScreen';
 import TutorialScreen from './screens/TutorialScreen';
+import TutSc1 from './screens/TutSc1';
 import DelivertoBuyer from './screens3/DelivertoBuyer';
 import PhotoTaken from './screens3/PhotoTaken';
 import DriverAtBuyerDoor from './screens3/DriverAtBuyerDoor';
@@ -308,6 +309,7 @@ export default function App() {
         <Stack.Screen name="Share" component={Share} />
         <Stack.Screen name="Invite" component={InviteScreen} />
         <Stack.Screen name="Tutorial" component={TutorialScreen} />
+        <Stack.Screen name="TutSc1" component={TutSc1} />
         <Stack.Screen name="DelivertoBuyer" component={DelivertoBuyer} />
         <Stack.Screen name="PhotoTaken" component={PhotoTaken} />
         <Stack.Screen name="DriverAtBuyerDoor" component={DriverAtBuyerDoor} />
