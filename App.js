@@ -67,6 +67,9 @@ import DriverAcceptDelivery from './screens3/DriverAcceptDelivery';
 import HeadToSeller from './screens3/HeadToSeller';
 import HeadToBuyer from './screens3/HeadToBuyer';
 import DeliverToBuyerPhoto2 from './screens3/DeliverToBuyerPhoto2';
+import ConfirmAvailabilityforBuyerReturn from './screens4/ConfirmAvailabilityforBuyerReturn';
+import DelayArrivalforBuyerReturn from './screens4/DelayArrivalforBuyerReturn';
+import ConfirmReturnDeliveryAddress from './screens4/ConfirmReturnDeliveryAddress';
 
 const Stack = createNativeStackNavigator();
 const prefix = Linking.createURL('/');
@@ -316,6 +319,9 @@ export default function App() {
         <Stack.Screen name="HeadToSeller" component={HeadToSeller} />
         <Stack.Screen name="HeadToBuyer" component={HeadToBuyer} />
         <Stack.Screen name="DeliverToBuyerPhoto2" component={DeliverToBuyerPhoto2} />
+        <Stack.Screen name="ConfirmAvailabilityforBuyerReturn" component={ConfirmAvailabilityforBuyerReturn} />
+        <Stack.Screen name="DelayArrivalforBuyerReturn" component={DelayArrivalforBuyerReturn} />
+        <Stack.Screen name="ConfirmReturnDeliveryAddress" component={ConfirmReturnDeliveryAddress} />
 </Stack.Navigator>
  </NavigationContainer>
  </GestureHandlerRootView>
