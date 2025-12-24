@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 40,
     alignSelf: 'flex-end',
-    marginRight: 10,
+    marginRight: 24,
   },
   lockIcon: {
     width: 16,
@@ -448,14 +448,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 16,
+    marginBottom: 32,
     textAlign: 'center',
   },
   driverPopupBody: {
-    fontSize: 14,
+    fontSize: 17.4,
     color: '#000',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 32,
   },
   boldText: {
@@ -467,6 +467,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     width: '100%',
     alignItems: 'center',
+    marginTop: 70,
     marginBottom: 16,
   },
   proceedButtonText: {

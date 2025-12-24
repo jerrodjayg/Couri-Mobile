@@ -904,50 +904,6 @@ export default function Welcomepage({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Map Visualization */}
-      <View style={styles.mapContainer}>
-          {/* Map background image */}
-          <Image 
-            source={require('../assets/maph.png')} 
-            style={styles.mapBackgroundImage}
-            resizeMode="cover"
-          />
-          
-          {/* Route line overlay */}
-          <Image 
-            source={require('../assets/routeh.png')} 
-            style={styles.routeImage}
-            resizeMode="contain"
-          />
-          
-          {/* Driver icon at top of route */}
-          <Image 
-            source={require('../assets/drivericon.png')} 
-            style={styles.driverIcon}
-            resizeMode="contain"
-          />
-          
-          {/* Shoes image at origin/start of route */}
-          <Image 
-            source={require('../assets/shoesimage.png')} 
-            style={styles.shoesImage}
-            resizeMode="contain"
-          />
-          
-          {/* Home logo at destination/end of route */}
-          <Image 
-            source={require('../assets/newhomelogo.png')} 
-            style={styles.homeLogo}
-            resizeMode="contain"
-          />
-          
-          {/* Gradient overlay at top for fading effect - TEMPORARILY REMOVED */}
-          {/* <Image 
-            source={require('../assets/gradienttop.png')} 
-            style={styles.gradientTop}
-            resizeMode="cover"
-          /> */}
-        </View>
 
       {/* Main Content - Pressable to deselect on outside click */}
       <Pressable style={styles.mainContent} onPress={handleDeselect}>
@@ -1834,6 +1790,12 @@ if (hasError) {
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      {/* Background Image - covers entire screen */}
+      <Image 
+        source={require('../assets/Buy.png')} 
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContentContainer}
@@ -1851,9 +1813,9 @@ if (hasError) {
    Styles (Redesigned)
 ------------------------------*/
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#1E1E1E' }, // Dark background
-  wrapper: { flex: 1 },
-  scrollContainer: { flex: 1, backgroundColor: '#1E1E1E' },
+  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  wrapper: { flex: 1, position: 'relative' },
+  scrollContainer: { flex: 1, backgroundColor: 'transparent' },
   scrollContentContainer: { flexGrow: 1, paddingBottom: 40 },
 
   // Top Bar
@@ -1864,7 +1826,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     marginTop: 50, // Increased to move everything down
-    zIndex: 10,
+    zIndex: 10, // Above background image
+    position: 'relative',
   },
   logo: { width: 90, height: 40 },
   profileContainer: {
@@ -1898,86 +1861,22 @@ const styles = StyleSheet.create({
   mainContent: {
     paddingHorizontal: 24,
     alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 30, // Added padding to push content down
+    marginTop: 220, // Increased to move content down
+    paddingTop: 60, // Increased padding to push content down further
+    zIndex: 1, // Above background image
+    position: 'relative',
   },
 
-  // Map Container
-  mapContainer: {
-    height: 300,
-    width: '100%',
-    marginHorizontal: -24, // Break out of parent padding to cover full width
-    marginTop: -120, // Reduced negative margin to move down
-    marginBottom: 20,
-    position: 'relative',
-    overflow: 'visible', // Allow wider images to show
-    borderRadius: 0,
-  },
-  
-  // Map background image
-  mapBackgroundImage: {
+  // Background Image
+  backgroundImage: {
     position: 'absolute',
-    top: -50, // Moved down (less negative)
-    left: -100, // Extend further horizontally
-    right: -100, // Extend further horizontally
-    bottom: -20, // Keep bottom in same position
-    width: '150%', // Wider horizontally and zoomed in
-    height: '200%', // Increased vertical size
-  },
-  
-  // Route line image overlay
-  routeImage: {
-    position: 'absolute',
-    top: 110, // Moved down to match map
-    left: '10%', // Center horizontally (10% left margin for 80% width = centered)
-    right: '10%',
+    top: 0,
+    left: 0,
+    right: 0,
     bottom: 0,
-    width: '80%',
-    height: '80%',
-    zIndex: 1,
-  },
-  
-  // Driver icon at top of route
-  driverIcon: {
-    position: 'absolute',
-    top: 75, // Position at top of route (matching routeImage top)
-    left: '52%', // Match route positioning
-    width: 85, // Size of the icon
-    height: 80,
-    zIndex: 3, // Above route line
-  },
-  
-  // Shoes image at origin/start of route
-  shoesImage: {
-    position: 'absolute',
-    bottom: 80, // Position at bottom/start of route
-    left: '19%', // Position on the left side where route starts
-    width: 90, // Size of the icon
-    height: 90,
-    zIndex: 3, // Above route line
-    backgroundColor: 'transparent', // Ensure transparent background
-  },
-  
-  // Home logo at destination/end of route
-  homeLogo: {
-    position: 'absolute',
-    bottom: -46, // Position at bottom/end of route
-    right: '12%', // Position on the right side where route ends
-    width: 85, // Size of the icon
-    height: 80,
-    zIndex: 3, // Above route line
-    backgroundColor: 'transparent', // Ensure transparent background
-  },
-  
-  // Gradient overlay at top
-  gradientTop: {
-    position: 'absolute',
-    top: -100, // Moved up
-    left: -50, // Extend beyond edges for full coverage
-    right: -80,
-    width: '120%', // Wider than container for full screen coverage
-    height: 200, // Cover top portion for fade effect
-    zIndex: 2,
+    width: '100%',
+    height: '100%',
+    zIndex: 0,
   },
 
   // Headings
