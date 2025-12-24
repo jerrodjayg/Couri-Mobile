@@ -170,7 +170,11 @@ const SizeWarningModal = ({ visible, onClose, onUnderstand, onCancel }) => {
           {/* Icon */}
           <View style={sizeWarningModalStyles.iconContainer}>
             <View style={sizeWarningModalStyles.iconCircle}>
-              <Text style={sizeWarningModalStyles.iconText}>co</Text>
+              <Image 
+                source={require('../assets/mark2_dark.png')} 
+                style={sizeWarningModalStyles.iconImage}
+                resizeMode="contain"
+              />
             </View>
           </View>
 
@@ -179,7 +183,7 @@ const SizeWarningModal = ({ visible, onClose, onUnderstand, onCancel }) => {
 
           {/* Body Text */}
           <Text style={sizeWarningModalStyles.bodyText}>
-            Couri drivers use their personal cars, so all items need to fit in a standard trunk or back seat. Large items (like couches or large appliances) can't be delivered at this time. Oversized items may be canceled.
+            Couri drivers use their personal cars, so all items need to fit in a standard trunk or back seat. Large items (like couches or large appliances) can't be delivered at this time.{'\n'}<Text style={sizeWarningModalStyles.boldText}>Oversized items may be canceled.</Text>
           </Text>
 
           {/* Buttons */}
@@ -792,6 +796,7 @@ export default function Welcomepage({ route, navigation }) {
 
   // New States for Home Screen Redesign
   const [selectedHomeOption, setSelectedHomeOption] = useState(null); // 'buy' or 'sell'
+  const [sizeWarningModalVisible, setSizeWarningModalVisible] = useState(false);
 
   // Existing states needed for invite/transaction logic
   const [modalVisible, setModalVisible] = useState(false); // Kept for backward compat or other modals
@@ -868,12 +873,26 @@ export default function Welcomepage({ route, navigation }) {
   const handleGetStarted = () => {
     if (!selectedHomeOption) return;
 
+    // Show size warning modal on the welcome screen
+    setSizeWarningModalVisible(true);
+  };
+
+  const handleSizeWarningUnderstand = () => {
+    // Close the modal and navigate to the appropriate page
+    setSizeWarningModalVisible(false);
+    
     // Sellers go to SellerProductForm, Buyers go to URL screen
     if (selectedHomeOption === 'sell') {
-      navigation.navigate('SellerProductForm', { type: selectedHomeOption, userProfile, showSizeWarning: true });
+      navigation.navigate('SellerProductForm', { type: selectedHomeOption, userProfile });
     } else {
-      navigation.navigate('URL', { type: selectedHomeOption, userProfile, showSizeWarning: true });
+      navigation.navigate('URL', { type: selectedHomeOption, userProfile });
     }
+  };
+
+  const handleSizeWarningCancel = () => {
+    // Close the modal and deselect the option
+    setSizeWarningModalVisible(false);
+    setSelectedHomeOption(null);
   };
 
   const renderContent = () => (
@@ -963,6 +982,14 @@ export default function Welcomepage({ route, navigation }) {
 
       </Pressable>
 
+      {/* Size Warning Modal */}
+      <SizeWarningModal
+        visible={sizeWarningModalVisible}
+        onClose={handleSizeWarningCancel}
+        onUnderstand={handleSizeWarningUnderstand}
+        onCancel={handleSizeWarningCancel}
+      />
+
       {/* Keep Modals */}
       <TransactionsModals
         modalVisible={modalVisible}
@@ -1004,9 +1031,9 @@ const TransactionsModals = ({
         onGetStarted={(option) => {
           setModalVisible(false);
           if (option === 'sell') {
-            navigation.navigate('SellerProductForm', { type: option, userProfile, showSizeWarning: true });
+            navigation.navigate('SellerProductForm', { type: option, userProfile });
           } else {
-            navigation.navigate('URL', { type: option, userProfile, showSizeWarning: true });
+            navigation.navigate('URL', { type: option, userProfile });
           }
         }}
       />
@@ -2063,14 +2090,18 @@ const sizeWarningModalStyles = StyleSheet.create({
     marginBottom: 16,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 2,
     borderColor: '#000',
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconImage: {
+    width: 32,
+    height: 32,
   },
   iconText: {
     fontSize: 20,
@@ -2079,7 +2110,7 @@ const sizeWarningModalStyles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '400',
     color: '#000',
     textAlign: 'center',
     marginBottom: 16,
@@ -2088,8 +2119,11 @@ const sizeWarningModalStyles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 26,
     marginBottom: 24,
+  },
+  boldText: {
+    fontWeight: '700',
   },
   understandButton: {
     backgroundColor: '#242422',
