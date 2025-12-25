@@ -930,7 +930,7 @@ export default function ProductDetails({ navigation, route }) {
           onPress={() => navigation.goBack()}
         >
           <Image 
-            source={require('../assets/backarrow.png')}
+            source={require('../assets/backarrow1.png')}
             style={styles.backButtonImage}
           />
         </TouchableOpacity>

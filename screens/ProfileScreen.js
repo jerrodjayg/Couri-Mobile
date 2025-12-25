@@ -791,7 +791,7 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Image 
-              source={require('../assets/backarrow.png')} 
+              source={require('../assets/backarrow1.png')} 
               style={styles.backArrowImage}
             />
           </TouchableOpacity>

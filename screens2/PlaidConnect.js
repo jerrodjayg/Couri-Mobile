@@ -234,7 +234,7 @@ export default function PlaidConnect({ navigation, route }) {
           onPress={handleBack}
         >
           <Image
-            source={require('../assets/backarrow.png')}
+            source={require('../assets/backarrow1.png')}
             style={styles.backButtonImage}
           />
         </TouchableOpacity>

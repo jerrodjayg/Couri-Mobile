@@ -122,7 +122,7 @@ export default function TutSc1({ navigation, route }) {
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Image
-            source={require('../assets/backarrow.png')}
+            source={require('../assets/backarrow1.png')}
             style={styles.backArrow}
             resizeMode="contain"
           />

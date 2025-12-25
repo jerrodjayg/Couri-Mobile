@@ -154,7 +154,7 @@ export default function ProductPrice({ navigation, route }) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Image source={require('../assets/backarrow.png')} style={styles.backButtonImage} />
+          <Image source={require('../assets/backarrow1.png')} style={styles.backButtonImage} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.profileContainer} onPress={handleSignOut}>

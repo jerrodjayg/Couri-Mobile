@@ -102,7 +102,7 @@ export default function TutorialScreen({ navigation, route }) {
         {currentSlide > 0 && (
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Image
-              source={require('../assets/backarrow.png')}
+              source={require('../assets/backarrow1.png')}
               style={styles.backArrow}
               resizeMode="contain"
             />
