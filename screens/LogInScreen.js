@@ -642,12 +642,31 @@ export default function LogInScreen({ navigation, route }) {
     // Track OAuth flow state to determine when to show errors
     let oauthStarted = false;
     let oauthCompleted = false;
+    let timeoutId; // Declare at function scope for cleanup
 
     // Timeout for OAuth browser not opening (10 seconds)
     const browserTimeoutId = setTimeout(() => {
       if (!oauthStarted) {
-        console.log('⏱️ OAuth browser did not open within 10 seconds');
+        console.error('⏱️ OAuth browser did not open within 10 seconds');
+        console.error('❌ This suggests signInGoogle() is hanging or not responding');
+        console.error('❌ Possible causes:');
+        console.error('   - Supabase OAuth call is taking too long');
+        console.error('   - Network connectivity issues');
+        console.error('   - OAuth configuration problems');
+        
+        // Clear the main timeout if browser timeout fires first
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
         setIsProcessingSignIn(false);
+        
+        // Show user-friendly error
+        Alert.alert(
+          'Sign-in Issue',
+          'Google sign-in is not responding. This might be due to:\n\n• Slow internet connection\n• OAuth service unavailable\n• Network timeout\n\nPlease check your connection and try again.',
+          [{ text: 'OK' }]
+        );
       }
     }, 10000);
 
@@ -659,31 +678,78 @@ export default function LogInScreen({ navigation, route }) {
       }
     }, 30000);
 
-    try {
-      const currentSession = await supabase.auth.getSession();
-    } catch (sessionError) {
-      // Non-blocking error, continue with OAuth
-    }
+    // Check session in background - don't block OAuth flow
+    console.log('🔍 LogInScreen DEBUG - Starting non-blocking session check...');
+    (async () => {
+      try {
+        const sessionPromise = supabase.auth.getSession();
+        const sessionTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('getSession timeout')), 3000);
+        });
+        
+        console.log('⏰ Waiting for session check (3s timeout, non-blocking)...');
+        await Promise.race([sessionPromise, sessionTimeoutPromise]);
+        console.log('✅ Session check completed (background)');
+      } catch (sessionError) {
+        // Non-blocking error, continue with OAuth
+        console.log('⚠️ Session check failed or timed out (non-blocking):', sessionError.message);
+      }
+    })();
+    
+    console.log('✅ Session check started in background, proceeding with OAuth...');
 
     try {
-
+      console.log('🔍 LogInScreen DEBUG - Entered second try block, about to call signInGoogle()...');
+      // Use platform-specific timeout (longer for mobile/Expo Go)
+      const timeoutDuration = Platform.OS === 'web' ? 45000 : 120000; // 45s web, 120s mobile
+      
+      console.log('🔍 LogInScreen DEBUG - About to call signInGoogle()...');
+      console.log('🔍 signInGoogle function type:', typeof signInGoogle);
+      console.log('🔍 signInGoogle is function?', typeof signInGoogle === 'function');
+      
+      // Mark OAuth as started as soon as we call the function (not after it completes)
+      // This prevents the browser timeout from firing if the function is just slow
+      oauthStarted = true;
+      console.log('✅ Marked oauthStarted = true (OAuth flow initiated)');
+      clearTimeout(browserTimeoutId); // Clear browser timeout since OAuth has started
+      console.log('✅ Cleared browser timeout since OAuth started');
+      
       // Wrap signInGoogle with a longer timeout to allow OAuth to complete
+      console.log('📞 Calling signInGoogle() now...');
       const signInPromise = signInGoogle();
-      const signInTimeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('signInGoogle timeout')), 30000)
-      );
+      console.log('✅ signInGoogle() called, promise created');
+      console.log('🔍 Promise type:', signInPromise instanceof Promise ? 'Promise' : typeof signInPromise);
+      
+      const signInTimeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          console.error('⏱️ signInGoogle timeout after', timeoutDuration / 1000, 'seconds');
+          reject(new Error('signInGoogle timeout'));
+        }, timeoutDuration);
+      });
 
       console.log('🔍 LogInScreen DEBUG - Racing signInGoogle with timeout...');
+      console.log('⏰ Timeout duration:', timeoutDuration / 1000, 'seconds (Platform:', Platform.OS + ')');
+      console.log('⏰ Starting Promise.race now...');
+      
       const result = await Promise.race([signInPromise, signInTimeoutPromise]);
+      console.log('✅ Promise.race completed, got result');
+      
+      // Clear timeout if signInGoogle completed successfully
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
       console.log('✅ LogInScreen DEBUG - signInGoogle completed successfully');
       console.log('📱 Google sign-in result:', result);
-
-      // Mark OAuth as started (browser opened)
-      oauthStarted = true;
-      console.log('🔄 OAuth browser opened successfully');
-
-      // Clear the browser timeout since OAuth started successfully
-      clearTimeout(browserTimeoutId);
+      console.log('📱 Result type:', result?.type);
+      console.log('📱 Result URL:', result?.url ? 'Present' : 'Missing');
+      
+      // OAuth was already marked as started when we called signInGoogle()
+      // If we got a result but it's not success, the browser might not have opened
+      if (result?.type !== 'success') {
+        console.log('⚠️ OAuth flow returned non-success result:', result?.type);
+        console.log('⚠️ This might indicate browser did not open or user cancelled');
+      }
 
       if (result.type !== 'success') {
         // Reset loading states and return without error screen
@@ -699,32 +765,166 @@ export default function LogInScreen({ navigation, route }) {
       if (result.session?.user) {
         userData = result.session.user;
         userEmail = userData.email;
-      } else {
-        // Wait for session with improved logic using Promise-based approach
-
+        console.log('✅ LogInScreen DEBUG - Got user data from result.session');
+      } else if (result?.url && result.url.includes('code=')) {
+        // If we have a code in the URL, try code exchange immediately (don't wait for session)
+        console.log('🔍 LogInScreen DEBUG - Found code in URL, attempting immediate code exchange...');
+        
         try {
-          // Wait for session to be established with a more reliable approach
+          // Extract the code from the URL - handle both formats
+          let code;
+          try {
+            // Try parsing as full URL first (with //)
+            const url = result.url.startsWith('http') 
+              ? new URL(result.url)
+              : new URL(result.url.replace(/^([^:]+):([^/])/, '$1://$2')); // Add // if missing
+            code = url.searchParams.get('code');
+          } catch (urlError) {
+            // Fallback: extract code manually using regex
+            console.log('⚠️ URL parsing failed, trying regex extraction:', urlError.message);
+            const codeMatch = result.url.match(/[?&]code=([^&]+)/);
+            code = codeMatch ? codeMatch[1] : null;
+          }
+
+          if (code) {
+            console.log('🔑 LogInScreen DEBUG - Attempting immediate code exchange (30s timeout)...');
+            
+            // Check if code verifier exists (required for PKCE)
+            try {
+              const codeVerifier = await AsyncStorage.getItem('sb-auth-token-code-verifier');
+              console.log('🔍 LogInScreen DEBUG - Code verifier exists:', codeVerifier ? 'YES' : 'NO');
+              if (!codeVerifier) {
+                console.warn('⚠️ LogInScreen DEBUG - Code verifier not found, exchange may fail');
+              }
+            } catch (verifierError) {
+              console.warn('⚠️ LogInScreen DEBUG - Could not check code verifier:', verifierError.message);
+            }
+            
+            const exchangeStartTime = Date.now();
+
+            try {
+              console.log('📞 LogInScreen DEBUG - Calling exchangeCodeForSession...');
+              
+              // Get code verifier for PKCE (for logging/debugging)
+              const codeVerifier = await AsyncStorage.getItem('sb-auth-token-code-verifier');
+              console.log('🔍 LogInScreen DEBUG - Code verifier retrieved:', codeVerifier ? 'YES' : 'NO');
+              if (codeVerifier) {
+                console.log('🔍 LogInScreen DEBUG - Code verifier length:', codeVerifier.length);
+              }
+              
+              const exchangePromise = supabase.auth.exchangeCodeForSession(code);
+              
+              // Add a shorter timeout first to see if it responds at all
+              const quickTimeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => {
+                  reject(new Error('Code exchange quick timeout (5s) - no response yet'));
+                }, 5000)
+              );
+              
+              // Race between quick timeout and actual exchange
+              const quickCheck = await Promise.race([
+                exchangePromise.then(result => ({ type: 'success', result })),
+                quickTimeoutPromise.catch(err => ({ type: 'timeout', error: err }))
+              ]);
+              
+              if (quickCheck.type === 'timeout') {
+                console.warn('⚠️ LogInScreen DEBUG - Exchange not responding after 5s, continuing to wait...');
+                // Continue with full timeout
+                const fullTimeoutPromise = new Promise((_, reject) =>
+                  setTimeout(() => {
+                    reject(new Error('Code exchange timeout (30s total)'));
+                  }, 25000) // Remaining 25 seconds
+                );
+                
+                const exchangeResult = await Promise.race([
+                  exchangePromise,
+                  fullTimeoutPromise
+                ]);
+                
+                const exchangeDuration = Date.now() - exchangeStartTime;
+                console.log('✅ LogInScreen DEBUG - Code exchange completed in', exchangeDuration, 'ms');
+
+                const { data: exchangeData, error: exchangeError } = exchangeResult;
+
+                if (!exchangeError && exchangeData?.session?.user) {
+                  console.log('✅ LogInScreen DEBUG - Code exchange successful, got user data');
+                  userData = exchangeData.session.user;
+                  userEmail = exchangeData.session.user.email;
+                  console.log('✅ LogInScreen DEBUG - User email from exchange:', userEmail);
+                } else {
+                  console.error('❌ LogInScreen DEBUG - Code exchange error:', exchangeError?.message);
+                  console.error('❌ LogInScreen DEBUG - Exchange error details:', JSON.stringify(exchangeError, null, 2));
+                }
+              } else {
+                // Quick check succeeded
+                const exchangeDuration = Date.now() - exchangeStartTime;
+                console.log('✅ LogInScreen DEBUG - Code exchange completed quickly in', exchangeDuration, 'ms');
+                
+                const { data: exchangeData, error: exchangeError } = quickCheck.result;
+
+                if (!exchangeError && exchangeData?.session?.user) {
+                  console.log('✅ LogInScreen DEBUG - Code exchange successful, got user data');
+                  userData = exchangeData.session.user;
+                  userEmail = exchangeData.session.user.email;
+                  console.log('✅ LogInScreen DEBUG - User email from exchange:', userEmail);
+                } else {
+                  console.error('❌ LogInScreen DEBUG - Code exchange error:', exchangeError?.message);
+                }
+              }
+            } catch (exchangeErr) {
+              const exchangeDuration = Date.now() - exchangeStartTime;
+              console.error('❌ LogInScreen DEBUG - Code exchange exception after', exchangeDuration, 'ms:', exchangeErr.message);
+              console.error('❌ LogInScreen DEBUG - Exchange error stack:', exchangeErr.stack);
+            }
+          }
+        } catch (exchangeErr) {
+          console.error('❌ LogInScreen DEBUG - Code exchange exception:', exchangeErr.message);
+        }
+      } else {
+        // No code in URL, wait for session to be established
+        console.log('🔍 LogInScreen DEBUG - No code in URL, waiting for session...');
+        try {
+          // Wait for session with improved logic using Promise-based approach
           const sessionData = await waitForSession();
           if (sessionData) {
             userData = sessionData.user;
             userEmail = sessionData.user.email;
+            console.log('✅ LogInScreen DEBUG - Got user data from waitForSession');
           }
         } catch (sessionError) {
           // Session establishment failed, continue with fallback
+          console.log('⚠️ LogInScreen DEBUG - waitForSession failed:', sessionError.message);
         }
       }
 
       if (!userEmail) {
-        // Check if we have a valid OAuth result with a code
+        // Fallback: Check if we have a valid OAuth result with a code (retry if first attempt failed)
         if (result?.url && result.url.includes('code=')) {
+          console.log('🔍 LogInScreen DEBUG - Attempting code exchange from result URL');
+          console.log('🔍 LogInScreen DEBUG - Result URL:', result.url);
 
           try {
-            // Extract the code from the URL
-            const url = new URL(result.url);
+            // Extract the code from the URL - handle both formats
+            let code;
+            try {
+              // Try parsing as full URL first (with //)
+              const url = result.url.startsWith('http') 
+                ? new URL(result.url)
+                : new URL(result.url.replace(/^([^:]+):([^/])/, '$1://$2')); // Add // if missing
+              code = url.searchParams.get('code');
+            } catch (urlError) {
+              // Fallback: extract code manually using regex
+              console.log('⚠️ URL parsing failed, trying regex extraction:', urlError.message);
+              const codeMatch = result.url.match(/[?&]code=([^&]+)/);
+              code = codeMatch ? codeMatch[1] : null;
+            }
 
-            const code = url.searchParams.get('code');
+            console.log('🔍 LogInScreen DEBUG - Extracted code:', code ? 'EXISTS' : 'NULL');
+            console.log('🔍 LogInScreen DEBUG - Code length:', code?.length || 0);
 
             if (code) {
+              console.log('🔑 LogInScreen DEBUG - Attempting code exchange (30s timeout)...');
+              const exchangeStartTime = Date.now();
 
               try {
                 const exchangePromise = supabase.auth.exchangeCodeForSession(code);
@@ -735,22 +935,36 @@ export default function LogInScreen({ navigation, route }) {
                   }, 30000)
                 );
 
-                const { data: exchangeData, error: exchangeError } = await Promise.race([
+                const exchangeResult = await Promise.race([
                   exchangePromise,
                   timeoutPromise
                 ]);
 
+                const exchangeDuration = Date.now() - exchangeStartTime;
+                console.log('✅ LogInScreen DEBUG - Code exchange completed in', exchangeDuration, 'ms');
+
+                const { data: exchangeData, error: exchangeError } = exchangeResult;
+
                 if (exchangeError) {
+                  console.error('❌ LogInScreen DEBUG - Code exchange error:', exchangeError.message);
                   // Fall through to error handling
                 } else if (exchangeData?.session?.user) {
+                  console.log('✅ LogInScreen DEBUG - Code exchange successful, got user data');
                   userData = exchangeData.session.user;
                   userEmail = exchangeData.session.user.email;
+                  console.log('✅ LogInScreen DEBUG - User email from exchange:', userEmail);
+                } else {
+                  console.log('⚠️ LogInScreen DEBUG - Code exchange succeeded but no session data');
                 }
               } catch (exchangeErr) {
+                console.error('❌ LogInScreen DEBUG - Code exchange exception:', exchangeErr.message);
                 // Exchange failed, continue with fallback
               }
+            } else {
+              console.log('⚠️ LogInScreen DEBUG - No code found in URL');
             }
           } catch (exchangeErr) {
+            console.error('❌ LogInScreen DEBUG - URL parsing error:', exchangeErr.message);
             // URL parsing error, continue with fallback
           }
         }
@@ -1029,15 +1243,35 @@ export default function LogInScreen({ navigation, route }) {
       } catch (error) {
         console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
 
-        // Check if it's specifically a signInGoogle timeout
-        if (error.message === 'signInGoogle timeout') {
-          console.error('❌ signInGoogle function timed out after 4 seconds');
-          console.error('❌ This suggests the OAuth flow is not starting or completing');
-          console.error('❌ Check if Google OAuth is properly configured');
+        // Clear ALL timeouts to ensure clean state
+        clearTimeout(browserTimeoutId);
+        clearTimeout(completionTimeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
         }
 
-        // Reset loading states and return
+        // Reset loading states immediately (before any alerts)
         setIsProcessingSignIn(false);
+        console.log('✅ Reset isProcessingSignIn to false after error');
+
+        // Check if it's specifically a signInGoogle timeout
+        if (error.message === 'signInGoogle timeout') {
+          const timeoutSeconds = Platform.OS === 'web' ? 45 : 120;
+          console.error('❌ signInGoogle function timed out after', timeoutSeconds, 'seconds');
+          console.error('❌ This suggests the OAuth flow is not starting or completing');
+          console.error('❌ Platform:', Platform.OS);
+          console.error('❌ Check if Google OAuth is properly configured');
+          console.error('❌ Check network connectivity and try again');
+          
+          // Use setTimeout to ensure state update is processed before showing alert
+          setTimeout(() => {
+            Alert.alert(
+              'Sign-in Timeout',
+              `Google sign-in is taking too long. This might be due to:\n\n• Slow internet connection\n• OAuth browser not opening\n• Network issues\n\nPlease check your connection and try again.`,
+              [{ text: 'OK' }]
+            );
+          }, 100);
+        }
       }
     } catch (error) {
       console.error('❌ Google sign-in error (outer catch):', error);
@@ -1048,15 +1282,23 @@ export default function LogInScreen({ navigation, route }) {
       // Clear the timeouts
       clearTimeout(browserTimeoutId);
       clearTimeout(completionTimeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
 
       // Reset loading states and return
       setIsProcessingSignIn(false);
     } finally {
       // Always ensure loading state is reset, even if there are unexpected errors
       console.log('🔄 Google sign-in process completed, resetting loading state');
+      console.log('🔄 isProcessingSignIn before reset:', isProcessingSignIn);
       clearTimeout(browserTimeoutId);
       clearTimeout(completionTimeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       setIsProcessingSignIn(false);
+      console.log('✅ isProcessingSignIn reset to false - button should be enabled');
     }
   };
 

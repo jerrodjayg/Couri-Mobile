@@ -46,7 +46,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
    storage: storageAdapter,
    autoRefreshToken: true,
    persistSession: true,
-   detectSessionInUrl: false,
+   detectSessionInUrl: true, // Enable to allow Supabase to auto-detect and exchange codes
    flowType: 'pkce', // Use PKCE flow for better security and compatibility
    debug: __DEV__, // Enable debug mode in development
    storageKey: 'sb-auth-token', // Explicit storage key

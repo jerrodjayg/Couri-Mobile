@@ -37,11 +37,9 @@ export default function SellerProductForm({ navigation, route }) {
   // Condition options
   const conditionOptions = [
     'New',
-    'Like New',
-    'Excellent',
-    'Good',
-    'Fair',
-    'Poor',
+    'Used - Like New',
+    'Used - Good',
+    'Used - Fair',
   ];
 
   // Show size warning modal after 1 second when screen loads if showSizeWarning is true
@@ -185,11 +183,6 @@ export default function SellerProductForm({ navigation, route }) {
       return;
     }
 
-    if (!description.trim()) {
-      Alert.alert('Missing Information', 'Please enter a description.');
-      return;
-    }
-
     if (!condition) {
       Alert.alert('Missing Information', 'Please select a condition.');
       return;
@@ -224,6 +217,14 @@ export default function SellerProductForm({ navigation, route }) {
   const handleCancel = () => {
     navigation.goBack();
   };
+
+  // Check if all required fields are filled
+  const isFormValid = 
+    productImages.length > 0 &&
+    title.trim() !== '' &&
+    price.trim() !== '' &&
+    condition !== '' &&
+    conditionDetails.trim() !== '';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -330,32 +331,69 @@ export default function SellerProductForm({ navigation, route }) {
             <Text style={styles.sectionLabel}>Product Photos or Videos*</Text>
             <Text style={styles.sectionSubLabel}>At least one is required</Text>
             
-            <View style={styles.uploadButtonsContainer}>
-              <TouchableOpacity style={styles.uploadButton} onPress={pickImages}>
-                <Image 
-                  source={{ uri: 'https://img.icons8.com/ios/50/000000/add-image.png' }}
-                  style={styles.uploadIcon}
-                />
-                <Text style={styles.uploadButtonText}>Add photos or videos</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
-                <Image 
-                  source={{ uri: 'https://img.icons8.com/ios/50/000000/camera.png' }}
-                  style={styles.uploadIcon}
-                />
-                <Text style={styles.uploadButtonText}>Take photos or videos</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Display selected images */}
-            {productImages.length > 0 && (
-              <View style={styles.imagesPreviewContainer}>
+            {productImages.length > 0 ? (
+              /* Swipeable Container for Photos and Upload Buttons (when photos exist) */
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.swipeableContainer}
+                style={styles.swipeableScrollView}
+                pagingEnabled={false}
+                decelerationRate="fast"
+              >
+                {/* Display selected images */}
                 {productImages.map((uri, index) => (
-                  <View key={index} style={styles.imagePreview}>
-                    <Image source={{ uri }} style={styles.previewImage} />
+                  <View key={index} style={styles.imagePreviewWrapper}>
+                    <View style={styles.imagePreview}>
+                      <Image source={{ uri }} style={styles.previewImage} />
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.removeImageButton}
+                      onPress={() => {
+                        const newImages = productImages.filter((_, i) => i !== index);
+                        setProductImages(newImages);
+                      }}
+                    >
+                      <Text style={styles.removeImageButtonText}>×</Text>
+                    </TouchableOpacity>
                   </View>
                 ))}
+                
+                {/* Upload Buttons */}
+                <TouchableOpacity style={styles.uploadButton} onPress={pickImages}>
+                  <Image 
+                    source={{ uri: 'https://img.icons8.com/ios/50/000000/add-image.png' }}
+                    style={styles.uploadIcon}
+                  />
+                  <Text style={styles.uploadButtonText}>Add photos or videos</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
+                  <Image 
+                    source={{ uri: 'https://img.icons8.com/ios/50/000000/camera.png' }}
+                    style={styles.uploadIcon}
+                  />
+                  <Text style={styles.uploadButtonText}>Take photos or videos</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            ) : (
+              /* Static Upload Buttons (when no photos) */
+              <View style={styles.uploadButtonsContainer}>
+                <TouchableOpacity style={styles.uploadButtonStatic} onPress={pickImages}>
+                  <Image 
+                    source={{ uri: 'https://img.icons8.com/ios/50/000000/add-image.png' }}
+                    style={styles.uploadIcon}
+                  />
+                  <Text style={styles.uploadButtonText}>Add photos or videos</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.uploadButtonStatic} onPress={takePhoto}>
+                  <Image 
+                    source={{ uri: 'https://img.icons8.com/ios/50/000000/camera.png' }}
+                    style={styles.uploadIcon}
+                  />
+                  <Text style={styles.uploadButtonText}>Take photos or videos</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -379,7 +417,23 @@ export default function SellerProductForm({ navigation, route }) {
             <TextInput
               style={styles.textInput}
               value={price}
-              onChangeText={setPrice}
+              onChangeText={(text) => {
+                // Remove dollar sign and any non-numeric characters except decimal point
+                const numericValue = text.replace(/[^0-9.]/g, '');
+                setPrice(numericValue);
+              }}
+              onBlur={() => {
+                // Add dollar sign when user finishes typing (if there's a value and it doesn't already have $)
+                if (price && price.trim() !== '' && !price.startsWith('$')) {
+                  setPrice(`$${price}`);
+                }
+              }}
+              onFocus={() => {
+                // Remove dollar sign when user starts typing again for easier editing
+                if (price && price.startsWith('$')) {
+                  setPrice(price.replace('$', ''));
+                }
+              }}
               placeholder=""
               placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
@@ -389,7 +443,7 @@ export default function SellerProductForm({ navigation, route }) {
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Description*</Text>
+            <Text style={styles.inputLabel}>Description (recommended)</Text>
             <TextInput
               style={styles.descriptionInput}
               value={description}
@@ -440,7 +494,13 @@ export default function SellerProductForm({ navigation, route }) {
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+        <TouchableOpacity 
+          style={[
+            styles.saveButton,
+            isFormValid && styles.saveButtonActive
+          ]} 
+          onPress={handleSave}
+        >
           <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
       </View>
@@ -449,7 +509,7 @@ export default function SellerProductForm({ navigation, route }) {
       <Modal
         visible={showConditionPicker}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowConditionPicker(false)}
       >
         <TouchableOpacity 
@@ -459,37 +519,47 @@ export default function SellerProductForm({ navigation, route }) {
         >
           <View style={styles.pickerContainer}>
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Condition</Text>
-              <TouchableOpacity onPress={() => setShowConditionPicker(false)}>
+              <Text style={styles.pickerTitle}>Condition</Text>
+              <TouchableOpacity 
+                style={styles.pickerCloseButtonContainer}
+                onPress={() => setShowConditionPicker(false)}
+              >
                 <Text style={styles.pickerCloseButton}>✕</Text>
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.pickerOptions}>
+            <View style={styles.pickerOptions}>
               {conditionOptions.map((option, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[
-                    styles.pickerOption,
-                    condition === option && styles.pickerOptionSelected
-                  ]}
+                  style={styles.pickerOption}
                   onPress={() => {
                     setCondition(option);
-                    setShowConditionPicker(false);
                   }}
                 >
-                  <Text style={[
-                    styles.pickerOptionText,
-                    condition === option && styles.pickerOptionTextSelected
-                  ]}>
+                  <View style={styles.radioButtonContainer}>
+                    <View style={[
+                      styles.radioButton,
+                      condition === option && styles.radioButtonSelected
+                    ]}>
+                      {condition === option && (
+                        <View style={styles.radioButtonInner} />
+                      )}
+                    </View>
+                  </View>
+                  <Text style={styles.pickerOptionText}>
                     {option}
                   </Text>
-                  {condition === option && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.selectButton}
+              onPress={() => setShowConditionPicker(false)}
+            >
+              <Text style={styles.selectButtonText}>Select</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -640,12 +710,76 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 16,
   },
+  swipeableScrollView: {
+    marginBottom: 16,
+  },
+  swipeableContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingRight: 24,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  imagePreviewWrapper: {
+    position: 'relative',
+    marginRight: 0,
+    paddingTop: 8,
+    paddingRight: 8,
+  },
+  imagePreview: {
+    width: 140,
+    height: 140,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    zIndex: 10,
+  },
+  removeImageButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    lineHeight: 22,
+  },
   uploadButtonsContainer: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 16,
   },
   uploadButton: {
+    width: 160,
+    height: 140,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    backgroundColor: '#F9FAFB',
+    flexShrink: 0,
+  },
+  uploadButtonStatic: {
     flex: 1,
     flexDirection: 'column',
     alignItems: 'center',
@@ -668,22 +802,6 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '500',
     textAlign: 'center',
-  },
-  imagesPreviewContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 16,
-  },
-  imagePreview: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
   },
   inputGroup: {
     paddingHorizontal: 24,
@@ -735,13 +853,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 24,
+    paddingBottom: 32,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
+    gap: 92,
   },
   cancelButtonText: {
     color: '#000',
@@ -753,7 +873,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#9CA3AF',
     borderRadius: 25,
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: 48,
+    minWidth: 120,
+  },
+  saveButtonActive: {
+    backgroundColor: '#000',
   },
   saveButtonText: {
     color: '#fff',
@@ -763,67 +887,99 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   pickerContainer: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    width: '85%',
-    maxHeight: '60%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    width: '100%',
+    maxHeight: '70%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
+    paddingBottom: 20,
   },
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
   pickerTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '600',
     color: '#000',
   },
+  pickerCloseButtonContainer: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   pickerCloseButton: {
     fontSize: 24,
-    color: '#666',
+    color: '#000',
     fontWeight: '300',
   },
   pickerOptions: {
-    maxHeight: 300,
+    paddingVertical: 8,
   },
   pickerOption: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
-  pickerOptionSelected: {
-    backgroundColor: '#F9FAFB',
+  radioButtonContainer: {
+    marginRight: 16,
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioButtonSelected: {
+    borderColor: '#000',
+    backgroundColor: '#fff',
+  },
+  radioButtonInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#14B8A6',
   },
   pickerOptionText: {
     fontSize: 16,
     color: '#000',
     fontWeight: '400',
+    flex: 1,
   },
-  pickerOptionTextSelected: {
+  selectButton: {
+    backgroundColor: '#171715',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginHorizontal: 24,
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000',
-  },
-  checkmark: {
-    fontSize: 20,
-    color: '#10B981',
-    fontWeight: 'bold',
   },
 });
 
@@ -907,10 +1063,10 @@ const sizeWarningModalStyles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#000',
-    fontSize: 16,
+    fontSize: 28,
     textDecorationLine: 'underline',
     fontWeight: '600',
-    fontStyle: 'semibold'
+    fontFamily: 'Area Normal'
   },
 });
 

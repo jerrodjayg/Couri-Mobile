@@ -15,8 +15,18 @@ export function useGoogleAuth() {
     : 'com.anonymous.jerrod://';
 
   const signIn = async (retryCount = 0) => {
-    if (loading) return;
+    console.log('🚀 useGoogleAuth.signIn() called - function entry point');
+    console.log('🔍 Current loading state:', loading);
+    console.log('🔍 Retry count:', retryCount);
+    
+    if (loading) {
+      console.log('⚠️ Already loading, returning early');
+      return;
+    }
+    
+    console.log('✅ Setting loading to true...');
     setLoading(true);
+    console.log('✅ Loading state set, proceeding with OAuth...');
 
     // Add timeout to prevent infinite loading (longer timeout for mobile/Expo Go)
     const timeoutDuration = Platform.OS === 'web' ? 30000 : 90000; // 30s web, 90s mobile/Expo Go
@@ -54,7 +64,10 @@ export function useGoogleAuth() {
       }
 
       console.log('🔄 Calling Supabase OAuth...');
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      console.log('⏰ Starting OAuth call with timeout protection...');
+      
+      // Add timeout around Supabase OAuth call to prevent hanging
+      const oauthCallPromise = supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectTo,
@@ -65,6 +78,23 @@ export function useGoogleAuth() {
           },
         },
       });
+      
+      const oauthCallTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Supabase OAuth call timeout - request took more than 15 seconds'));
+        }, 15000); // 15 second timeout for the OAuth call itself
+      });
+      
+      let oauthResult;
+      try {
+        oauthResult = await Promise.race([oauthCallPromise, oauthCallTimeoutPromise]);
+        console.log('✅ Supabase OAuth call completed');
+      } catch (raceError) {
+        console.error('❌ OAuth call failed or timed out:', raceError.message);
+        throw raceError;
+      }
+      
+      const { data, error } = oauthResult;
 
       if (error) {
         console.error('❌ OAuth error:', error);
@@ -150,26 +180,41 @@ export function useGoogleAuth() {
           console.log('📱 Android detected - using WebBrowser...');
           console.log('⏰ Starting Android OAuth flow...');
           console.log('📱 Running in Expo Go - OAuth may take longer');
+          console.log('🔗 OAuth URL to open:', data.url.substring(0, 100) + '...');
+          console.log('🎯 Redirect URI:', redirectTo);
           
           try {
+            console.log('📱 Warming up WebBrowser...');
             await WebBrowser.warmUpAsync();
-            console.log('📱 WebBrowser warm-up completed');
+            console.log('✅ WebBrowser warm-up completed');
           } catch (warmUpError) {
-            console.log('📱 WebBrowser warm-up failed:', warmUpError.message);
+            console.log('⚠️ WebBrowser warm-up failed (non-critical):', warmUpError.message);
           }
 
-          console.log('📱 Opening Android auth session...');
+          console.log('📱 About to call WebBrowser.openAuthSessionAsync...');
+          console.log('⏰ This call should open the browser - if it hangs here, WebBrowser is the issue');
+          const openStartTime = Date.now();
           result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-          console.log('📱 Android auth session completed:', result?.type);
+          const openDuration = Date.now() - openStartTime;
+          console.log('✅ Android auth session completed in', openDuration, 'ms');
+          console.log('📱 Result type:', result?.type);
+          console.log('📱 Result URL:', result?.url ? 'Present' : 'Missing');
           
         } else {
           console.log('📱 iOS detected - using WebBrowser...');
           console.log('⏰ Starting iOS OAuth flow...');
           console.log('📱 Running in Expo Go - OAuth may take longer');
+          console.log('🔗 OAuth URL to open:', data.url.substring(0, 100) + '...');
+          console.log('🎯 Redirect URI:', redirectTo);
           
-          console.log('📱 Opening iOS auth session...');
+          console.log('📱 About to call WebBrowser.openAuthSessionAsync...');
+          console.log('⏰ This call should open the browser - if it hangs here, WebBrowser is the issue');
+          const openStartTime = Date.now();
           result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-          console.log('📱 iOS auth session completed:', result?.type);
+          const openDuration = Date.now() - openStartTime;
+          console.log('✅ iOS auth session completed in', openDuration, 'ms');
+          console.log('📱 Result type:', result?.type);
+          console.log('📱 Result URL:', result?.url ? 'Present' : 'Missing');
         }
 
         console.log('📱 OAuth result:', result);
@@ -236,8 +281,20 @@ export function useGoogleAuth() {
               console.log('🔍 useGoogleAuth DEBUG - Attempting manual code exchange...');
               console.log('🔍 useGoogleAuth DEBUG - Redirect URL for parsing:', redirectUrl);
               
-              const url = new URL(redirectUrl);
-              const code = url.searchParams.get('code');
+              // Handle both URL formats: com.anonymous.jerrod://?code=... and com.anonymous.jerrod:?code=...
+              let code;
+              try {
+                // Try parsing as full URL first (with //)
+                const url = redirectUrl.startsWith('http') 
+                  ? new URL(redirectUrl)
+                  : new URL(redirectUrl.replace(/^([^:]+):([^/])/, '$1://$2')); // Add // if missing
+                code = url.searchParams.get('code');
+              } catch (urlError) {
+                // Fallback: extract code manually using regex
+                console.log('⚠️ URL parsing failed, trying regex extraction:', urlError.message);
+                const codeMatch = redirectUrl.match(/[?&]code=([^&]+)/);
+                code = codeMatch ? codeMatch[1] : null;
+              }
               
               console.log('🔍 useGoogleAuth DEBUG - Parsed code from URL:', code ? 'EXISTS' : 'NULL');
               console.log('🔍 useGoogleAuth DEBUG - Code length:', code?.length || 0);
@@ -245,12 +302,42 @@ export function useGoogleAuth() {
               if (code) {
                 console.log('🔑 Attempting manual code exchange with code:', code.substring(0, 10) + '...');
                 
-                // Exchange the code for a session
-                const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+                // Exchange the code for a session with timeout
+                console.log('⏰ Starting code exchange (15s timeout)...');
+                const exchangeStartTime = Date.now();
+                
+                let exchangeTimeoutId;
+                const exchangePromise = supabase.auth.exchangeCodeForSession(code).finally(() => {
+                  if (exchangeTimeoutId) {
+                    clearTimeout(exchangeTimeoutId);
+                  }
+                });
+                
+                const exchangeTimeoutPromise = new Promise((_, reject) => {
+                  exchangeTimeoutId = setTimeout(() => {
+                    reject(new Error('Code exchange timeout - took more than 15 seconds'));
+                  }, 15000);
+                });
+                
+                let exchangeData, exchangeError;
+                try {
+                  const exchangeResult = await Promise.race([exchangePromise, exchangeTimeoutPromise]);
+                  exchangeData = exchangeResult.data;
+                  exchangeError = exchangeResult.error;
+                  const exchangeDuration = Date.now() - exchangeStartTime;
+                  console.log('✅ Code exchange completed in', exchangeDuration, 'ms');
+                } catch (exchangeErr) {
+                  console.error('❌ Code exchange failed or timed out:', exchangeErr.message);
+                  exchangeError = exchangeErr;
+                  // Clear timeout if it was set
+                  if (exchangeTimeoutId) {
+                    clearTimeout(exchangeTimeoutId);
+                  }
+                }
                 
                 console.log('🔍 useGoogleAuth DEBUG - Exchange completed');
                 console.log('🔍 useGoogleAuth DEBUG - Exchange error:', exchangeError);
-                console.log('🔍 useGoogleAuth DEBUG - Exchange data:', exchangeData);
+                console.log('🔍 useGoogleAuth DEBUG - Exchange data:', exchangeData ? 'Present' : 'Missing');
                 
                 if (exchangeError) {
                   console.error('❌ Code exchange error:', exchangeError);
