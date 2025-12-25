@@ -212,7 +212,7 @@ export default function DelivertoBuyer({ navigation, route }) {
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Image 
-              source={require('../assets/backarrow.png')} 
+              source={require('../assets/backarrow1.png')} 
               style={styles.backArrowImage}
             />
           </TouchableOpacity>

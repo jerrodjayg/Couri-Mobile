@@ -274,7 +274,7 @@ export default function SellerProductForm({ navigation, route }) {
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Image 
-            source={require('../assets/backarrow.png')} 
+            source={require('../assets/backarrow1.png')} 
             style={styles.backButtonImage}
           />
         </TouchableOpacity>
