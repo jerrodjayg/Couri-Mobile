@@ -25,7 +25,7 @@ export default function ConfirmAvailabilityforBuyerReturn({ navigation, route })
     
     // If current time is before 9 AM or after 5 PM, schedule for next day at 9:00 AM
     if (currentHour < 9 || currentHour >= 17) {
-      return '9:00 AM - 9:20 AM';
+      return '9:00 AM - 10:00 AM';
     }
     
     // If current time is within 9 AM to 5 PM, schedule 1 hour from current time
@@ -33,7 +33,7 @@ export default function ConfirmAvailabilityforBuyerReturn({ navigation, route })
     
     // If adding 1 hour goes past 5 PM, schedule for next day at 9:00 AM
     if (nextHour >= 17) {
-      return '9:00 AM - 9:20 AM';
+      return '9:00 AM - 10:00 AM';
     }
     
     // Format the time slot (1 hour from current time with 20-minute window)
@@ -64,8 +64,8 @@ export default function ConfirmAvailabilityforBuyerReturn({ navigation, route })
       console.error('Error tracking user journey:', error);
     }
     
-    // Navigate to return tracking screen with all necessary data
-    navigation.navigate('ReturnTrackingScreen', {
+    // Navigate to tracking screen with all necessary data
+    navigation.navigate('TrackingScreen', {
       ...transactionData,
       returnStatus: 'confirmed',
       deliveryTime: deliveryTime,

@@ -156,8 +156,8 @@ export default function DelayArrivalforBuyerReturn({ navigation, route }) {
         console.error('Error tracking user journey:', error);
       }
       
-      // Navigate to ReturnTrackingScreen with updated transaction data
-      navigation.navigate('ReturnTrackingScreen', {
+      // Navigate to TrackingScreen with updated transaction data
+      navigation.navigate('TrackingScreen', {
         ...transactionData,
         returnStatus: 'scheduled',
         deliveryTime: selectedTime.label,

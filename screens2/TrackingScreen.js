@@ -11,12 +11,119 @@ import {
   PanResponder,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Custom dark map style (matching DriverPortalScreen)
+const darkMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0d0d0d' }] },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'administrative.country',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#9e9e9e' }],
+  },
+  {
+    featureType: 'administrative.land_parcel',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#bdbdbd' }],
+  },
+  {
+    featureType: 'landscape',
+    elementType: 'geometry',
+    stylers: [{ color: '#0d0d0d' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#121212' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#616161' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#1f1f1f' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#141414' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#8a8a8a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#2a2a2a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#b3b3b3' }],
+  },
+  {
+    featureType: 'road.local',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#616161' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'geometry',
+    stylers: [{ color: '#1a1a1a' }],
+  },
+  {
+    featureType: 'transit.station',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#080808' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#3d3d3d' }],
+  },
+];
 const MODAL_MIN_HEIGHT = 180;
 const MODAL_MAX_HEIGHT = SCREEN_HEIGHT * 0.5;
 
@@ -30,7 +137,8 @@ export default function TrackingScreen({ navigation, route }) {
   const [userLocation, setUserLocation] = useState(null);
   const [pickupAddress, setPickupAddress] = useState(null);
   const [locationError, setLocationError] = useState(null);
-  const [mapHtml, setMapHtml] = useState('');
+  const [locationLoading, setLocationLoading] = useState(true);
+  const mapRef = useRef(null);
   
   // Modal animation
   const [modalHeight, setModalHeight] = useState(MODAL_MIN_HEIGHT);
@@ -216,6 +324,7 @@ export default function TrackingScreen({ navigation, route }) {
 
   const getCurrentLocation = async () => {
     try {
+      setLocationLoading(true);
       console.log('🔍 DEBUG: Requesting location permission...');
       const { status } = await Location.requestForegroundPermissionsAsync();
       console.log('🔍 DEBUG: Location permission status:', status);
@@ -223,6 +332,14 @@ export default function TrackingScreen({ navigation, route }) {
       if (status !== 'granted') {
         console.error('❌ DEBUG: Location permission denied');
         setLocationError('Location permission denied');
+        // Use fallback location
+        setUserLocation({
+          latitude: 37.78825,
+          longitude: -122.4324,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        setLocationLoading(false);
         return;
       }
 
@@ -243,6 +360,7 @@ export default function TrackingScreen({ navigation, route }) {
               longitudeDelta: 0.01,
             });
             setLocationError(null);
+            setLocationLoading(false);
             
             // Still get fresh location in background for next time
             getFreshLocationInBackground();
@@ -283,6 +401,7 @@ export default function TrackingScreen({ navigation, route }) {
       });
       
       setLocationError(null);
+      setLocationLoading(false);
       
       // Cache the location for faster future access
       try {
@@ -314,9 +433,18 @@ export default function TrackingScreen({ navigation, route }) {
           longitudeDelta: 0.01,
         });
         setLocationError(null);
+        setLocationLoading(false);
         console.log('✅ Fallback location successful');
       } catch (fallbackError) {
         setLocationError('Unable to get current location: ' + error.message);
+        // Use fallback location
+        setUserLocation({
+          latitude: 37.78825,
+          longitude: -122.4324,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        setLocationLoading(false);
       }
     }
   };
@@ -393,582 +521,17 @@ export default function TrackingScreen({ navigation, route }) {
   const deliveryFee = productDetails.price * 0.10; // 10%
   const totalPrice = productDetails.price + deliveryFee;
 
-  // Generate HTML for live Google Maps with WebView
-  const generateMapHtml = () => {
-    const userLat = userLocation?.latitude || 37.78825;
-    const userLng = userLocation?.longitude || -122.4324;
-    const pickupLat = pickupAddress?.latitude || userLat;
-    const pickupLng = pickupAddress?.longitude || userLng;
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            body, html { 
-              margin: 0; 
-              padding: 0; 
-              height: 100%; 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            }
-            #map { 
-              width: 100%; 
-              height: 100%; 
-            }
-            .loading {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              background: rgba(255,255,255,0.95);
-              padding: 20px;
-              border-radius: 10px;
-              text-align: center;
-              z-index: 1000;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            .error {
-              color: #ff4444;
-              font-weight: bold;
-            }
-            .coordinates {
-              font-size: 12px;
-              color: #666;
-              margin-top: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          <div id="map"></div>
-          <div class="loading" id="loading">
-            <div>🗺️ Loading Google Maps...</div>
-            <div class="coordinates">
-              📍 Your Location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}
-            </div>
-          </div>
-          <script>
-            let map;
-            let userMarker;
-            let loadingElement = document.getElementById('loading');
-            
-            // Helper function to send messages to React Native
-            function sendToReactNative(type, level, message) {
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: type,
-                  level: level,
-                  message: message
-                }));
-              }
-            }
-            
-            // Override console.log to send messages to React Native
-            const originalLog = console.log;
-            const originalError = console.error;
-            const originalWarn = console.warn;
-            
-            console.log = function(...args) {
-              originalLog.apply(console, args);
-              sendToReactNative('console', 'log', args.join(' '));
-            };
-            
-            console.error = function(...args) {
-              originalError.apply(console, args);
-              sendToReactNative('console', 'error', args.join(' '));
-            };
-            
-            console.warn = function(...args) {
-              originalWarn.apply(console, args);
-              sendToReactNative('console', 'warn', args.join(' '));
-            };
-            
-            // Comprehensive debugging
-            console.log('🔍 DEBUG: Starting Google Maps initialization...');
-            console.log('🔍 DEBUG: User location:', { lat: ${userLat}, lng: ${userLng} });
-            console.log('🔍 DEBUG: Pickup location:', { lat: ${pickupLat}, lng: ${pickupLng} });
-            console.log('🔍 DEBUG: API Key:', 'AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw');
-            
-            // Error handling with detailed logging
-            window.gm_authFailure = function() {
-              console.error('❌ DEBUG: Google Maps API authentication failed');
-              console.error('❌ DEBUG: This usually means:');
-              console.error('   - API key is invalid or expired');
-              console.error('   - API key restrictions are blocking this domain');
-              console.error('   - Billing is not enabled on the Google Cloud project');
-              console.error('   - Required APIs are not enabled');
-              loadingElement.innerHTML = '<div class="error">❌ Google Maps API Error</div><div>Check console for details</div>';
-            };
-            
-            function showError(message) {
-              console.error('❌ DEBUG: Error:', message);
-              loadingElement.innerHTML = '<div class="error">❌ ' + message + '</div>';
-            }
-            
-            // Test network connectivity
-            function testNetworkConnectivity() {
-              console.log('🔍 DEBUG: Testing network connectivity...');
-              
-              // Test 1: Check if we can reach Google Maps API
-              fetch('https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw')
-                .then(response => {
-                  console.log('✅ DEBUG: Network test successful, status:', response.status);
-                  if (response.status === 200) {
-                    console.log('✅ DEBUG: Google Maps API endpoint is accessible');
-                  } else {
-                    console.error('❌ DEBUG: Google Maps API returned status:', response.status);
-                  }
-                })
-                .catch(error => {
-                  console.error('❌ DEBUG: Network test failed:', error);
-                  console.error('❌ DEBUG: This could mean no internet connection or firewall blocking');
-                });
-                
-              // Test 2: Check if API key is valid by testing Geocoding API
-              fetch('https://maps.googleapis.com/maps/api/geocode/json?address=New+York&key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw')
-                .then(response => response.json())
-                .then(data => {
-                  console.log('🔍 DEBUG: Geocoding API test response:', data.status);
-                  if (data.status === 'OK') {
-                    console.log('✅ DEBUG: API key is valid and working');
-                  } else if (data.status === 'REQUEST_DENIED') {
-                    console.error('❌ DEBUG: API key is invalid or restricted:', data.error_message);
-                  } else if (data.status === 'OVER_QUERY_LIMIT') {
-                    console.error('❌ DEBUG: API quota exceeded');
-                  } else {
-                    console.error('❌ DEBUG: API test failed with status:', data.status);
-                  }
-                })
-                .catch(error => {
-                  console.error('❌ DEBUG: Geocoding API test failed:', error);
-                });
-            }
-            
-            // Test JavaScript execution
-            console.log('🔍 DEBUG: JavaScript execution test - WebView is working');
-            sendToReactNative('debug', 'info', 'JavaScript execution test - WebView is working');
-            
-            // Test basic HTTP request
-            console.log('🔍 DEBUG: Testing basic HTTP request...');
-            fetch('https://httpbin.org/get')
-              .then(response => response.json())
-              .then(data => {
-                console.log('✅ DEBUG: Basic HTTP request successful');
-                sendToReactNative('debug', 'success', 'Basic HTTP request successful');
-              })
-              .catch(error => {
-                console.error('❌ DEBUG: Basic HTTP request failed:', error);
-                sendToReactNative('error', 'error', 'Basic HTTP request failed: ' + error.message);
-              });
-            
-            // Run network test
-            testNetworkConnectivity();
-            
-            // Check if Google Maps script loads
-            window.addEventListener('load', function() {
-              console.log('🔍 DEBUG: Window load event fired');
-              setTimeout(function() {
-                if (!window.google) {
-                  console.error('❌ DEBUG: Google Maps script failed to load after 5 seconds');
-                  showError('Google Maps script failed to load. Check API key and internet connection.');
-                } else {
-                  console.log('✅ DEBUG: Google Maps script loaded successfully');
-                }
-              }, 5000);
-            });
-            
-            function initMap() {
-              try {
-                console.log('🔍 DEBUG: initMap() called');
-                console.log('🔍 DEBUG: window.google exists:', !!window.google);
-                console.log('🔍 DEBUG: window.google.maps exists:', !!(window.google && window.google.maps));
-                
-                if (!window.google) {
-                  console.error('❌ DEBUG: window.google is undefined - API script failed to load');
-                  showError('Google Maps API script failed to load');
-                  return;
-                }
-                
-                if (!window.google.maps) {
-                  console.error('❌ DEBUG: window.google.maps is undefined - Maps library failed to load');
-                  showError('Google Maps library failed to load');
-                  return;
-                }
-                
-                console.log('✅ DEBUG: Google Maps API loaded successfully');
-                console.log('🔍 DEBUG: Available Google Maps objects:', Object.keys(window.google.maps));
-                
-              const userLocation = { lat: ${userLat}, lng: ${userLng} };
-              const pickupLocation = { lat: ${pickupLat}, lng: ${pickupLng} };
-              
-                console.log('🔍 DEBUG: Creating map with locations:', { userLocation, pickupLocation });
-                console.log('🔍 DEBUG: Map container element:', document.getElementById("map"));
-                
-                map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 13,
-                center: userLocation,
-                  mapTypeId: 'roadmap',
-                  mapTypeControl: false,
-                  streetViewControl: false,
-                  fullscreenControl: true,
-                  zoomControl: false,
-                  gestureHandling: 'greedy',
-                  styles: [
-                    {
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#212121"
-                        }
-                      ]
-                    },
-                    {
-                      "elementType": "labels.icon",
-                      "stylers": [
-                        {
-                          "visibility": "off"
-                        }
-                      ]
-                    },
-                    {
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#757575"
-                        }
-                      ]
-                    },
-                    {
-                      "elementType": "labels.text.stroke",
-                      "stylers": [
-                        {
-                          "color": "#212121"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "administrative",
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#757575"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "administrative.country",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#9e9e9e"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "administrative.land_parcel",
-                      "stylers": [
-                        {
-                          "visibility": "off"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "administrative.locality",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#bdbdbd"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "poi",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#757575"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "poi.park",
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#181818"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "poi.park",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#616161"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "poi.park",
-                      "elementType": "labels.text.stroke",
-                      "stylers": [
-                        {
-                          "color": "#1b1b1b"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "road",
-                      "elementType": "geometry.fill",
-                      "stylers": [
-                        {
-                          "color": "#2c2c2c"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "road",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#8a8a8a"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "road.arterial",
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#373737"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "road.highway",
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#3c3c3c"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "road.highway.controlled_access",
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#4e4e4e"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "road.local",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#616161"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "transit",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#757575"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "water",
-                      "elementType": "geometry",
-                      "stylers": [
-                        {
-                          "color": "#000000"
-                        }
-                      ]
-                    },
-                    {
-                      "featureType": "water",
-                      "elementType": "labels.text.fill",
-                      "stylers": [
-                        {
-                          "color": "#3d3d3d"
-                        }
-                      ]
-                    }
-                  ]
-                });
-                
-                // User location marker (Current Location - Pink Dot with Glow)
-                userMarker = new google.maps.Marker({
-                position: userLocation,
-                map: map,
-                  title: "Your Current Location",
-                icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                  fillColor: '#FFE8FD',
-                  fillOpacity: 1,
-                  strokeWeight: 0,
-                  shadow: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 18,
-                    fillColor: '#FFE8FD',
-                    fillOpacity: 0.4
-                  }
-                  }
-                });
-                
-                // Draw delivery route using Directions API (no pickup marker)
-              if (${pickupLat} !== ${userLat} || ${pickupLng} !== ${userLng}) {
-                  console.log('🔍 DEBUG: Initializing Directions API...');
-                  
-                  if (!google.maps.DirectionsService) {
-                    console.error('❌ DEBUG: DirectionsService not available - Directions API not loaded');
-                    showError('Directions API not available');
-                    return;
-                  }
-                  
-                  const directionsService = new google.maps.DirectionsService();
-                  const directionsRenderer = new google.maps.DirectionsRenderer({
-                    suppressMarkers: true, // We'll use our custom markers
-                    polylineOptions: {
-                      strokeColor: '#007AFF',
-                      strokeWeight: 5,
-                      strokeOpacity: 0.8
-                    },
-                    directionsText: true
-                  });
-                  
-                  directionsRenderer.setMap(map);
-                  console.log('✅ DEBUG: Directions renderer created and attached to map');
-                  
-                  // Calculate route
-                  console.log('🔍 DEBUG: Calculating route from', userLocation, 'to', pickupLocation);
-                  directionsService.route({
-                    origin: userLocation,
-                    destination: pickupLocation,
-                    travelMode: google.maps.TravelMode.DRIVING,
-                    avoidHighways: false,
-                    avoidTolls: false
-                  }, (result, status) => {
-                    console.log('🔍 DEBUG: Directions API response - Status:', status);
-                    
-                    if (status === 'OK') {
-                      console.log('✅ DEBUG: Route calculated successfully');
-                      directionsRenderer.setDirections(result);
-                      
-                      // Log route information to console only
-                      const route = result.routes[0];
-                      const leg = route.legs[0];
-                      
-                      console.log('✅ DEBUG: Route details:');
-                      console.log('   Distance:', leg.distance.text);
-                      console.log('   Duration:', leg.duration.text);
-                      console.log('   Start address:', leg.start_address);
-                      console.log('   End address:', leg.end_address);
-                      
-                    } else {
-                      console.error('❌ DEBUG: Directions request failed with status:', status);
-                      console.error('❌ DEBUG: Common status codes:');
-                      console.error('   - REQUEST_DENIED: API key restrictions or billing issues');
-                      console.error('   - INVALID_REQUEST: Invalid parameters');
-                      console.error('   - OVER_QUERY_LIMIT: Quota exceeded');
-                      console.error('   - NOT_FOUND: Address not found');
-                      console.error('   - ZERO_RESULTS: No route found');
-                      showError('Could not calculate route: ' + status);
-                    }
-                  });
-                  
-                  // Fit map to show both locations
-                  const bounds = new google.maps.LatLngBounds();
-                  bounds.extend(userLocation);
-                  bounds.extend(pickupLocation);
-                  map.fitBounds(bounds);
-                  
-                } else {
-                  // If same location, just center on user
-                  map.setCenter(userLocation);
-                  map.setZoom(15);
-                }
-                
-                // Hide loading
-                loadingElement.style.display = 'none';
-                console.log('Google Maps with Directions initialized successfully');
-                
-              } catch (error) {
-                console.error('Error initializing map:', error);
-                showError('Failed to initialize map: ' + error.message);
-              }
-            }
-            
-            // Fallback if Google Maps fails to load
-            setTimeout(function() {
-              if (!window.google || !window.google.maps) {
-                console.error('❌ DEBUG: Google Maps failed to load after 10 seconds');
-                showError('Google Maps failed to load. Check your internet connection and API key.');
-                
-                // Show a simple fallback map
-                const mapContainer = document.getElementById('map');
-                if (mapContainer) {
-                  mapContainer.innerHTML = \`
-                    <div style="
-                      width: 100%;
-                      height: 100%;
-                      background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
-                      display: flex;
-                      flex-direction: column;
-                      justify-content: center;
-                      align-items: center;
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    ">
-                      <div style="font-size: 48px; margin-bottom: 20px;">🗺️</div>
-                      <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Map Unavailable</div>
-                      <div style="font-size: 14px; color: #666; text-align: center; padding: 0 20px;">
-                        Google Maps failed to load.<br>
-                        Your location: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}
-                      </div>
-                    </div>
-                  \`;
-                }
-              }
-            }, 10000);
-          </script>
-          <script 
-            async 
-            defer 
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw&callback=initMap&libraries=geometry,places&v=3.52"
-            onerror="window.gm_authFailure()"
-            onload="console.log('Google Maps script loaded successfully')"
-          ></script>
-        </body>
-      </html>
-    `;
-  };
-
-  // Update map HTML when locations change
-  useEffect(() => {
-    console.log('🔍 DEBUG: useEffect triggered - userLocation:', userLocation);
-    console.log('🔍 DEBUG: useEffect triggered - pickupAddress:', pickupAddress);
-    
-    if (userLocation) {
-      console.log('🔍 DEBUG: Generating map HTML with userLocation:', userLocation);
-      const html = generateMapHtml();
-      console.log('🔍 DEBUG: Map HTML generated, length:', html.length);
-      setMapHtml(html);
-    } else {
-      console.log('🔍 DEBUG: No userLocation available, not generating map HTML');
+  // Recenter map to user's current location
+  const handleRecenterMap = () => {
+    if (mapRef.current && userLocation) {
+      mapRef.current.animateToRegion({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 500);
     }
-  }, [userLocation, pickupAddress]);
-
-  // Debug effect to log address state changes
-  useEffect(() => {
-    console.log('🔍 DEBUG: Address state updated!');
-    console.log('🔍 DEBUG: pickupAddress state:', pickupAddress);
-    console.log('🔍 DEBUG: Display address will be:', getDisplayAddress());
-  }, [pickupAddress, userAddress, userProfile]);
+  };
 
 
   // Pan responder for modal
@@ -1132,70 +695,62 @@ export default function TrackingScreen({ navigation, route }) {
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        {mapHtml ? (
-          <WebView
-            style={styles.map}
-            source={{ html: mapHtml }}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            startInLoadingState={true}
-            scalesPageToFit={true}
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-            mixedContentMode="compatibility"
-            onError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.error('❌ DEBUG: WebView error:', nativeEvent);
-              console.error('❌ DEBUG: Error details:', nativeEvent.description);
-              setLocationError('WebView failed to load: ' + nativeEvent.description);
-            }}
-            onHttpError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.error('❌ DEBUG: WebView HTTP error:', nativeEvent);
-              console.error('❌ DEBUG: HTTP status:', nativeEvent.statusCode);
-              setLocationError('HTTP error: ' + nativeEvent.statusCode);
-            }}
-            onLoadStart={() => {
-              console.log('🔍 DEBUG: WebView started loading');
-            }}
-            onLoadEnd={() => {
-              console.log('✅ DEBUG: WebView loaded successfully');
-            }}
-            onMessage={(event) => {
-              const data = event.nativeEvent.data;
-              console.log('🔍 DEBUG: WebView message:', data);
-              
-              // Parse and display WebView console messages
-              try {
-                const message = JSON.parse(data);
-                if (message.type === 'console') {
-                  console.log('🌐 WebView Console:', message.level, message.message);
-                } else if (message.type === 'debug') {
-                  console.log('🌐 WebView Debug:', message.message);
-                } else if (message.type === 'error') {
-                  console.error('🌐 WebView Error:', message.message);
-                }
-              } catch (e) {
-                console.log('🌐 WebView Raw Message:', data);
-              }
-            }}
-            onLoadProgress={(syntheticEvent) => {
-              console.log('🔍 DEBUG: WebView load progress:', syntheticEvent.nativeEvent.progress);
-            }}
-          />
-        ) : locationError ? (
-          <View style={[styles.map, styles.errorContainer]}>
-            <Text style={styles.errorText}>{locationError}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={getCurrentLocation}>
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={[styles.map, styles.loadingContainer]}>
+        {locationLoading ? (
+          <View style={styles.mapLoadingContainer}>
+            <ActivityIndicator size="large" color="#FFB6C1" />
             <Text style={styles.loadingText}>Getting your location...</Text>
           </View>
+        ) : (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={{
+              latitude: userLocation?.latitude || 37.78825,
+              longitude: userLocation?.longitude || -122.4324,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }}
+            customMapStyle={darkMapStyle}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+          >
+            {/* User location marker with pink glow effect */}
+            {userLocation && (
+              <Marker
+                coordinate={{
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                }}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={styles.userDotOuter}>
+                  <View style={styles.userDotInner} />
+                </View>
+              </Marker>
+            )}
+          </MapView>
         )}
       </View>
+
+      {/* Recenter Button */}
+      {!locationLoading && userLocation && (
+        <TouchableOpacity 
+          style={styles.recenterButton}
+          onPress={handleRecenterMap}
+          activeOpacity={0.8}
+        >
+          <View style={styles.recenterIconContainer}>
+            <View style={styles.recenterCrosshair}>
+              <View style={styles.recenterDot} />
+              <View style={[styles.recenterLine, styles.recenterLineTop]} />
+              <View style={[styles.recenterLine, styles.recenterLineBottom]} />
+              <View style={[styles.recenterLine, styles.recenterLineLeft]} />
+              <View style={[styles.recenterLine, styles.recenterLineRight]} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Bottom Modal */}
       <Animated.View 
@@ -1363,41 +918,103 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
+    backgroundColor: '#0d0d0d',
   },
   map: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
-  loadingContainer: {
+  mapLoadingContainer: {
+    flex: 1,
+    backgroundColor: '#0d0d0d',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#666',
+    color: '#757575',
+    marginTop: 12,
+    fontSize: 14,
   },
-  errorContainer: {
+  // User dot styles - pink glow effect
+  userDotOuter: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 182, 193, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
   },
-  errorText: {
-    fontSize: 16,
-    color: '#ff4444',
-    textAlign: 'center',
-    marginBottom: 16,
+  userDotInner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FFB6C1',
+    shadowColor: '#FFB6C1',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  // Recenter button styles
+  recenterButton: {
+    position: 'absolute',
+    bottom: 200,
+    right: 16,
+    zIndex: 100,
+  },
+  recenterIconContainer: {
+    width: 44,
+    height: 44,
     borderRadius: 8,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  recenterCrosshair: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recenterDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    backgroundColor: 'transparent',
+  },
+  recenterLine: {
+    position: 'absolute',
+    backgroundColor: '#007AFF',
+  },
+  recenterLineTop: {
+    width: 2,
+    height: 6,
+    top: 0,
+    left: 11,
+  },
+  recenterLineBottom: {
+    width: 2,
+    height: 6,
+    bottom: 0,
+    left: 11,
+  },
+  recenterLineLeft: {
+    width: 6,
+    height: 2,
+    left: 0,
+    top: 11,
+  },
+  recenterLineRight: {
+    width: 6,
+    height: 2,
+    right: 0,
+    top: 11,
   },
   modal: {
     position: 'absolute',

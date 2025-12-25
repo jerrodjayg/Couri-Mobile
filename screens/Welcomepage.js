@@ -980,6 +980,17 @@ export default function Welcomepage({ route, navigation }) {
           <Text style={styles.getStartedButtonText}>Get Started</Text>
         </Pressable>
 
+        {/* Viewing Screens Button */}
+        <Pressable
+          style={styles.viewingScreensButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            navigation.navigate('ConfirmAvailabilityforBuyerReturn');
+          }}
+        >
+          <Text style={styles.viewingScreensButtonText}>Viewing Screens</Text>
+        </Pressable>
+
       </Pressable>
 
       {/* Size Warning Modal */}
@@ -1977,6 +1988,21 @@ const styles = StyleSheet.create({
   },
   getStartedButtonText: {
     color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  viewingScreensButton: {
+    backgroundColor: '#171715',
+    paddingVertical: 18,
+    borderRadius: 50,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#171715',
+  },
+  viewingScreensButtonText: {
+    color: '#FBFBF9',
     fontSize: 16,
     fontWeight: '600',
   },
