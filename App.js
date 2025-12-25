@@ -41,6 +41,7 @@ import Notification from './screens/Notification';
 import Legal from './screens/Legal';
 import URL from './screens2/URL';
 import ProductPrice from './screens2/ProductPrice';
+import PickupAddress from './screens2/PickupAddress';
 import ConfirmAddress from './screens2/ConfirmAddress';
 import TrackingScreen from './screens2/TrackingScreen';
 import ConfirmAvailability from './screens2/ConfirmAvailability';
@@ -300,6 +301,7 @@ export default function App() {
         <Stack.Screen name="SellerProductForm" component={SellerProductForm} />
         <Stack.Screen name="DriverPortal" component={DriverPortalScreen} />
         <Stack.Screen name="ProductPrice" component={ProductPrice} />
+        <Stack.Screen name="PickupAddress" component={PickupAddress} />
         <Stack.Screen name="TrackingScreen" component={TrackingScreen} />
         <Stack.Screen name="ConfirmAvailability" component={ConfirmAvailability} />
         <Stack.Screen name="delayArrival" component={DelayArrival} />

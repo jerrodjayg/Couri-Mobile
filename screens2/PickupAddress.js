@@ -14,6 +14,8 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Platform,
+  Modal,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -31,6 +33,7 @@ export default function PickupAddress({ navigation, route }) {
   const [isDefault, setIsDefault] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [showDifferentAddressModal, setShowDifferentAddressModal] = useState(false);
 
   const { 
     productUrl, 
@@ -259,6 +262,27 @@ export default function PickupAddress({ navigation, route }) {
     navigation.goBack();
   };
 
+  const handleUseDifferentAddress = () => {
+    setShowDifferentAddressModal(true);
+  };
+
+  const handleClearAddress = () => {
+    setForm({
+      fullAddress: '',
+      address1: '',
+      address2: '',
+      city: '',
+      state: '',
+      zip: '',
+    });
+    setIsDefault(false);
+    setShowDifferentAddressModal(false);
+  };
+
+  const handleCloseModal = () => {
+    setShowDifferentAddressModal(false);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -282,6 +306,16 @@ export default function PickupAddress({ navigation, route }) {
       <View style={styles.mainContent}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.formContainer}>
+
+          {/* Use Different Address Button */}
+          <TouchableOpacity
+            style={styles.differentAddressButton}
+            onPress={handleUseDifferentAddress}
+          >
+            <Text style={styles.differentAddressButtonText}>
+              Use a different pickup address
+            </Text>
+          </TouchableOpacity>
 
           {/* Auto-fill Location Button */}
           <TouchableOpacity
@@ -392,6 +426,56 @@ export default function PickupAddress({ navigation, route }) {
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Different Address Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showDifferentAddressModal}
+        onRequestClose={handleCloseModal}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* Close Button */}
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={handleCloseModal}
+              >
+                <Text style={styles.modalCloseButtonText}>✕</Text>
+              </TouchableOpacity>
+
+              {/* Title */}
+              <Text style={styles.modalTitle}>Use Different Address</Text>
+
+              {/* Options */}
+              <TouchableOpacity 
+                style={styles.modalOption}
+                onPress={handleClearAddress}
+              >
+                <Text style={styles.modalOptionText}>Clear current address</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.modalOption}
+                onPress={() => {
+                  handleCloseModal();
+                  getCurrentLocation();
+                }}
+              >
+                <Text style={styles.modalOptionText}>Use current location</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.modalOption}
+                onPress={handleCloseModal}
+              >
+                <Text style={styles.modalOptionText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -532,5 +616,54 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  differentAddressButton: {
+    marginBottom: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  differentAddressButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalCloseButton: {
+    alignSelf: 'flex-end',
+    padding: 8,
+  },
+  modalCloseButtonText: {
+    fontSize: 24,
+    color: '#000',
+    fontWeight: '300',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  modalOption: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '400',
   },
 });

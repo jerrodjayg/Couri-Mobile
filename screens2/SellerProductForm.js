@@ -204,7 +204,7 @@ export default function SellerProductForm({ navigation, route }) {
       transactionType: type,
       extractedData: {
         productName: title,
-        price: `$${price}`,
+        price: price && price.startsWith('$') ? price : price ? `$${price}` : '',
         description: description,
         imageUrl: productImages.length > 0 ? productImages[0] : null,
         images: productImages,
