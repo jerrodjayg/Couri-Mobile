@@ -16,66 +16,14 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../screens/supabaseClient';
-import Svg, { Path } from 'react-native-svg';
+// Warning/Alert Icon PNG from assets
+const errorIcon = require('../assets/error_icon_screens4.png');
 
-// Warning/Alert Icon SVG Component
-const WarningIcon = () => (
-  <Svg width={21} height={20} viewBox="0 0 21 20" fill="none">
-    <Path
-      d="M10.5 2L1 18H20L10.5 2Z"
-      stroke="#171715"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-    <Path
-      d="M10.5 7V11"
-      stroke="#171715"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M10.5 14H10.51"
-      stroke="#171715"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
+// Green Checkmark Icon PNG from assets
+const greenCheckmarkIcon = require('../assets/green_checkmark_screens4.png');
 
-// Chat Icon SVG Component
-const ChatIcon = () => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z"
-      stroke="#171715"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  </Svg>
-);
-
-// Checkmark Icon SVG Component (Green circle with white checkmark)
-const CheckmarkIcon = () => (
-  <Svg width={31} height={31} viewBox="0 0 31 31" fill="none">
-    <Path
-      d="M15.5 31C24.0604 31 31 24.0604 31 15.5C31 6.93959 24.0604 0 15.5 0C6.93959 0 0 6.93959 0 15.5C0 24.0604 6.93959 31 15.5 31Z"
-      fill="#27C193"
-    />
-    <Path
-      d="M9 15.5L13.5 20L22 11"
-      stroke="#FFFFFF"
-      strokeWidth={2.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
+// Chat Icon PNG from assets
+const chatboxIcon = require('../assets/chatbox_icon_screens4.png');
 
 export default function ConfirmReturnDeliveryAddress({ navigation, route }) {
   const [userProfile, setUserProfile] = useState(null);
@@ -438,7 +386,7 @@ export default function ConfirmReturnDeliveryAddress({ navigation, route }) {
           <View style={styles.modalContent}>
             {/* Warning Icon */}
             <View style={styles.warningIconContainer}>
-              <WarningIcon />
+              <Image source={errorIcon} style={{ width: 21, height: 20 }} resizeMode="contain" />
             </View>
 
             {/* Modal Message */}
@@ -493,7 +441,7 @@ export default function ConfirmReturnDeliveryAddress({ navigation, route }) {
               {/* Header with Icon and Title */}
               <View style={styles.dropOffHeader}>
                 <View style={styles.chatIconContainer}>
-                  <ChatIcon />
+                  <Image source={chatboxIcon} style={{ width: 24, height: 24 }} resizeMode="contain" />
                 </View>
                 <Text style={styles.dropOffTitle}>Drop-off instructions (optional)</Text>
               </View>
@@ -563,7 +511,7 @@ export default function ConfirmReturnDeliveryAddress({ navigation, route }) {
           <View style={styles.successModalContent}>
             {/* Checkmark Icon */}
             <View style={styles.checkmarkContainer}>
-              <CheckmarkIcon />
+              <Image source={greenCheckmarkIcon} style={{ width: 31, height: 31 }} resizeMode="contain" />
             </View>
 
             {/* Success Message */}

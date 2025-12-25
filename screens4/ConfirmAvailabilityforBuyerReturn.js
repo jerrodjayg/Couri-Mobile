@@ -9,35 +9,9 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
-// Warning/Alert Icon SVG Component matching Figma design
-const WarningIcon = () => (
-  <Svg width={32} height={32} viewBox="0 0 32 32" fill="none">
-    <Path
-      d="M16 4L2 28H30L16 4Z"
-      stroke="#171715"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-    <Path
-      d="M16 12V18"
-      stroke="#171715"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <Path
-      d="M16 22H16.01"
-      stroke="#171715"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
+// Warning/Alert Icon PNG from assets
+const errorIcon = require('../assets/error_icon_screens4.png');
 
 export default function ConfirmAvailabilityforBuyerReturn({ navigation, route }) {
   const { transactionData, returnDetails, productDetails, userProfile } = route.params || {};
@@ -132,7 +106,7 @@ export default function ConfirmAvailabilityforBuyerReturn({ navigation, route })
         <View style={styles.titleContainer}>
           {/* Pink Warning Icon matching Figma design */}
           <View style={styles.iconContainer}>
-            <WarningIcon />
+            <Image source={errorIcon} style={{ width: 32, height: 32 }} resizeMode="contain" />
           </View>
           <Text style={styles.title}>
             Please confirm your{'\n'}availability for return{'\n'}pickup
