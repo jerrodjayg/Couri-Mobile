@@ -46,7 +46,8 @@ export default function Share({ navigation, route }) {
   const resolvedImage = productImage || route?.params?.productImage || '';
 
   // Web invitation system only
-  const isSelling = transactionType === 'buy';
+  // isSelling: true when user is selling (transactionType === 'sell'), false when buying (transactionType === 'buy')
+  const isSelling = transactionType === 'sell';
   
   // State for web invitation
   const [webInviteUrl, setWebInviteUrl] = useState('');
@@ -247,18 +248,35 @@ export default function Share({ navigation, route }) {
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.stepIndicator, styles.stepActive]} />
-          <View style={[styles.stepIndicator, styles.stepActive]} />
-          <View style={[styles.stepIndicator, styles.stepActive]} />
-          <View style={[styles.stepIndicator, styles.stepActive]} />
-        </View>
-        <View style={styles.progressLabels}>
-          <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
-          <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
-          <Text style={[styles.stepText, styles.stepTextThird]}>Payment</Text>
-          <Text style={[styles.stepText, styles.stepTextFourth]}>Share</Text>
-        </View>
+        {!isSelling ? (
+          // Buyer flow: 2 tabs - Both "Product Confirmation" and "Share with Seller" are active
+          <View style={styles.progressTabsRow}>
+            <View style={styles.progressTab}>
+              <View style={[styles.progressTabUnderline, styles.progressTabUnderlineActive]} />
+              <Text style={[styles.progressTabText, styles.progressTabActive]}>Product Confirmation</Text>
+            </View>
+            <View style={styles.progressTab}>
+              <View style={[styles.progressTabUnderline, styles.progressTabUnderlineActive]} />
+              <Text style={[styles.progressTabText, styles.progressTabActive]}>Share with Seller</Text>
+            </View>
+          </View>
+        ) : (
+          // Seller flow: 4 tabs (existing)
+          <>
+            <View style={styles.progressBar}>
+              <View style={[styles.stepIndicator, styles.stepActive]} />
+              <View style={[styles.stepIndicator, styles.stepActive]} />
+              <View style={[styles.stepIndicator, styles.stepActive]} />
+              <View style={[styles.stepIndicator, styles.stepActive]} />
+            </View>
+            <View style={styles.progressLabels}>
+              <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
+              <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
+              <Text style={[styles.stepText, styles.stepTextThird]}>Payment</Text>
+              <Text style={[styles.stepText, styles.stepTextFourth]}>Share</Text>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Main Content */}
@@ -266,12 +284,16 @@ export default function Share({ navigation, route }) {
         <View style={styles.contentContainer}>
           <View style={styles.warningIconContainer}>
             <View style={styles.warningIcon}>
-              <Text style={styles.exclamationMark}>!</Text>
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/danger.png' }}
+                style={styles.dangerIcon}
+                resizeMode="contain"
+              />
             </View>
           </View>
 
           <Text style={styles.mainTitle}>
-            {isSelling ? 'Invite seller to begin' : 'Invite buyer to begin'}
+            {isSelling ? 'Invite buyer to begin' : 'Invite seller to begin'}
           </Text>
 
           <View style={styles.instructionsContainer}>
@@ -283,8 +305,8 @@ export default function Share({ navigation, route }) {
               <View style={styles.stepContent}>
                 <Text style={styles.stepDescription}>
                   {isSelling
-                    ? 'Create a web invitation link and send it to the seller:'
-                    : 'Create a web invitation link and send it to the buyer:'}
+                    ? 'Create a web invitation link and send it to the buyer:'
+                    : 'Create a web invitation link and send it to the seller:'}
                 </Text>
 
                 {/* Web Invitation Section */}
@@ -330,7 +352,7 @@ export default function Share({ navigation, route }) {
               </View>
               <View style={styles.stepContent}>
                 <Text style={styles.stepTitle}>
-                  {isSelling ? 'Seller confirms:' : 'Buyer confirms:'}
+                  {isSelling ? 'Buyer confirms:' : 'Seller confirms:'}
                 </Text>
                 <Text style={styles.stepDescription}>
                   They'll review and confirm the transaction details.
@@ -426,8 +448,38 @@ const styles = StyleSheet.create({
   profileImage: { width: 40, height: 40, borderRadius: 20, resizeMode: 'cover' },
   profilePlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E5E5E5', justifyContent: 'center', alignItems: 'center' },
   profileInitials: { color: '#444444', fontWeight: 'bold', fontSize: 16 },
-  progressContainer: { paddingHorizontal: 24, marginBottom: 40, paddingTop: 0, alignItems: 'flex-start' },
-  progressBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, width: '100%', paddingHorizontal: 0 },
+  progressContainer: { paddingHorizontal: 24, marginBottom: 10, paddingTop: 0, alignItems: 'flex-start', marginTop: 30 },
+  progressTabsRow: {
+    flexDirection: 'row',
+    gap: 5,
+    width: '100%',
+  },
+  progressTab: {
+    flex: 1,
+  },
+  progressTabText: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginTop: 8,
+    fontStyle: 'Areal Normal',
+  },
+  progressTabActive: {
+    color: '#000000',
+  },
+  progressTabInactive: {
+    color: '#82827F',
+  },
+  progressTabUnderline: {
+    height: 5,
+    borderRadius: 2,
+  },
+  progressTabUnderlineActive: {
+    backgroundColor: '#27C193',
+  },
+  progressTabUnderlineInactive: {
+    backgroundColor: '#E5E7EB',
+  },
+  progressBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, width: '100%', paddingHorizontal: 0,},
   progressLabels: { flexDirection: 'row', width: '100%', paddingHorizontal: 0, position: 'relative' },
   stepIndicator: { width: 80, height: 6, borderRadius: 3, marginTop: 8 },
   stepActive: { backgroundColor: '#10B981' },
@@ -440,8 +492,8 @@ const styles = StyleSheet.create({
   mainContent: { flex: 1, paddingHorizontal: 24 },
   contentContainer: { paddingTop: 20, alignItems: 'center' },
   warningIconContainer: { marginBottom: 24 },
-  warningIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  exclamationMark: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
+  warningIcon: { width: 60, height: 60, justifyContent: 'center', alignItems: 'center' },
+  dangerIcon: { width: 47, height: 47 },
   mainTitle: { fontSize: 24, fontWeight: 'bold', color: '#000', textAlign: 'center', marginBottom: 32 },
   instructionsContainer: { width: '100%', maxWidth: 400, gap: 24 },
   stepContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },

@@ -34,9 +34,9 @@ export default function ProductScreen({ navigation, route }) {
     
     // Auto-navigate when a valid URL is entered
     if (text.startsWith('https://') && text.length > 10) {
-      console.log('✅ Valid HTTPS URL detected, navigating to FacebookEmbed');
+      console.log('✅ Valid HTTPS URL detected, navigating to ProductPreview');
       setTimeout(() => {
-        navigation.navigate('FacebookEmbed', { 
+        navigation.navigate('ProductPreview', { 
           productUrl: text,
           userAddress: userProfile,
           transactionType: type,
@@ -213,25 +213,41 @@ export default function ProductScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Progress Indicator */}
+      {/* Progress Tabs */}
       <View style={styles.progressContainer}>
-        {/* Bars on top */}
-        <View style={styles.progressBar}>
-          <View style={[styles.stepIndicator, styles.stepActive]} />
-          <View style={[styles.stepIndicator, styles.stepInactive]} />
-          <View style={[styles.stepIndicator, styles.stepInactive]} />
-          <View style={[styles.stepIndicator, styles.stepInactive]} />
-        </View>
-        
-        {/* Words underneath the bars */}
-        <View style={styles.progressLabels}>
-          <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
-          <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
-          <Text style={[styles.stepText, styles.stepTextThird]}>Payment</Text>
-          <Text style={[styles.stepText, styles.stepTextFourth]}>Share</Text>
-        </View>
-        
-        {/* Title underneath the progress bar */}
+        {!isSelling ? (
+          // Buyer flow: Only 2 tabs side by side
+          <View style={styles.progressTabsRow}>
+            <View style={styles.progressTab}>
+              <View style={[styles.progressTabUnderline, styles.progressTabUnderlineActive]} />
+              <Text style={[styles.progressTabText, styles.progressTabActive]}>Product Confirmation</Text>
+            </View>
+            <View style={styles.progressTab}>
+              <View style={[styles.progressTabUnderline, styles.progressTabUnderlineInactive]} />
+              <Text style={[styles.progressTabText, styles.progressTabInactive]}>Share with Seller</Text>
+            </View>
+          </View>
+        ) : (
+          // Seller flow: 4 tabs (existing)
+          <>
+            <View style={styles.progressBar}>
+              <View style={[styles.stepIndicator, styles.stepActive]} />
+              <View style={[styles.stepIndicator, styles.stepInactive]} />
+              <View style={[styles.stepIndicator, styles.stepInactive]} />
+              <View style={[styles.stepIndicator, styles.stepInactive]} />
+            </View>
+            <View style={styles.progressLabels}>
+              <Text style={[styles.stepText, styles.stepTextFirst]}>Product</Text>
+              <Text style={[styles.stepText, styles.stepTextSecond]}>Address</Text>
+              <Text style={[styles.stepText, styles.stepTextThird]}>Payment</Text>
+              <Text style={[styles.stepText, styles.stepTextFourth]}>Share</Text>
+            </View>
+          </>
+        )}
+      </View>
+
+      {/* Title */}
+      <View style={styles.titleContainer}>
         <Text style={styles.title}>
           {isSelling ? 'What are you selling?' : 'What are you buying?'}
         </Text>
@@ -239,46 +255,26 @@ export default function ProductScreen({ navigation, route }) {
 
       {/* Main Content */}
       <View style={styles.mainContent}>
-        {isSelling ? (
-          <>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Paste listing URL (optional)"
-                placeholderTextColor="#9CA3AF"
-                value={urlInput}
-                onChangeText={handleUrlChange}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              <View style={styles.inputUnderline} />
-            </View>
-            
-            <Text style={styles.instructionText}>
-              Enter a product URL from Facebook Marketplace, Craigslist, or any other P2P site. We'll connect it to your Couri service.
-            </Text>
-          </>
-        ) : (
-          <>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Paste listing URL (optional)"
-                placeholderTextColor="#000"
-                value={urlInput}
-                onChangeText={handleUrlChange}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              <View style={styles.inputUnderline} />
-            </View>
-            
-            <Text style={styles.instructionText}>
-              Enter a product URL from FB Marketplace, eBay, or other P2P sites. Couri AI will fetch details, images, and check authenticity.
-            </Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            placeholder={urlInput.length === 0 ? "Paste listing URL (optional)" : ""}
+            placeholderTextColor="#9CA3AF"
+            value={urlInput}
+            onChangeText={handleUrlChange}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <View style={styles.inputUnderline} />
+        </View>
+        
+        <Text style={styles.instructionText}>
+          Enter a product URL from Facebook Marketplace, Craigslist, or any other P2P site. We'll connect it to your Couri service.
+        </Text>
 
+        {!isSelling && (
+          <>
             {/* OR Separator */}
             <View style={styles.separatorContainer}>
               <Text style={styles.separatorText}>or</Text>
@@ -357,10 +353,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   progressContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 40,
-    paddingTop: 0,
-    alignItems: 'flex-start',
+    paddingHorizontal: 15,
+    paddingTop: 16,
+    paddingBottom: 0,
+  },
+  progressTabsRow: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  progressTab: {
+    flex: 1,
+  },
+  progressTabText: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginTop: 8,
+    fontStyle: 'Areal Normal',
+  },
+  progressTabActive: {
+    color: '#000000',
+  },
+  progressTabInactive: {
+    color: '#82827F',
+  },
+  progressTabUnderline: {
+    height: 5,
+    borderRadius: 2,
+  },
+  progressTabUnderlineActive: {
+    backgroundColor: '#27C193',
+  },
+  progressTabUnderlineInactive: {
+    backgroundColor: '#E5E7EB',
   },
   progressBar: {
     flexDirection: 'row',
@@ -368,13 +392,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
     width: '100%',
-    paddingHorizontal: 0,
+    paddingHorizontal: 100,
   },
   progressLabels: {
     flexDirection: 'row',
     width: '100%',
     paddingHorizontal: 0,
     position: 'relative',
+  },
+  titleContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 0,
   },
   stepIndicator: {
     width: 80,
@@ -416,20 +445,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '500',
     color: '#000',
-    marginTop: 62,
-    marginBottom: 4,
     textAlign: 'left',
+    fontStyle: 'Areal Normal',
+    marginTop: 30,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginTop: 35,
+    marginBottom: 30,
   },
   inputLabel: {
     fontSize: 26,
     fontWeight: '400',
-    color: '#000',
+    color: '#',
     marginBottom: 12,
     textAlign: 'left',
     fontStyle: 'Regular'

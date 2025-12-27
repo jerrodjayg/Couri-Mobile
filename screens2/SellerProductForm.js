@@ -481,6 +481,8 @@ export default function SellerProductForm({ navigation, route }) {
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={4}
+              returnKeyType="done"
+              blurOnSubmit={true}
             />
           </View>
 

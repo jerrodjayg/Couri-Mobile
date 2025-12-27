@@ -832,18 +832,33 @@ export default function ProductDetails({ navigation, route }) {
 
   // Handle save product
   const handleSubmit = () => {
-    // Navigate to ConfirmAddress screen with product data
-    navigation.navigate('ConfirmAddress', {
-      productUrl: productUrl,
-      productPrice: extractedData.price,
-      productTitle: extractedData.productName,
-      productImage: extractedData.imageUrl,
-      userAddress: userAddress,
-      userProfile: userProfile,
-      transactionType: transactionType,
-      sellerName: extractedData.sellerName || 'Facebook Seller',
-      extractedData: extractedData
-    });
+    // For buyer flow, skip address and payment, go directly to Share
+    if (transactionType === 'buy') {
+      navigation.navigate('Share', {
+        productUrl: productUrl,
+        productPrice: extractedData.price,
+        productTitle: extractedData.productName,
+        productImage: extractedData.imageUrl,
+        userAddress: userAddress,
+        userProfile: userProfile,
+        transactionType: transactionType,
+        sellerName: extractedData.sellerName || 'Facebook Seller',
+        extractedData: extractedData
+      });
+    } else {
+      // For seller flow, go to ConfirmAddress (existing flow)
+      navigation.navigate('ConfirmAddress', {
+        productUrl: productUrl,
+        productPrice: extractedData.price,
+        productTitle: extractedData.productName,
+        productImage: extractedData.imageUrl,
+        userAddress: userAddress,
+        userProfile: userProfile,
+        transactionType: transactionType,
+        sellerName: extractedData.sellerName || 'Facebook Seller',
+        extractedData: extractedData
+      });
+    }
   };
 
   const handleSaveProduct = async () => {
@@ -899,14 +914,30 @@ export default function ProductDetails({ navigation, route }) {
       
       console.log('🛡️ Protected data for navigation:', protectedData);
       
-      // Navigate to next screen
-      navigation.navigate('ProductPrice', {
-        productUrl,
-        userAddress,
-        userProfile,
-        extractedData: protectedData,
-        sellerName: extractedData.sellerName || '' // Pass seller name
-      });
+      // For buyer flow, skip address and payment, go directly to Share
+      if (transactionType === 'buy') {
+        navigation.navigate('Share', {
+          productUrl,
+          productPrice: protectedData.price,
+          productTitle: protectedData.productName,
+          productDescription: protectedData.description,
+          productImage: protectedData.imageUrl,
+          userAddress,
+          userProfile,
+          transactionType,
+          sellerName: extractedData.sellerName || '',
+          extractedData: protectedData
+        });
+      } else {
+        // For seller flow, go to ProductPrice (existing flow)
+        navigation.navigate('ProductPrice', {
+          productUrl,
+          userAddress,
+          userProfile,
+          extractedData: protectedData,
+          sellerName: extractedData.sellerName || ''
+        });
+      }
       
     } catch (error) {
       console.error('🚨 Save product error:', error);
@@ -970,14 +1001,18 @@ export default function ProductDetails({ navigation, route }) {
           <Text style={styles.progressStepText}>Product</Text>
           <View style={styles.progressStepActive} />
         </View>
-        <View style={styles.progressStep}>
-          <Text style={styles.progressStepText}>Address</Text>
-          <View style={styles.progressStepInactive} />
-        </View>
-        <View style={styles.progressStep}>
-          <Text style={styles.progressStepText}>Payment</Text>
-          <View style={styles.progressStepInactive} />
-        </View>
+        {transactionType !== 'buy' && (
+          <>
+            <View style={styles.progressStep}>
+              <Text style={styles.progressStepText}>Address</Text>
+              <View style={styles.progressStepInactive} />
+            </View>
+            <View style={styles.progressStep}>
+              <Text style={styles.progressStepText}>Payment</Text>
+              <View style={styles.progressStepInactive} />
+            </View>
+          </>
+        )}
         <View style={styles.progressStep}>
           <Text style={styles.progressStepText}>Share</Text>
           <View style={styles.progressStepInactive} />

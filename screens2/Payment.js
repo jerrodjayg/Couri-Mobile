@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Modal,
 } from 'react-native';
 
 export default function Payment({ navigation, route }) {
   const { productUrl, productPrice, userAddress, pickupAddress, transactionType, userProfile } = route.params || {};
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const getUserInitials = (profile) => {
     if (profile?.full_name) {
@@ -50,9 +52,17 @@ export default function Payment({ navigation, route }) {
   };
 
   const handleCancelTransaction = () => {
-    console.log('❌ User wants to cancel transaction');
-    // Navigate back to previous screen or home
-    navigation.goBack();
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = () => {
+    console.log('❌ User confirmed cancellation');
+    setShowCancelModal(false);
+    navigation.navigate('Welcomepage');
+  };
+
+  const handleGoBack = () => {
+    setShowCancelModal(false);
   };
 
   const handleProfilePress = () => {
@@ -116,13 +126,16 @@ export default function Payment({ navigation, route }) {
         <View style={styles.contentContainer}>
           <Text style={styles.mainTitle}>Link a payment method</Text>
           <Text style={styles.subtitle}>
-            Used for Couri service fees. You won't be charged until delivery is complete.
+            You won’t be charged until delivery is complete! Your total will include a <Text style={styles.boldText}> $x.xx Couri service fee.</Text> 
           </Text>
 
           {/* Transaction Fee Information Box */}
           <View style={styles.infoBox}>
+            <Text style={styles.infoText}> <Text style={styles.boldText}>
+              4-Hour Return Window </Text>
+            </Text>
             <Text style={styles.infoText}>
-              Once the product is delivered, you will incur a <Text style={styles.boldText}>$x.xx transaction fee</Text> for using Couri. <Text style={styles.italicText}>This fee is non-refundable.</Text>
+              You’ll have 4 hours after delivery to check the product. If it doesn’t match the seller’s description, you can return it for a full refund.
             </Text>
           </View>
 
@@ -138,6 +151,57 @@ export default function Payment({ navigation, route }) {
           </View>
         </View>
       </ScrollView>
+
+      {/* Cancel Transaction Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showCancelModal}
+        onRequestClose={handleGoBack}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Warning Icon */}
+            <View style={styles.warningIconContainer}>
+              <View style={styles.warningIcon}>
+                <Image 
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/danger.png' }}
+                  style={styles.warningIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.modalTitle}>Are you sure?</Text>
+
+            {/* Body Text */}
+            <Text style={styles.modalBody}>
+              If you cancel now, this transaction will be closed and it cannot be reopened.
+            </Text>
+
+            {/* Cancel Transaction Button */}
+            <TouchableOpacity 
+              style={styles.modalCancelButton}
+              onPress={handleConfirmCancel}
+            >
+              <Text style={styles.modalCancelButtonText}>
+                Cancel Transaction
+              </Text>
+            </TouchableOpacity>
+
+            {/* Nevermind Link */}
+            <TouchableOpacity 
+              style={styles.modalGoBackLink}
+              onPress={handleGoBack}
+            >
+              <Text style={styles.modalGoBackLinkText}>
+                Nevermind, go back
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -333,6 +397,81 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  // Cancel Confirmation Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    height: '350',
+    alignItems: 'center',
+  },
+  warningIconContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  warningIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 30,
+    backgroundColor: '#FFE8FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  warningIconImage: {
+    width: 25,
+    height: 25,
+  },
+  modalTitle: {
+    fontSize: 32,
+    fontStyle: 'Area Normal',
+    fontWeight: '400',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalBody: {
+    fontSize: 16,
+    fontStyle: "Area Normal",
+    fontWeight: '400',
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalCancelButton: {
+    backgroundColor: '#242422',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  modalCancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalGoBackLink: {
+    paddingVertical: 8,
+  },
+  modalGoBackLinkText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '400',
     textDecorationLine: 'underline',
   },
 });

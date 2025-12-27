@@ -27,6 +27,8 @@ export default function ConfirmAddress({ navigation, route }) {
   const [showDropOffModal, setShowDropOffModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [showDeliveryInfoModal, setShowDeliveryInfoModal] = useState(false);
   const [dropOffInstructions, setDropOffInstructions] = useState('');
   const [newAddress, setNewAddress] = useState({
     street: '',
@@ -36,6 +38,7 @@ export default function ConfirmAddress({ navigation, route }) {
     zipCode: ''
   });
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const { user, customUser, setCustomUser } = useUser();
   
@@ -50,7 +53,32 @@ export default function ConfirmAddress({ navigation, route }) {
     loadUserProfile();
     loadUserAddress();
     checkDefaultPickupAddress();
+    // Show safety modal on screen load
+    setShowSafetyModal(true);
   }, [route.params?.pickupAddress]);
+
+  // Keyboard event listeners for drop-off modal
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener('keyboardWillShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardWillHide = Keyboard.addListener('keyboardWillHide', () => {
+      setKeyboardHeight(0);
+    });
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardDidHide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+      keyboardDidShow.remove();
+      keyboardDidHide.remove();
+    };
+  }, []);
 
   const checkDefaultPickupAddress = async () => {
     try {
@@ -262,19 +290,20 @@ export default function ConfirmAddress({ navigation, route }) {
     }
   };
 
+  const hasAddress = () => {
+    return !!(route.params?.pickupAddress || userAddress);
+  };
+
   const handleConfirm = () => {
-    console.log('✅ Pickup address confirmed, navigating to next step');
-    
-    // Check if this is a buyer flow - show warning modal first
-    if (transactionType === 'buy') {
-      console.log('🛒 Buyer flow detected, showing warning modal');
-      setShowWarningModal(true);
+    // Don't proceed if no address
+    if (!hasAddress()) {
       return;
     }
     
-    // For sellers, proceed directly to next step
-    console.log('📦 Seller flow detected, proceeding directly');
-    proceedToNextStep();
+    console.log('✅ Pickup address confirmed, showing delivery info modal');
+    
+    // Show delivery info modal instead of directly proceeding
+    setShowDeliveryInfoModal(true);
   };
 
   const proceedToNextStep = () => {
@@ -310,13 +339,35 @@ export default function ConfirmAddress({ navigation, route }) {
   };
 
   const handleIUnderstand = () => {
+    setShowSafetyModal(false);
+  };
+
+  const handleCancelTransaction = () => {
+    setShowSafetyModal(false);
+    navigation.navigate('Welcomepage');
+  };
+
+  const handleDeliveryIUnderstand = async () => {
+    setShowDeliveryInfoModal(false);
+    
+    // Show drop-off instructions modal for all users
+    console.log('📝 Showing drop-off instructions modal');
+    setShowDropOffModal(true);
+  };
+
+  const handleCancelFromDeliveryModal = () => {
+    setShowDeliveryInfoModal(false);
+    navigation.goBack();
+  };
+
+  const handleBuyerIUnderstand = () => {
     console.log('✅ User acknowledged delivery modal');
     setShowWarningModal(false);
     // Show the drop-off instructions modal next
     setShowDropOffModal(true);
   };
 
-  const handleCancelTransaction = () => {
+  const handleBuyerCancelTransaction = () => {
     console.log('❌ User cancelled transaction');
     setShowWarningModal(false);
     navigation.navigate('Welcomepage');
@@ -744,8 +795,20 @@ export default function ConfirmAddress({ navigation, route }) {
             </TouchableOpacity>
             
             {/* Confirm Button */}
-            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+            <TouchableOpacity 
+              style={[
+                styles.confirmButton, 
+                !hasAddress() && styles.confirmButtonDisabled
+              ]} 
+              onPress={handleConfirm}
+              disabled={!hasAddress()}
+            >
+              <Text style={[
+                styles.confirmButtonText,
+                !hasAddress() && styles.confirmButtonTextDisabled
+              ]}>
+                Confirm
+              </Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -769,34 +832,162 @@ export default function ConfirmAddress({ navigation, route }) {
             </TouchableOpacity>
             
             {/* Confirm Button */}
-            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+            <TouchableOpacity 
+              style={[
+                styles.confirmButton, 
+                !hasAddress() && styles.confirmButtonDisabled
+              ]} 
+              onPress={handleConfirm}
+              disabled={!hasAddress()}
+            >
+              <Text style={[
+                styles.confirmButtonText,
+                !hasAddress() && styles.confirmButtonTextDisabled
+              ]}>
+                Confirm
+              </Text>
             </TouchableOpacity>
           </>
         )}
       </View>
 
-            {/* Drop-off Instructions Modal for Buyers */}
+      {/* Safety Modal - Shows on screen load */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showSafetyModal}
+        onRequestClose={handleIUnderstand}
+      >
+        <View style={styles.safetyModalOverlay}>
+          <View style={styles.safetyModalContent}>
+            {/* Icon */}
+            <View style={styles.safetyModalIconContainer}>
+              <View style={styles.safetyModalIcon}>
+                <Image 
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Mark 2 Dark.png' }}
+                  style={styles.safetyModalIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.safetyModalTitle}>
+              Help Keep Couri Safe and Trusted.
+            </Text>
+
+            {/* Body Text */}
+            <Text style={styles.safetyModalBody}>
+              To protect our community, buyers have an 8-hour window to return items that are fake, damaged, or misrepresented. Seller payouts are held until this window closes, and you'll incur a $10 Return Fee if your item is found to be inauthentic or inaccurately described.
+            </Text>
+
+            <Text style={[styles.safetyModalBody, styles.safetyModalBodyBold]}>
+              Violations may result in account suspension.
+            </Text>
+
+            {/* I Understand Button */}
+            <TouchableOpacity 
+              style={styles.safetyModalUnderstandButton}
+              onPress={handleIUnderstand}
+            >
+              <Text style={styles.safetyModalUnderstandButtonText}>
+                I understand
+              </Text>
+            </TouchableOpacity>
+
+            {/* Cancel Transaction Link */}
+            <TouchableOpacity 
+              style={styles.safetyModalCancelLink}
+              onPress={handleCancelTransaction}
+            >
+              <Text style={styles.safetyModalCancelLinkText}>
+                Cancel transaction
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delivery Information Modal - Shows when user confirms address */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showDeliveryInfoModal}
+        onRequestClose={handleCancelFromDeliveryModal}
+      >
+        <View style={styles.deliveryModalOverlay}>
+          <View style={styles.deliveryModalContent}>
+            {/* Alert Icon */}
+            <View style={styles.deliveryIconContainer}>
+              <View style={styles.deliveryIconCircle}>
+                <Image 
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/danger.png' }}
+                  style={styles.deliveryIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            {/* Information Text */}
+            <Text style={styles.deliveryModalText}>
+              Once your item is picked up, delivery will begin immediately and you'll be able to track your driver in real-time. If you're not home, your order will be safely left at your doorstep.
+            </Text>
+
+            {/* I Understand Button */}
+            <TouchableOpacity 
+              style={styles.deliveryModalUnderstandButton}
+              onPress={handleDeliveryIUnderstand}
+            >
+              <Text style={styles.deliveryModalUnderstandButtonText}>
+                I understand
+              </Text>
+            </TouchableOpacity>
+
+            {/* Cancel Transaction Link */}
+            <TouchableOpacity 
+              style={styles.deliveryModalCancelLink}
+              onPress={handleCancelFromDeliveryModal}
+            >
+              <Text style={styles.deliveryModalCancelLinkText}>
+                Cancel transaction
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+            {/* Drop-off Instructions Modal */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={showDropOffModal}
-        onRequestClose={() => setShowDropOffModal(false)}
+        onRequestClose={handleNoInstructions}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.dropOffModalContent}>
+          <View style={[
+            styles.dropOffModalOverlay,
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight }
+          ]}>
+            <View style={[
+              styles.dropOffModalContent,
+              keyboardHeight > 0 && { borderRadius: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 }
+            ]}>
               {/* Close Button */}
               <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setShowDropOffModal(false)}
+                style={styles.dropOffModalCloseButton}
+                onPress={handleNoInstructions}
               >
-                <Text style={styles.closeButtonText}>✕</Text>
+                <Text style={styles.dropOffModalCloseButtonText}>✕</Text>
               </TouchableOpacity>
 
-              {/* Title */}
-              <View style={styles.modalTitleContainer}>
-                <Text style={styles.modalTitle}>Drop-off instructions (optional)</Text>
+              {/* Title with Icon */}
+              <View style={styles.dropOffModalTitleContainer}>
+                <Image 
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/comment.png' }}
+                  style={styles.dropOffModalIcon}
+                  resizeMode="contain"
+                />
+                <Text style={styles.dropOffModalTitle}>Drop-off instructions (optional)</Text>
               </View>
 
               {/* Text Input Field */}
@@ -804,7 +995,7 @@ export default function ConfirmAddress({ navigation, route }) {
                 style={styles.instructionsInput}
                 value={dropOffInstructions}
                 onChangeText={setDropOffInstructions}
-                placeholder="Add drop-off instructions in case you aren't at home at the time of delivery. I.e. Leave package at my side entrance"
+                placeholder={"Add drop-off instructions in case you aren't at home at the time of delivery. I.e. \"Leave package at my side entrance\""}
                 placeholderTextColor="#9CA3AF"
                 multiline={true}
                 textAlignVertical="top"
@@ -812,12 +1003,8 @@ export default function ConfirmAddress({ navigation, route }) {
 
               {/* Submit Button */}
               <TouchableOpacity 
-                style={[
-                  styles.submitButton, 
-                  !dropOffInstructions.trim() && styles.submitButtonDisabled
-                ]} 
+                style={styles.submitButton} 
                 onPress={handleDropOffSubmit}
-                disabled={!dropOffInstructions.trim()}
               >
                 <Text style={styles.submitButtonText}>Submit</Text>
               </TouchableOpacity>
@@ -853,11 +1040,11 @@ export default function ConfirmAddress({ navigation, route }) {
             </Text>
 
             {/* Action Buttons */}
-            <TouchableOpacity style={styles.understandButton} onPress={handleIUnderstand}>
+            <TouchableOpacity style={styles.understandButton} onPress={handleBuyerIUnderstand}>
               <Text style={styles.understandButtonText}>I understand</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.cancelTransactionLink} onPress={handleCancelTransaction}>
+            <TouchableOpacity style={styles.cancelTransactionLink} onPress={handleBuyerCancelTransaction}>
               <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
             </TouchableOpacity>
           </View>
@@ -1227,10 +1414,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  confirmButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    borderColor: '#9CA3AF',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   confirmButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  confirmButtonTextDisabled: {
+    color: '#fff',
   },
   // Modal Styles
   modalOverlay: {
@@ -1274,7 +1470,7 @@ const styles = StyleSheet.create({
   },
   understandButton: {
     backgroundColor: '#000',
-    borderRadius: 12,
+    borderRadius: 25,
     paddingVertical: 16,
     paddingHorizontal: 32,
     alignItems: 'center',
@@ -1306,14 +1502,56 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   // Drop-off Instructions Modal Styles
+  dropOffModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 1,
+  },
   dropOffModalContent: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     padding: 24,
-    alignItems: 'center',
-    maxWidth: 320,
     width: '100%',
+    maxWidth: 400,
+    maxHeight: '90%',
+    minHeight: '41%',
     position: 'relative',
+  },
+  dropOffModalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dropOffModalIcon: {
+    width: 24,
+    height: 24,
+    marginLeft: 30,
+    marginRight: 10,
+  },
+  dropOffModalTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#000',
+  },
+  dropOffModalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  dropOffModalCloseButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   closeButton: {
     position: 'absolute',
@@ -1348,31 +1586,18 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     color: '#000',
+    backgroundColor: '#FFF',
     marginBottom: 24,
     textAlignVertical: 'top',
   },
   submitButton: {
     backgroundColor: '#000',
-    borderRadius: 12,
+    borderRadius: 25,
     paddingVertical: 16,
     paddingHorizontal: 32,
     alignItems: 'center',
     width: '100%',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    borderColor: '#9CA3AF',
+    marginBottom: 23,
   },
   submitButtonText: {
     color: '#fff',
@@ -1383,9 +1608,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noInstructionsText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '500',
+    color: '#000',
+    fontStyle: 'Area Normal',
+    fontSize: 15,
+    fontWeight: '600',
     textDecorationLine: 'underline',
   },
   // No Address Section Styles
@@ -1560,6 +1786,144 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 16,
     fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  // Safety Modal Styles
+  safetyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  safetyModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  safetyModalIconContainer: {
+    marginBottom: 20,
+  },
+  safetyModalIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#000',
+  },
+  safetyModalIconImage: {
+    width: 24,
+    height: 24,
+  },
+  safetyModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  safetyModalBody: {
+    fontSize: 14,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  safetyModalBodyBold: {
+    fontWeight: 'bold',
+  },
+  safetyModalUnderstandButton: {
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  safetyModalUnderstandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  safetyModalCancelLink: {
+    paddingVertical: 8,
+  },
+  safetyModalCancelLinkText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '400',
+    textDecorationLine: 'underline',
+  },
+  // Delivery Information Modal Styles
+  deliveryModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  deliveryModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  deliveryIconContainer: {
+    marginBottom: 20,
+  },
+  deliveryIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 30,
+    backgroundColor: '#FFE8FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deliveryIconImage: {
+    width: 20,
+    height: 20,
+  },
+  deliveryModalText: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deliveryModalUnderstandButton: {
+    backgroundColor: '#000',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  deliveryModalUnderstandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deliveryModalCancelLink: {
+    paddingVertical: 8,
+  },
+  deliveryModalCancelLinkText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '400',
     textDecorationLine: 'underline',
   },
 });

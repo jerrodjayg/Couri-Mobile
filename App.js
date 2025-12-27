@@ -49,8 +49,8 @@ import DelayArrival from './screens2/delayArrival';
 import Payment from './screens2/Payment';
 import PlaidConnect from './screens2/PlaidConnect';
 import Share from './screens2/Share';
-import ProductDetails from './screens2/ProductDetails';
 import FacebookEmbed from './screens2/FacebookEmbed';
+import ProductPreview from './screens2/ProductPreview';
 import CouriAIVerification from './screens2/CouriAIVerification';
 import ManualProductInput from './screens2/ManualProductInput';
 import SellerProductForm from './screens2/SellerProductForm';
@@ -295,7 +295,7 @@ export default function App() {
  <Stack.Screen name="Legal" component={Legal} />
          <Stack.Screen name="URL" component={URL} />
         <Stack.Screen name="FacebookEmbed" component={FacebookEmbed} />
-        <Stack.Screen name="ProductDetails" component={ProductDetails} />
+        <Stack.Screen name="ProductPreview" component={ProductPreview} />
         <Stack.Screen name="CouriAIVerification" component={CouriAIVerification} />
         <Stack.Screen name="ManualProductInput" component={ManualProductInput} />
         <Stack.Screen name="SellerProductForm" component={SellerProductForm} />

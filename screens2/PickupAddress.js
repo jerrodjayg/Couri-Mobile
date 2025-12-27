@@ -34,6 +34,8 @@ export default function PickupAddress({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [showDifferentAddressModal, setShowDifferentAddressModal] = useState(false);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [showDeliveryInfoModal, setShowDeliveryInfoModal] = useState(false);
 
   const { 
     productUrl, 
@@ -189,8 +191,19 @@ export default function PickupAddress({ navigation, route }) {
     }
   };
 
+  const isAddressComplete = () => {
+    const hasAddress = form.fullAddress.trim() !== '' || form.address1.trim() !== '';
+    return (
+      hasAddress &&
+      form.city.trim() !== '' &&
+      form.state.trim() !== '' &&
+      form.zip.trim() !== ''
+    );
+  };
+
   const validateForm = () => {
-    if (!form.fullAddress.trim()) {
+    const hasAddress = form.fullAddress.trim() !== '' || form.address1.trim() !== '';
+    if (!hasAddress) {
       Alert.alert('Error', 'Address is required');
       return false;
     }
@@ -210,8 +223,20 @@ export default function PickupAddress({ navigation, route }) {
   };
 
   const handleSaveChanges = async () => {
-    if (!validateForm()) return;
+    console.log('🔵 handleSaveChanges called');
+    if (!validateForm()) {
+      console.log('❌ Validation failed');
+      return;
+    }
+    console.log('✅ Validation passed, showing delivery info modal');
+    // Show delivery info modal instead of directly saving
+    setShowDeliveryInfoModal(true);
+    console.log('🔵 showDeliveryInfoModal set to:', true);
+  };
 
+  const handleDeliveryIUnderstand = async () => {
+    setShowDeliveryInfoModal(false);
+    
     try {
       setLoading(true);
       
@@ -258,6 +283,11 @@ export default function PickupAddress({ navigation, route }) {
     }
   };
 
+  const handleCancelFromDeliveryModal = () => {
+    setShowDeliveryInfoModal(false);
+    navigation.goBack();
+  };
+
   const handleCancel = () => {
     navigation.goBack();
   };
@@ -281,6 +311,15 @@ export default function PickupAddress({ navigation, route }) {
 
   const handleCloseModal = () => {
     setShowDifferentAddressModal(false);
+  };
+
+  const handleIUnderstand = () => {
+    setShowSafetyModal(false);
+  };
+
+  const handleCancelTransaction = () => {
+    setShowSafetyModal(false);
+    navigation.goBack();
   };
 
   return (
@@ -413,12 +452,19 @@ export default function PickupAddress({ navigation, route }) {
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[
+            styles.saveButton, 
+            !isAddressComplete() && styles.saveButtonIncomplete,
+            loading && styles.saveButtonDisabled
+          ]}
           onPress={handleSaveChanges}
-          disabled={loading}
+          disabled={loading || !isAddressComplete()}
         >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Saving...' : 'Save Changes'}
+          <Text style={[
+            styles.saveButtonText,
+            !isAddressComplete() && styles.saveButtonTextIncomplete
+          ]}>
+            {loading ? 'Saving...' : 'Confirm'}
           </Text>
         </TouchableOpacity>
         
@@ -426,6 +472,107 @@ export default function PickupAddress({ navigation, route }) {
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Safety Modal - Shows on screen load */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showSafetyModal}
+        onRequestClose={handleIUnderstand}
+      >
+        <View style={styles.safetyModalOverlay}>
+          <View style={styles.safetyModalContent}>
+            {/* Icon */}
+            <View style={styles.safetyModalIconContainer}>
+              <View style={styles.safetyModalIcon}>
+                <Text style={styles.safetyModalIconText}>CC</Text>
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.safetyModalTitle}>
+              Help Keep Couri Safe and Trusted.
+            </Text>
+
+            {/* Body Text */}
+            <Text style={styles.safetyModalBody}>
+              To protect our community, buyers have an 8-hour window to return items that are fake, damaged, or misrepresented. Seller payouts are held until this window closes, and you'll incur a $10 Return Fee if your item is found to be inauthentic or inaccurately described.
+            </Text>
+
+            <Text style={styles.safetyModalBody}>
+              Violations may result in account suspension.
+            </Text>
+
+            {/* I Understand Button */}
+            <TouchableOpacity 
+              style={styles.safetyModalUnderstandButton}
+              onPress={handleIUnderstand}
+            >
+              <Text style={styles.safetyModalUnderstandButtonText}>
+                I understand
+              </Text>
+            </TouchableOpacity>
+
+            {/* Cancel Transaction Link */}
+            <TouchableOpacity 
+              style={styles.safetyModalCancelLink}
+              onPress={handleCancelTransaction}
+            >
+              <Text style={styles.safetyModalCancelLinkText}>
+                Cancel transaction
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delivery Information Modal - Shows when user confirms address */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showDeliveryInfoModal}
+        onRequestClose={handleCancelFromDeliveryModal}
+      >
+        <View style={styles.deliveryModalOverlay}>
+          <View style={styles.deliveryModalContent}>
+            {/* Alert Icon */}
+            <View style={styles.deliveryIconContainer}>
+              <View style={styles.deliveryIconCircle}>
+                <Image 
+                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/danger.png' }}
+                  style={styles.deliveryIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            {/* Information Text */}
+            <Text style={styles.deliveryModalText}>
+              Once your item is picked up, delivery will begin immediately and you'll be able to track your driver in real-time. If you're not home, your order will be safely left at your doorstep.
+            </Text>
+
+            {/* I Understand Button */}
+            <TouchableOpacity 
+              style={styles.deliveryModalUnderstandButton}
+              onPress={handleDeliveryIUnderstand}
+            >
+              <Text style={styles.deliveryModalUnderstandButtonText}>
+                I understand
+              </Text>
+            </TouchableOpacity>
+
+            {/* Cancel Transaction Link */}
+            <TouchableOpacity 
+              style={styles.deliveryModalCancelLink}
+              onPress={handleCancelFromDeliveryModal}
+            >
+              <Text style={styles.deliveryModalCancelLinkText}>
+                Cancel transaction
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Different Address Modal */}
       <Modal
@@ -569,11 +716,17 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   saveButton: {
-    backgroundColor: '#374151',
-    borderRadius: 12,
+    backgroundColor: '#000',
+    borderRadius: 25,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
+  },
+  saveButtonIncomplete: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 25,
   },
   saveButtonDisabled: {
     backgroundColor: '#9CA3AF',
@@ -582,6 +735,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  saveButtonTextIncomplete: {
+    color: '#9CA3AF',
   },
   cancelButton: {
     alignItems: 'center',
@@ -665,5 +821,141 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     fontWeight: '400',
+  },
+  // Safety Modal Styles
+  safetyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  safetyModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  safetyModalIconContainer: {
+    marginBottom: 20,
+  },
+  safetyModalIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  safetyModalIconText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    letterSpacing: -2,
+  },
+  safetyModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  safetyModalBody: {
+    fontSize: 14,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  safetyModalUnderstandButton: {
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  safetyModalUnderstandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  safetyModalCancelLink: {
+    paddingVertical: 8,
+  },
+  safetyModalCancelLinkText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '400',
+    textDecorationLine: 'underline',
+  },
+  // Delivery Information Modal Styles
+  deliveryModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  deliveryModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  deliveryIconContainer: {
+    marginBottom: 20,
+  },
+  deliveryIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFE8FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deliveryIconImage: {
+    width: 24,
+    height: 24,
+  },
+  deliveryModalText: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deliveryModalUnderstandButton: {
+    backgroundColor: '#374151',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  deliveryModalUnderstandButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deliveryModalCancelLink: {
+    paddingVertical: 8,
+  },
+  deliveryModalCancelLinkText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '400',
+    textDecorationLine: 'underline',
   },
 });
