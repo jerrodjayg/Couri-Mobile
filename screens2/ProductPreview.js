@@ -18,7 +18,8 @@ export default function ProductPreview({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [itemTitle, setItemTitle] = useState(null);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  const url = "https://www.facebook.com/share/1CtQxnU4dW/";
+  // Use the URL from route params (passed from URL screen) instead of hardcoded
+  const url = route.params?.productUrl || '';
   const isFacebook = url.includes('facebook.com') || url.includes('fb.com');
 
   // Clear image and title immediately when URL changes
