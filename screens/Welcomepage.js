@@ -2029,9 +2029,11 @@ const handleSignOut = async () => {
       await AsyncStorage.removeItem('userJourney_confirmationCompleted');
     } catch { }
     if (setCustomUser) setCustomUser(null);
-    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    // Navigate to BiometricAuth screen (purple Face ID login) - always show after logout
+    navigation.reset({ index: 0, routes: [{ name: 'BiometricAuth' }] });
   } catch {
-    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    // Navigate to BiometricAuth even if logout fails
+    navigation.reset({ index: 0, routes: [{ name: 'BiometricAuth' }] });
   }
 };
 

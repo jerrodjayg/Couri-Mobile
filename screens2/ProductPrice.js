@@ -134,9 +134,12 @@ export default function ProductPrice({ navigation, route }) {
         await supabase.auth.signOut();
       }
       setCustomUser(null);
-      navigation.navigate('Welcome');
+      // Navigate to BiometricAuth screen (purple Face ID login) - always show after logout
+      navigation.reset({ index: 0, routes: [{ name: 'BiometricAuth' }] });
     } catch (error) {
       console.error('Error signing out:', error);
+      // Navigate to BiometricAuth even if logout fails
+      navigation.reset({ index: 0, routes: [{ name: 'BiometricAuth' }] });
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Linking,
+  Animated,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -18,9 +19,13 @@ export default function ProductPreview({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [itemTitle, setItemTitle] = useState(null);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [hasBeenClicked, setHasBeenClicked] = useState(false);
   // Use the URL from route params (passed from URL screen) instead of hardcoded
   const url = route.params?.productUrl || '';
   const isFacebook = url.includes('facebook.com') || url.includes('fb.com');
+  
+  // Animation for pulsing border when item is successfully loaded
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Clear image and title immediately when URL changes
   useEffect(() => {
@@ -28,6 +33,7 @@ export default function ProductPreview({ navigation, route }) {
     setItemTitle(null);
     setLoading(false);
     setShowSuccessBanner(false);
+    setHasBeenClicked(false); // Reset click state when URL changes
   }, [url]);
 
   // Show banner when both image and title are successfully loaded
@@ -46,11 +52,54 @@ export default function ProductPreview({ navigation, route }) {
     }
   }, [facebookImage, itemTitle]);
 
+  // Start pulsing animation when both image and title are loaded (only if not clicked yet)
+  useEffect(() => {
+    if (facebookImage && itemTitle && !hasBeenClicked) {
+      // Create pulsing animation
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: false,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      pulse.start();
+      
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [facebookImage, itemTitle, hasBeenClicked]);
+
   useEffect(() => {
     if (isFacebook) {
       setLoading(true);
       const fetchFacebookImage = async () => {
-        // Method 1: Try Microlink.io API (works well for Facebook)
+        // Helper function to add timeout to fetch
+        const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+          try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timeoutId);
+            return response;
+          } catch (error) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+              throw new Error('Request timeout');
+            }
+            throw error;
+          }
+        };
+
+        // Method 1: Try Microlink.io API (works well for Facebook) - with 3 second timeout
         const tryMicrolink = async (urlToTry) => {
           try {
             console.log('🔄 Trying Microlink.io for Facebook image...');
@@ -60,7 +109,7 @@ export default function ProductPreview({ navigation, route }) {
               throw new Error('Invalid URL format');
             }
             const microlinkUrl = `https://api.microlink.io/?url=${encodeURIComponent(cleanUrl)}`;
-            const response = await fetch(microlinkUrl);
+            const response = await fetchWithTimeout(microlinkUrl, {}, 3000); // 3 second timeout
             
             if (response.ok) {
               const data = await response.json();
@@ -82,14 +131,26 @@ export default function ProductPreview({ navigation, route }) {
                 // Get title
                 if (data.data?.title) {
                   let title = data.data.title;
-                  // Filter out generic Facebook titles
-                  if (title && 
-                      !title.toLowerCase().includes('log into facebook') &&
-                      !title.toLowerCase().includes('log in') &&
-                      title !== 'Facebook') {
+                  const titleLower = title.toLowerCase();
+                  // Filter out generic Facebook titles and login pages (multiple languages)
+                  const isLoginPage = 
+                    titleLower.includes('log into facebook') ||
+                    titleLower.includes('log in') ||
+                    titleLower.includes('se connecter') ||
+                    titleLower.includes('se connecter a facebook') ||
+                    titleLower.includes('connexion') ||
+                    titleLower.includes('iniciar sesión') ||
+                    titleLower.includes('anmelden') ||
+                    titleLower === 'facebook' ||
+                    titleLower.includes('facebook login') ||
+                    titleLower.includes('facebook - log in');
+                  
+                  if (title && !isLoginPage && title.length > 5) {
                     console.log('✅ Got title from Microlink:', title);
                     setItemTitle(title);
                     foundTitle = true;
+                  } else {
+                    console.log('⚠️ Filtered out login page title:', title);
                   }
                 }
                 
@@ -107,19 +168,20 @@ export default function ProductPreview({ navigation, route }) {
         };
 
         // Check if URL ends with "/" and try with original first, then without trailing "/"
+        // Try both in parallel for faster results
         const urlEndsWithSlash = url.trim().endsWith('/');
         let microlinkSuccess = false;
         
         if (urlEndsWithSlash) {
-          console.log('🔍 URL ends with "/", trying Microlink with original URL first...');
-          microlinkSuccess = await tryMicrolink(url);
-          
-          if (!microlinkSuccess) {
-            // Remove trailing "/" and try again
-            const urlWithoutSlash = url.trim().replace(/\/+$/, ''); // Remove one or more trailing slashes
-            console.log('🔄 No photo found, trying Microlink without trailing "/"...');
-            microlinkSuccess = await tryMicrolink(urlWithoutSlash);
-          }
+          console.log('🔍 URL ends with "/", trying Microlink with both versions in parallel...');
+          const urlWithoutSlash = url.trim().replace(/\/+$/, '');
+          // Try both URLs in parallel
+          const [result1, result2] = await Promise.allSettled([
+            tryMicrolink(url),
+            tryMicrolink(urlWithoutSlash)
+          ]);
+          microlinkSuccess = (result1.status === 'fulfilled' && result1.value) || 
+                            (result2.status === 'fulfilled' && result2.value);
         } else {
           // URL doesn't end with "/", just try normally
           microlinkSuccess = await tryMicrolink(url);
@@ -129,7 +191,7 @@ export default function ProductPreview({ navigation, route }) {
           return; // Successfully got image/title from Microlink
         }
 
-        // Method 2: Try multiple CORS proxies to get HTML
+        // Method 2: Try multiple CORS proxies in PARALLEL (much faster!)
         const cleanUrl = url.trim();
         const proxies = [
           { url: `https://api.allorigins.win/get?url=${encodeURIComponent(cleanUrl)}`, isJson: true },
@@ -137,15 +199,16 @@ export default function ProductPreview({ navigation, route }) {
           { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(cleanUrl)}`, isJson: false },
         ];
 
-        for (const proxy of proxies) {
+        // Try all proxies in parallel with 4 second timeout each
+        console.log('🔄 Trying all proxies in parallel...');
+        const proxyPromises = proxies.map(async (proxy) => {
           try {
-            console.log('🔄 Trying proxy:', proxy.url.substring(0, 50) + '...');
-            const response = await fetch(proxy.url, {
+            const response = await fetchWithTimeout(proxy.url, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
               },
-            });
+            }, 4000); // 4 second timeout per proxy
             
             if (response.ok) {
               let html = '';
@@ -165,6 +228,9 @@ export default function ProductPreview({ navigation, route }) {
               }
               
               if (html && html.length > 100) {
+                let foundImage = false;
+                let foundTitle = false;
+                
                 // Try multiple patterns for og:image
                 const patterns = [
                   /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
@@ -192,15 +258,9 @@ export default function ProductPreview({ navigation, route }) {
                         !imageUrl.includes('profile_pic') &&
                         imageUrl.startsWith('http')) {
                       console.log('✅ Found image from HTML:', imageUrl.substring(0, 100));
-                      console.log('📸 Full image URL length:', imageUrl.length);
-                      console.log('📸 Decoded URL (checking for &amp;):', imageUrl.includes('&amp;') ? 'STILL HAS &amp;' : 'CLEAN');
-                      console.log('📸 Setting image state...');
                       setFacebookImage(imageUrl);
-                      console.log('✅ Image state set');
-                      // Check if we have both image and title to show banner
-                      if (itemTitle) {
-                        setShowSuccessBanner(true);
-                      }
+                      foundImage = true;
+                      break; // Found image, stop searching
                     }
                   }
                 }
@@ -223,41 +283,59 @@ export default function ProductPreview({ navigation, route }) {
                       .replace(/&gt;/g, '>')
                       .trim();
                     
-                    // Filter out generic Facebook titles
-                    if (title && 
-                        !title.toLowerCase().includes('log into facebook') &&
-                        !title.toLowerCase().includes('log in') &&
-                        title !== 'Facebook' &&
-                        title.length > 5) {
+                    // Filter out generic Facebook titles and login pages (multiple languages)
+                    const titleLower = title.toLowerCase();
+                    const isLoginPage = 
+                      titleLower.includes('log into facebook') ||
+                      titleLower.includes('log in') ||
+                      titleLower.includes('se connecter') ||
+                      titleLower.includes('se connecter a facebook') ||
+                      titleLower.includes('connexion') ||
+                      titleLower.includes('iniciar sesión') ||
+                      titleLower.includes('anmelden') ||
+                      titleLower === 'facebook' ||
+                      titleLower.includes('facebook login') ||
+                      titleLower.includes('facebook - log in');
+                    
+                    if (title && !isLoginPage && title.length > 5) {
                       console.log('✅ Found title from HTML:', title);
                       setItemTitle(title);
-                      // Check if we have both image and title to show banner
-                      if (facebookImage) {
-                        setShowSuccessBanner(true);
-                      }
-                      break;
+                      foundTitle = true;
+                      break; // Found title, stop searching
                     }
                   }
                 }
                 
-                if (facebookImage || itemTitle) {
-                  setLoading(false);
-                  console.log('✅ Image/title state set, loading set to false');
-                  return; // Return from the function
+                // Return result if we found anything
+                if (foundImage || foundTitle) {
+                  return { success: true, foundImage, foundTitle };
                 }
               }
             }
+            return { success: false };
           } catch (error) {
             console.log('⚠️ Proxy failed:', error.message);
-            continue;
+            return { success: false };
+          }
+        });
+
+        // Wait for first successful result (or all to fail)
+        const results = await Promise.allSettled(proxyPromises);
+        
+        // Check results - use first successful one
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value?.success) {
+            // We already set the image/title in the promise, just exit
+            setLoading(false);
+            return;
           }
         }
 
-        // Method 3: Try Facebook oEmbed API (last resort, often doesn't work for Marketplace)
+        // Method 3: Try Facebook oEmbed API (last resort, often doesn't work for Marketplace) - with timeout
         try {
           console.log('🔄 Trying Facebook oEmbed API...');
           const oembedUrl = `https://www.facebook.com/plugins/post/oembed.json/?url=${encodeURIComponent(url)}`;
-          const response = await fetch(oembedUrl);
+          const response = await fetchWithTimeout(oembedUrl, {}, 3000); // 3 second timeout
           
           if (response.ok) {
             const data = await response.json();
@@ -438,14 +516,41 @@ export default function ProductPreview({ navigation, route }) {
         {/* Image and Title Display - Backend logic unchanged, wrapped in card */}
         {isFacebook ? (
           <TouchableOpacity 
-            style={styles.previewCard}
+            style={[
+              styles.previewCard,
+              facebookImage && itemTitle && {
+                borderWidth: 2,
+                borderColor: '#27C193',
+                shadowColor: '#27C193',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.5,
+                shadowRadius: 8,
+                elevation: 4,
+              }
+            ]}
             onPress={() => {
+              setHasBeenClicked(true); // Stop pulsing after first click
               Linking.openURL(url).catch(err => {
                 console.error('Failed to open URL:', err);
               });
             }}
             activeOpacity={0.7}
           >
+            {/* Pulsing border indicator when item is loaded (only if not clicked yet) */}
+            {facebookImage && itemTitle && !hasBeenClicked && (
+              <Animated.View
+                style={[
+                  styles.pulseBorder,
+                  {
+                    transform: [{ scale: pulseAnim }],
+                    opacity: pulseAnim.interpolate({
+                      inputRange: [1, 1.05],
+                      outputRange: [0.6, 1],
+                    }),
+                  },
+                ]}
+              />
+            )}
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#000" />
@@ -700,6 +805,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     padding: 16,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  pulseBorder: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#27C193',
+    borderStyle: 'solid',
   },
   cardContent: {
     flexDirection: 'row',
