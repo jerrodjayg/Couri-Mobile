@@ -175,58 +175,6 @@ export default function App() {
         }
       }
       
-      // Handle transaction deep links (legacy support)
-      else if (url && (url.includes('transaction/'))) {
-        console.log('💼 Transaction deep link detected (legacy)');
-        
-        try {
-          const urlObj = new URL(url);
-          const pathSegments = urlObj.pathname.split('/').filter(s => s);
-          const transactionIdIndex = pathSegments.indexOf('transaction');
-          const transactionId = transactionIdIndex !== -1 && transactionIdIndex < pathSegments.length - 1
-            ? pathSegments[transactionIdIndex + 1]
-            : pathSegments[pathSegments.length - 1];
-          
-          if (transactionId && navigationRef.current) {
-            console.log('💼 Fetching transaction details:', transactionId);
-            
-            // Fetch transaction details from Supabase
-            const projectRef = process.env.EXPO_PUBLIC_SUPABASE_PROJECT_REF || 'nfkykasruwdzpcjuufdu';
-            const fetchUrl = `https://${projectRef}.functions.supabase.co/accept-invite-by-id?transactionId=${transactionId}`;
-            
-            fetch(fetchUrl)
-              .then(res => res.json())
-              .then(data => {
-                console.log('✅ Transaction fetched:', data);
-                
-                if (data.transaction) {
-                  // Navigate to Welcomepage with invite data
-                  navigationRef.current.navigate('Welcomepage', {
-                    inviteTransaction: {
-                      id: data.transaction.id,
-                      status: data.transaction.status,
-                      title: data.transaction.metadata?.item_title || 'Product',
-                      price: data.transaction.metadata?.amount || 0,
-                      image: data.transaction.metadata?.item_image,
-                      description: data.transaction.metadata?.item_description,
-                      seller: data.transaction.inviter?.name || 'Unknown',
-                      sellerId: data.transaction.inviter?.id,
-                      source: data.transaction.metadata?.source || 'Facebook Marketplace',
-                      fromDeepLink: true
-                    }
-                  });
-                }
-              })
-              .catch(error => {
-                console.error('❌ Error fetching transaction:', error);
-                // Still navigate to Welcomepage but without invite data
-                navigationRef.current.navigate('Welcomepage');
-              });
-          }
-        } catch (error) {
-          console.error('❌ Error handling transaction deep link:', error);
-        }
-      }
     };
 
     // Handle initial URL if app was opened via deep link
@@ -247,7 +195,7 @@ export default function App() {
       subscription?.remove();
     };
   }, []);
-  
+
   return (
    <UserProvider>
    <GestureHandlerRootView style={{ flex: 1 }}>

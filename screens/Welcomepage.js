@@ -797,6 +797,11 @@ export default function Welcomepage({ route, navigation }) {
   // New States for Home Screen Redesign
   const [selectedHomeOption, setSelectedHomeOption] = useState(null); // 'buy' or 'sell'
   const [sizeWarningModalVisible, setSizeWarningModalVisible] = useState(false);
+  const [marketplacePreview, setMarketplacePreview] = useState(null);
+  
+  // Pending transaction state (for recipient)
+  const [pendingTransaction, setPendingTransaction] = useState(null);
+  const [loadingPendingTransaction, setLoadingPendingTransaction] = useState(false);
 
   // Existing states needed for invite/transaction logic
   const [modalVisible, setModalVisible] = useState(false); // Kept for backward compat or other modals
@@ -852,15 +857,115 @@ export default function Welcomepage({ route, navigation }) {
     const checkUser = async () => {
       const savedUser = await AsyncStorage.getItem('userProfile');
       if (savedUser) {
-        setUserProfile(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        // Ensure firstName is extracted if not present
+        const userProfileData = {
+          ...parsed,
+          firstName: parsed.firstName || parsed.first_name || parsed.name?.split(' ')[0] || parsed.full_name?.split(' ')[0] || '',
+        };
+        setUserProfile(userProfileData);
       } else if (contextUser) {
         // Fallback to context user if no saved profile
-        setUserProfile(contextUser);
+        const firstName = contextUser.user_metadata?.given_name || 
+                         contextUser.user_metadata?.full_name?.split(' ')[0] || 
+                         contextUser.user_metadata?.name?.split(' ')[0] || '';
+        setUserProfile({
+          ...contextUser,
+          firstName: firstName,
+        });
       }
       setLoading(false);
     };
     checkUser();
   }, [contextUser]);
+
+  // Load marketplace preview data from AsyncStorage or route params
+  useEffect(() => {
+    const loadMarketplacePreview = async () => {
+      try {
+        // First check route params (if navigating from ProductPreview)
+        if (route?.params?.marketplacePreview) {
+          const preview = route.params.marketplacePreview;
+          setMarketplacePreview(preview);
+          // Also save to AsyncStorage for persistence
+          await AsyncStorage.setItem('marketplacePreview', JSON.stringify(preview));
+          console.log('✅ Preview data loaded from route params and saved to AsyncStorage');
+        } else {
+          // Load from AsyncStorage if not in route params
+          const storedPreview = await AsyncStorage.getItem('marketplacePreview');
+          if (storedPreview) {
+            const preview = JSON.parse(storedPreview);
+            // Check if preview is not too old (e.g., 7 days)
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            if (preview.timestamp && preview.timestamp > sevenDaysAgo) {
+              setMarketplacePreview(preview);
+              console.log('✅ Preview data loaded from AsyncStorage');
+            } else {
+              // Clear old preview data
+              await AsyncStorage.removeItem('marketplacePreview');
+              console.log('⚠️ Old preview data cleared');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading marketplace preview:', error);
+      }
+    };
+    
+    loadMarketplacePreview();
+  }, [route?.params?.marketplacePreview]);
+
+  // Load and process pending transaction token
+  useEffect(() => {
+    const loadPendingTransaction = async () => {
+      try {
+        // Check route params first (from deep link)
+        let token = route?.params?.pendingTransactionToken;
+        
+        // If not in route params, check AsyncStorage
+        if (!token) {
+          token = await AsyncStorage.getItem('pendingTransactionToken');
+        }
+        
+        if (!token) {
+          return; // No pending transaction
+        }
+        
+        console.log('🔍 Found pending transaction token:', token);
+        
+        // Check if user is logged in
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          console.log('⚠️ User not logged in, token stored for later');
+          // Token will be processed after login
+          return;
+        }
+        
+        // User is logged in, fetch transaction
+        setLoadingPendingTransaction(true);
+        const { fetchTransactionByToken } = await import('../utils/transactionApi');
+        const transaction = await fetchTransactionByToken(token);
+        
+        if (transaction) {
+          setPendingTransaction(transaction);
+          // Clear token after successful fetch
+          await AsyncStorage.removeItem('pendingTransactionToken');
+          console.log('✅ Pending transaction loaded');
+        }
+      } catch (error) {
+        console.error('❌ Error loading pending transaction:', error);
+        // Clear invalid token
+        await AsyncStorage.removeItem('pendingTransactionToken');
+      } finally {
+        setLoadingPendingTransaction(false);
+      }
+    };
+    
+    // Only load if user profile is available
+    if (userProfile) {
+      loadPendingTransaction();
+    }
+  }, [route?.params?.pendingTransactionToken, userProfile]);
 
   const handleHomeOptionSelect = (option) => {
     setSelectedHomeOption(option);
@@ -895,9 +1000,260 @@ export default function Welcomepage({ route, navigation }) {
     setSelectedHomeOption(null);
   };
 
-  const renderContent = () => (
-    <>
-      {/* Top Bar */}
+  const handleCancelTransaction = async () => {
+    try {
+      await AsyncStorage.removeItem('marketplacePreview');
+      setMarketplacePreview(null);
+      console.log('✅ Preview data cleared');
+    } catch (error) {
+      console.error('❌ Error clearing preview data:', error);
+    }
+  };
+
+  const handleViewTransactionDetails = () => {
+    // Navigate to Share screen with preview data to continue the flow
+    if (marketplacePreview) {
+      navigation.navigate('Share', {
+        productUrl: marketplacePreview.productUrl,
+        productPrice: marketplacePreview.productPrice,
+        productTitle: marketplacePreview.productTitle,
+        productDescription: marketplacePreview.productDescription || '',
+        productImage: marketplacePreview.productImage,
+        userProfile: userProfile,
+        transactionType: marketplacePreview.transactionType || 'buy',
+        sellerName: marketplacePreview.sellerName || '',
+        extractedData: {
+          productName: marketplacePreview.productTitle,
+          price: marketplacePreview.productPrice,
+          description: marketplacePreview.productDescription || '',
+          imageUrl: marketplacePreview.productImage,
+          images: marketplacePreview.productImage ? [marketplacePreview.productImage] : []
+        }
+      });
+    }
+  };
+
+  // Handle accepting a pending transaction
+  const handleAcceptTransaction = async () => {
+    if (!pendingTransaction) return;
+    
+    try {
+      const { acceptTransaction, clearPendingToken } = await import('../utils/transactionApi');
+      await acceptTransaction(pendingTransaction.id);
+      
+      // Clear pending token
+      await clearPendingToken();
+      
+      // Clear pending transaction state
+      setPendingTransaction(null);
+      
+      Alert.alert('Transaction Accepted!', 'The buyer has been notified.');
+    } catch (error) {
+      console.error('❌ Error accepting transaction:', error);
+      Alert.alert('Error', error.message || 'Failed to accept transaction');
+    }
+  };
+
+  // Handle declining a pending transaction
+  const handleDeclineTransaction = async () => {
+    if (!pendingTransaction) return;
+    
+    Alert.alert(
+      'Decline Transaction?',
+      'Are you sure you want to decline this transaction?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { declineTransaction, clearPendingToken } = await import('../utils/transactionApi');
+              await declineTransaction(pendingTransaction.id);
+              
+              // Clear pending token
+              await clearPendingToken();
+              
+              // Clear pending transaction state
+              setPendingTransaction(null);
+              
+              Alert.alert('Transaction Declined', 'The buyer has been notified.');
+            } catch (error) {
+              console.error('❌ Error declining transaction:', error);
+              Alert.alert('Error', error.message || 'Failed to decline transaction');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Get user's first name for greeting
+  const getUserFirstName = () => {
+    // Check userProfile first
+    if (userProfile?.firstName) {
+      return userProfile.firstName;
+    }
+    if (userProfile?.first_name) {
+      return userProfile.first_name;
+    }
+    if (userProfile?.full_name) {
+      const firstPart = userProfile.full_name.split(' ')[0];
+      if (firstPart && firstPart.trim()) {
+        return firstPart;
+      }
+    }
+    if (userProfile?.name) {
+      const firstPart = userProfile.name.split(' ')[0];
+      if (firstPart && firstPart.trim()) {
+        return firstPart;
+      }
+    }
+    
+    // Fallback to contextUser if userProfile doesn't have name
+    if (contextUser?.user_metadata?.given_name) {
+      return contextUser.user_metadata.given_name;
+    }
+    if (contextUser?.user_metadata?.full_name) {
+      const firstPart = contextUser.user_metadata.full_name.split(' ')[0];
+      if (firstPart && firstPart.trim()) {
+        return firstPart;
+      }
+    }
+    if (contextUser?.user_metadata?.name) {
+      const firstPart = contextUser.user_metadata.name.split(' ')[0];
+      if (firstPart && firstPart.trim()) {
+        return firstPart;
+      }
+    }
+    
+    return 'there';
+  };
+
+  // Render transaction preview layout (for sender - after sending invite)
+  const renderTransactionPreview = () => {
+    const firstName = getUserFirstName();
+    const productTitle = marketplacePreview?.productTitle || 'Product';
+    const productImage = marketplacePreview?.productImage;
+    const productSubtitle = marketplacePreview?.sellerName || 'Facebook Marketplace Item';
+
+    return (
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        {/* Top Bar with Chat Icon */}
+        <View style={styles.transactionTopBar}>
+          <View>
+            <Image source={require('../assets/Logo_Dark.png')} style={styles.transactionLogo} resizeMode="contain" />
+          </View>
+
+          <View style={styles.transactionTopBarRight}>
+            <TouchableOpacity style={styles.chatIconContainer}>
+              <Image 
+                source={require('../assets/notification-bell.png')} 
+                style={styles.chatIcon}
+                resizeMode="contain"
+              />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={userProfile ? () => navigation.navigate('MyAccount', { userData: userProfile }) : () => navigation.navigate('Login')} 
+              style={styles.profileContainer}
+            >
+              {userProfile?.avatar_url && userProfile.avatar_url !== '' ? (
+                <OptimizedImage
+                  source={{ uri: userProfile.avatar_url }}
+                  style={styles.profileImage}
+                  showLoadingIndicator={false}
+                  placeholder={
+                    <View style={styles.profilePlaceholder}>
+                      <Text style={styles.profileInitials}>{initialsFromName(userProfile?.name)}</Text>
+                    </View>
+                  }
+                />
+              ) : (
+                <View style={styles.profilePlaceholder}>
+                  <Text style={styles.profileInitials}>{userProfile ? initialsFromName(userProfile?.name) : '?'}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Welcome Back Greeting */}
+        <View style={styles.transactionGreetingContainer}>
+          <Text style={styles.transactionGreeting}>WELCOME BACK, {firstName.toUpperCase()}</Text>
+          <Text style={styles.transactionStatusText}>
+            The seller is reviewing your transaction.
+          </Text>
+        </View>
+
+        <Text style={styles.transactionStatusSubtext}>
+          We'll notify you as soon as it's confirmed.
+        </Text>
+
+        {/* Product Card */}
+        <View style={styles.transactionProductCard}>
+          <View style={styles.transactionProductInfo}>
+            <Text style={styles.transactionProductTitle}>"{productTitle}"</Text>
+            <Text style={styles.transactionProductSubtitle}>{productSubtitle}</Text>
+          </View>
+          {productImage && (
+            <Image 
+              source={{ uri: productImage }} 
+              style={styles.transactionProductImage}
+              resizeMode="cover"
+            />
+          )}
+        </View>
+
+        {/* View Transaction Details Button */}
+        <TouchableOpacity 
+          style={styles.viewTransactionButton}
+          onPress={handleViewTransactionDetails}
+        >
+          <Text style={styles.viewTransactionButtonText}>View transaction details</Text>
+        </TouchableOpacity>
+
+        {/* Cancel Transaction Link */}
+        <TouchableOpacity 
+          style={styles.cancelTransactionLink}
+          onPress={handleCancelTransaction}
+        >
+          <Text style={styles.cancelTransactionText}>Cancel transaction</Text>
+        </TouchableOpacity>
+
+        {/* Bottom Gradient Section */}
+        <View style={styles.transactionFooter}>
+          <View style={styles.transactionFooterLogoContainer}>
+            <Image 
+              source={require('../assets/mark2_dark.png')} 
+              style={styles.transactionFooterLogo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.transactionFooterText}>
+            SECURE PAYMENTS, SAFE PICKUP & DELIVERY
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderContent = () => {
+    // If pending transaction exists (recipient view), render pending transaction layout
+    if (pendingTransaction) {
+      return renderPendingTransaction();
+    }
+    
+    // If marketplace preview exists (sender view), render transaction preview layout
+    if (marketplacePreview) {
+      return renderTransactionPreview();
+    }
+
+    // Otherwise render default welcome screen
+    return (
+      <>
+        {/* Top Bar */}
       <View style={styles.topBar}>
         <View>
           <Image source={require('../assets/logowhite.png')} style={styles.logo} resizeMode="contain" />
@@ -992,37 +1348,9 @@ export default function Welcomepage({ route, navigation }) {
         </Pressable>
 
       </Pressable>
-
-      {/* Size Warning Modal */}
-      <SizeWarningModal
-        visible={sizeWarningModalVisible}
-        onClose={handleSizeWarningCancel}
-        onUnderstand={handleSizeWarningUnderstand}
-        onCancel={handleSizeWarningCancel}
-      />
-
-      {/* Keep Modals */}
-      <TransactionsModals
-        modalVisible={modalVisible}
-        confirmVisible={confirmVisible}
-        successModalVisible={successModalVisible}
-        transactionDetailsModalVisible={transactionDetailsModalVisible}
-        cancelConfirmModalVisible={cancelConfirmModalVisible}
-        invite={invite}
-        transactionData={transactionData}
-        setModalVisible={setModalVisible}
-        setConfirmVisible={setConfirmVisible}
-        setSuccessModalVisible={setSuccessModalVisible}
-        setTransactionDetailsModalVisible={setTransactionDetailsModalVisible}
-        setCancelConfirmModalVisible={setCancelConfirmModalVisible}
-        navigation={navigation}
-        setInvite={setInvite}
-        setTransactionData={setTransactionData}
-        setMyInvites={setMyInvites}
-        userProfile={userProfile}
-      />
-    </>
-  );
+      </>
+    );
+  };
 
   // All hooks and logic must be before the return statement
 
@@ -1834,15 +2162,52 @@ if (hasError) {
         style={styles.backgroundImage}
         resizeMode="cover"
       />
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.wrapper}>
+      {marketplacePreview ? (
+        <View style={{ flex: 1 }}>
           {renderContent()}
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.wrapper}>
+            {renderContent()}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* Size Warning Modal - only show for default layout */}
+      {!marketplacePreview && (
+        <SizeWarningModal
+          visible={sizeWarningModalVisible}
+          onClose={handleSizeWarningCancel}
+          onUnderstand={handleSizeWarningUnderstand}
+          onCancel={handleSizeWarningCancel}
+        />
+      )}
+
+      {/* Keep Modals */}
+      <TransactionsModals
+        modalVisible={modalVisible}
+        confirmVisible={confirmVisible}
+        successModalVisible={successModalVisible}
+        transactionDetailsModalVisible={transactionDetailsModalVisible}
+        cancelConfirmModalVisible={cancelConfirmModalVisible}
+        invite={invite}
+        transactionData={transactionData}
+        setModalVisible={setModalVisible}
+        setConfirmVisible={setConfirmVisible}
+        setSuccessModalVisible={setSuccessModalVisible}
+        setTransactionDetailsModalVisible={setTransactionDetailsModalVisible}
+        setCancelConfirmModalVisible={setCancelConfirmModalVisible}
+        navigation={navigation}
+        setInvite={setInvite}
+        setTransactionData={setTransactionData}
+        setMyInvites={setMyInvites}
+        userProfile={userProfile}
+      />
     </View>
   );
 }
@@ -1991,6 +2356,161 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
+  // Transaction Preview Layout Styles
+  transactionTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 50,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+  },
+  transactionLogo: {
+    width: 90,
+    height: 40,
+  },
+  transactionTopBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  chatIconContainer: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+  },
+  chatIcon: {
+    width: 24,
+    height: 24,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF0000',
+  },
+  transactionGreetingContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  transactionGreeting: {
+    fontSize: 16,
+    fontWeight: '400', // Regular (thinner)
+    color: '#000',
+    textAlign: 'center',
+    letterSpacing: 0.26,
+    marginBottom: 32,
+  },
+  transactionStatusText: {
+    fontSize: 32,
+    fontWeight: '400', // Regular
+    color: '#171715',
+    textAlign: 'center',
+    lineHeight: 40,
+    letterSpacing: 0,
+    width: '100%',
+    marginTop: 8,
+  },
+  transactionStatusSubtext: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#000',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 24,
+    backgroundColor: '#fff',
+    lineHeight: 24,
+  },
+  transactionProductCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#000',
+    padding: 16,
+    marginHorizontal: 24,
+    marginBottom: 24,
+  },
+  transactionProductInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  transactionProductTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  transactionProductSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  transactionProductImage: {
+    width: 82,
+    height: 82,
+    borderRadius: 8,
+  },
+  viewTransactionButton: {
+    backgroundColor: '#000',
+    borderRadius: 25,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    marginHorizontal: 24,
+    marginBottom: 16,
+  },
+  viewTransactionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelTransactionLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 40,
+  },
+  cancelTransactionText: {
+    color: '#000',
+    fontSize: 16,
+    textDecorationLine: 'underline',
+  },
+  transactionFooter: {
+    backgroundColor: '#EEF3FF',
+    paddingVertical: 35,
+    paddingBottom: 60,
+    alignItems: 'center',
+    marginTop: 'auto',
+  },
+  transactionFooterLogoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  transactionFooterLogo: {
+    width: 32,
+    height: 32,
+  },
+  transactionFooterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000',
+    letterSpacing: 0.3,
+  },
   viewingScreensButton: {
     backgroundColor: '#171715',
     paddingVertical: 18,
@@ -2009,7 +2529,6 @@ const styles = StyleSheet.create({
 
   // Existing component styling needed for Invites/Transactions if they appear
   // ... adapt these to dark mode if needed
-  transactionStatusText: { fontSize: 16, color: '#fff', textAlign: 'center', marginBottom: 20 },
   headline: { fontSize: 24, fontWeight: '400', textAlign: 'center', marginTop: 20, marginBottom: 10, color: '#fff' },
   subheadline: { fontSize: 16, color: '#ccc', textAlign: 'center', marginBottom: 20 },
   noLongerAvailableText: { fontSize: 16, color: '#5d72fb', textDecorationLine: 'underline' },

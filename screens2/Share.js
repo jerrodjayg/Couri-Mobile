@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 
 import * as Clipboard from 'expo-clipboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveTransaction } from '../utils/transactionService';
 import { createTransactionInvitation, generateWebInvitationUrl } from '../utils/supabaseTransactionService_temp';
+import { createTransaction } from '../utils/transactionApi';
 
 // Web invitation system - no old invitation helpers needed
 
@@ -129,20 +131,38 @@ export default function Share({ navigation, route }) {
 
   const handleCopyWebInvite = async () => {
     try {
-      let webUrl = webInviteUrl;
+      setIsCreatingWebInvite(true);
       
-      // Create web invitation if not already created
-      if (!webUrl) {
-        webUrl = await createWebInvitation();
-        if (!webUrl) return;
+      // Create transaction with invite token and generate deep link
+      const previewData = {
+        productUrl: productUrl || '',
+        productTitle: resolvedTitle || 'Product',
+        productImage: resolvedImage || '',
+        productPrice: productPrice || '$',
+        productDescription: '',
+        transactionType: transactionType || 'buy',
+        sellerName: sellerName || userProfile?.full_name || userProfile?.name || '',
+      };
+
+      console.log('📤 Creating transaction with token-based system...');
+      const transaction = await createTransaction(previewData, userProfile);
+      
+      if (!transaction || !transaction.deepLink) {
+        throw new Error('Failed to create transaction');
       }
 
-      const message = `You've been invited to a transaction on Couri! View and join the transaction here: ${webUrl}`;
+      // Copy the deep link to clipboard
+      await Clipboard.setStringAsync(transaction.deepLink);
+      Alert.alert('Link Copied!', 'Transaction link has been copied to your clipboard. Send it to the seller via text or DM.');
       
-      await Clipboard.setStringAsync(message);
+      // Also save the web URL for backward compatibility
+      setWebInviteUrl(transaction.deepLink);
+      
     } catch (error) {
-      console.error('Error copying web invite:', error);
-      Alert.alert('Error', 'Failed to copy web invitation');
+      console.error('Error creating/copying transaction link:', error);
+      Alert.alert('Error', error.message || 'Failed to create transaction link');
+    } finally {
+      setIsCreatingWebInvite(false);
     }
   };
 
@@ -184,8 +204,30 @@ export default function Share({ navigation, route }) {
   const handleModalGotIt = async () => {
     // Transaction already saved in createWebInvitation, no need to save again
     setModalVisible(false);
-    // Pass transaction data to show the review state
+    
+    // Prepare preview data for Welcomepage
+    const previewData = {
+      productUrl: productUrl || '',
+      productTitle: resolvedTitle || 'Product',
+      productImage: resolvedImage || '',
+      productPrice: productPrice || '$',
+      productDescription: '',
+      transactionType: transactionType || 'buy',
+      sellerName: sellerName || userProfile?.full_name || userProfile?.name || '',
+      timestamp: Date.now()
+    };
+
+    // Save preview data to AsyncStorage for persistence
+    try {
+      await AsyncStorage.setItem('marketplacePreview', JSON.stringify(previewData));
+      console.log('✅ Preview data saved to AsyncStorage');
+    } catch (error) {
+      console.error('❌ Error saving preview data:', error);
+    }
+
+    // Pass transaction data and preview data to show the review state
     navigation.navigate('Welcomepage', {
+      marketplacePreview: previewData,
       transactionData: {
         productTitle: resolvedTitle,
         productImage: resolvedImage,
