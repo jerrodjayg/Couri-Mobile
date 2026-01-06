@@ -19,7 +19,20 @@ export default {
               "appID": "S4VHGX8378.com.anonymous.jerrod",
               "paths": [
                 "/deeplink/i/*",
-                "/i/*"
+                "/i/*",
+                "NOT /web-invite.html",
+                "NOT /web-accepted.html",
+                "NOT /web-invite.html/*",
+                "NOT /web-accepted.html/*",
+                "NOT /invite1",
+                "NOT /invite1/*",
+                "NOT /invite1?*",
+                "NOT /invite",
+                "NOT /invite/*",
+                "NOT /invite?*",
+                "NOT /continue1",
+                "NOT /continue1/*",
+                "NOT /continue1?*"
               ]
             }
           ]

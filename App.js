@@ -79,8 +79,10 @@ const linking = {
   prefixes: [
     "com.anonymous.jerrod://",  // Current scheme from app.json
     "couri://",  // Alternative simpler scheme
-    "https://gocouri.com",  // Universal Links
-    "https://www.gocouri.com",  // Universal Links (www)
+    "https://gocouri.com/deeplink",  // Universal Links - only /deeplink paths
+    "https://gocouri.com/i",  // Universal Links - only /i paths
+    "https://www.gocouri.com/deeplink",  // Universal Links (www) - only /deeplink paths
+    "https://www.gocouri.com/i",  // Universal Links (www) - only /i paths
   ],
   config: {
     screens: {

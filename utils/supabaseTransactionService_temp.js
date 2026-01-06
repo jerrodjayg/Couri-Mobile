@@ -180,8 +180,9 @@ export const getUserTransactions = async (userId = null) => {
 
 // Generate web invitation URL
 export const generateWebInvitationUrl = (transactionId) => {
-  // For Squarespace - using query parameters
-  return `https://gocouri.com/invite1/?id=${transactionId}`;
+  // Use /invite1 to match Squarespace page URL slug
+  // This path is excluded in the AASA file (NOT /invite1/*)
+  return `https://gocouri.com/invite1?id=${transactionId}`;
 };
 
 // Generate deep link URL for app

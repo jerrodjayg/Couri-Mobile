@@ -133,34 +133,24 @@ export default function Share({ navigation, route }) {
     try {
       setIsCreatingWebInvite(true);
       
-      // Create transaction with invite token and generate deep link
-      const previewData = {
-        productUrl: productUrl || '',
-        productTitle: resolvedTitle || 'Product',
-        productImage: resolvedImage || '',
-        productPrice: productPrice || '$',
-        productDescription: '',
-        transactionType: transactionType || 'buy',
-        sellerName: sellerName || userProfile?.full_name || userProfile?.name || '',
-      };
-
-      console.log('📤 Creating transaction with token-based system...');
-      const transaction = await createTransaction(previewData, userProfile);
+      let webUrl = webInviteUrl;
       
-      if (!transaction || !transaction.deepLink) {
-        throw new Error('Failed to create transaction');
+      // Create web invitation if not already created
+      if (!webUrl) {
+        webUrl = await createWebInvitation();
+        if (!webUrl) {
+          Alert.alert('Error', 'Failed to create web invitation');
+          return;
+        }
       }
 
-      // Copy the deep link to clipboard
-      await Clipboard.setStringAsync(transaction.deepLink);
-      Alert.alert('Link Copied!', 'Transaction link has been copied to your clipboard. Send it to the seller via text or DM.');
-      
-      // Also save the web URL for backward compatibility
-      setWebInviteUrl(transaction.deepLink);
+      // Copy the web invitation URL to clipboard
+      await Clipboard.setStringAsync(webUrl);
+      Alert.alert('Link Copied!', 'Web invitation link has been copied to your clipboard. Send it to the recipient via text or DM.');
       
     } catch (error) {
-      console.error('Error creating/copying transaction link:', error);
-      Alert.alert('Error', error.message || 'Failed to create transaction link');
+      console.error('Error creating/copying web invitation:', error);
+      Alert.alert('Error', error.message || 'Failed to create web invitation link');
     } finally {
       setIsCreatingWebInvite(false);
     }

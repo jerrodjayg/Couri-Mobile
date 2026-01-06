@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!-- 
+  STANDALONE HTML FILE - Can be hosted on any web server
+  No Squarespace dependencies - works independently
+  Upload this file to your web server and access via: yourdomain.com/web-accepted.html?id=TRANSACTION_ID
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,57 +17,65 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f8f9fa;
-            color: #333;
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #fff;
+            color: #000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .container {
-            max-width: 400px;
+            max-width: 500px;
             margin: 0 auto;
             background: white;
             min-height: 100vh;
+            width: 100%;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
         .content {
-            padding: 40px 20px;
+            flex: 1;
+            padding: 60px 20px 180px;
             text-align: center;
         }
 
         .success-icon {
             width: 80px;
             height: 80px;
-            background: #28a745;
+            background: #10B981;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 20px;
             color: white;
-            font-size: 32px;
+            font-size: 40px;
             font-weight: bold;
         }
 
         .success-text {
-            font-size: 18px;
+            font-size: 16px;
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            font-weight: 400;
         }
 
         .app-title {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 28px;
+            font-weight: 700;
             color: #000;
             margin-bottom: 15px;
+            line-height: 1.2;
         }
 
         .app-description {
             font-size: 16px;
-            color: #666;
-            margin-bottom: 30px;
-            line-height: 1.4;
+            color: #000;
+            margin-bottom: 40px;
+            line-height: 1.5;
         }
 
         .action-buttons {
@@ -71,21 +84,28 @@
 
         .open-app-button {
             width: 100%;
-            background: #333;
+            max-width: 300px;
+            background: #111;
             color: white;
-            border: 1px solid #333;
-            padding: 16px;
-            border-radius: 12px;
+            border: none;
+            padding: 16px 18px;
+            border-radius: 26px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            margin-bottom: 20px;
-            transition: all 0.2s;
+            margin: 0 auto 30px;
+            display: block;
+            box-shadow: 0 6px 12px rgba(0,0,0,.18);
+            transition: background 0.2s;
         }
 
         .open-app-button:hover {
-            background: #555;
-            border-color: #555;
+            background: #000;
+        }
+
+        .open-app-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .download-section {
@@ -93,26 +113,28 @@
         }
 
         .download-text {
-            font-size: 14px;
+            font-size: 15px;
             color: #666;
             margin-bottom: 15px;
         }
 
         .app-store-button {
             width: 100%;
+            max-width: 300px;
             background: #000;
             color: white;
             border: none;
             padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 14px;
+            border-radius: 26px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            transition: background-color 0.2s;
+            gap: 10px;
+            margin: 0 auto;
+            transition: background 0.2s;
         }
 
         .app-store-button:hover {
@@ -120,68 +142,86 @@
         }
 
         .apple-icon {
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 4px;
+            width: 22px;
+            height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            color: #000;
+            font-size: 18px;
         }
 
         .footer {
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            padding: 30px 20px;
-            text-align: center;
+            background: linear-gradient(180deg, #eef3ff, #e6ebf7);
+            padding: 20px 40px 16px;
+            z-index: 10;
         }
 
-        .footer-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            border: 2px solid #333;
+        .safety {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            margin: 0 auto 10px;
-            font-weight: bold;
-            font-size: 14px;
+            gap: 12px;
         }
 
-        .footer-text {
-            color: #333;
-            font-size: 12px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
+        .badge {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 3px 8px rgba(0,0,0,.06);
         }
 
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
+        .badge img {
+            width: 60%;
+            height: 60%;
+            object-fit: contain;
         }
 
-        .error {
-            text-align: center;
-            padding: 40px 20px;
-            color: #dc3545;
+        .tag {
+            font-size: 12.4px;
+            letter-spacing: .3px;
+            color: #111;
+            font-weight: 500;
+            text-transform: uppercase;
         }
 
-        @media (max-width: 480px) {
-            .container {
-                max-width: 100%;
-            }
-            
+        @media (max-width: 414px) {
             .content {
-                padding: 30px 15px;
+                padding: 50px 16px 170px;
+            }
+
+            .footer {
+                padding: 20px 30px 16px;
+            }
+
+            .app-title {
+                font-size: 26px;
+            }
+
+            .open-app-button,
+            .app-store-button {
+                max-width: 280px;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .content {
+                padding: 45px 14px 165px;
+            }
+
+            .footer {
+                padding: 20px 25px 16px;
+            }
+
+            .app-title {
+                font-size: 24px;
             }
         }
     </style>
@@ -198,129 +238,73 @@
             </div>
 
             <div class="action-buttons">
-                <button class="open-app-button" onclick="openInApp()">Open in the Couri app</button>
+                <button class="open-app-button" id="open-app-btn" onclick="openInApp()">Add Product Info in the Couri app</button>
                 
                 <div class="download-section">
                     <div class="download-text">Don't have the app yet?</div>
                     <button class="app-store-button" onclick="downloadApp()">
-                        <div class="apple-icon">🍎</div>
-                        Download on the App Store
+                        <span class="apple-icon">🍎</span>
+                        <span>Download on the App Store</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <div class="footer">
-            <div class="footer-icon">co</div>
-            <div class="footer-text">SECURE PAYMENTS, SAFE PICKUP & DELIVERY</div>
-        </div>
+        <footer class="footer">
+            <div class="safety">
+                <div class="badge">
+                    <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Mark%202%20Dark.png" alt="Couri Logo" />
+                </div>
+                <div class="tag">SECURE PAYMENTS, SAFE PICKUP & DELIVERY</div>
+            </div>
+        </footer>
     </div>
 
     <script>
-        // Supabase configuration
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-        
-        let transactionData = null;
-
-        // Initialize Supabase client
-        const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const CONFIG = {
+            APP_STORE_URL: 'https://apps.apple.com/app/couri/id6736088504'
+        };
 
         // Get transaction ID from URL
         function getTransactionId() {
-            const path = window.location.pathname;
-            const segments = path.split('/');
-            return segments[segments.length - 1];
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id') || urlParams.get('transaction_id') || urlParams.get('t');
         }
 
-        // Load transaction data
-        async function loadTransaction() {
-            try {
-                const transactionId = getTransactionId();
-                
-                if (!transactionId) {
-                    showError('Invalid transaction link');
-                    return;
-                }
-
-                // Fetch transaction data from Supabase
-                const { data: transaction, error: transactionError } = await supabaseClient
-                    .from('transactions')
-                    .select('*')
-                    .eq('id', transactionId)
-                    .single();
-
-                if (transactionError) {
-                    console.error('Error fetching transaction:', transactionError);
-                    showError('Transaction not found');
-                    return;
-                }
-
-                transactionData = transaction;
-                
-            } catch (error) {
-                console.error('Error loading transaction:', error);
-                showError('Failed to load transaction');
-            }
-        }
-
-        // Open app with deep link
+        // Open app with deep link or fallback to App Store
         function openInApp() {
-            if (!transactionData) {
-                downloadApp();
-                return;
+            const btn = document.getElementById('open-app-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Opening...';
             }
 
-            // Check if app is installed
-            if (isAppInstalled()) {
-                // Try to open app with deep link
-                const deepLinkUrl = `couri://transaction/${transactionData.id}`;
-                window.location.href = deepLinkUrl;
-                
-                // Fallback to app store after a delay
-                setTimeout(() => {
-                    downloadApp();
-                }, 2000);
-            } else {
-                // Direct to app store
-                downloadApp();
-            }
+            const transactionId = getTransactionId();
+            const deepLinkUrl = `couri://transaction/${transactionId || ''}`;
+            
+            // Try to open the app with deep link
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = deepLinkUrl;
+            document.body.appendChild(iframe);
+
+            // Clean up iframe after a short delay
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 1000);
+
+            // Fallback to App Store after delay (if app doesn't open)
+            setTimeout(() => {
+                window.location.href = CONFIG.APP_STORE_URL;
+            }, 1500);
         }
 
         // Download app from App Store
         function downloadApp() {
-            window.location.href = 'https://apps.apple.com/app/couri/id1234567890';
+            window.location.href = CONFIG.APP_STORE_URL;
         }
-
-        // Check if app is installed (iOS detection)
-        function isAppInstalled() {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            return isIOS;
-        }
-
-        // Show error message
-        function showError(message) {
-            document.querySelector('.content').innerHTML = `
-                <div class="error">${message}</div>
-            `;
-        }
-
-        // Load Supabase script and initialize
-        function loadSupabase() {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-            script.onload = () => {
-                loadTransaction();
-            };
-            script.onerror = () => {
-                showError('Failed to load required scripts');
-            };
-            document.head.appendChild(script);
-        }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', loadSupabase);
     </script>
 </body>
 </html>

@@ -1,0 +1,581 @@
+<!-- 
+  SQUARESPACE CODE BLOCK VERSION
+  Paste ONLY the content below into a Squarespace Code Block
+  Do NOT include <!DOCTYPE>, <html>, <head>, or <body> tags
+  Squarespace will wrap this content automatically
+-->
+
+<style>
+  /* Override Squarespace styles */
+  #siteWrapper,
+  #siteWrapper * {
+    box-sizing: border-box;
+  }
+  
+  /* Force full width and white background on all Squarespace containers */
+  .sqs-layout,
+  .sqs-block,
+  .sqs-block-content,
+  .sqs-block-code,
+  .code-block {
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Hide Squarespace default header/navigation */
+  #header,
+  #topNav,
+  .Header,
+  .Mobile-bar,
+  .Mobile-nav-toggle,
+  header,
+  nav[role="navigation"],
+  .site-header {
+    display: none !important;
+  }
+  
+  /* Remove any top border/line and ensure full width white background */
+  html,
+  body,
+  #siteWrapper,
+  #page,
+  .Main-content,
+  .page-section,
+  .content-wrapper {
+    border-top: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #fff !important;
+    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    position: fixed !important;
+    height: 100vh !important;
+  }
+  
+  /* Ensure Squarespace page containers are full width */
+  #siteWrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .couri-invite-container {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100vh;
+    background: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #000;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+  
+  .couri-invite-main {
+    flex: 1;
+    padding: 40px 20px 140px;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .couri-logo-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 25px;
+  }
+  
+  .couri-logo {
+    height: 39px;
+    width: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .couri-logo img {
+    height: 39px;
+    width: 88px;
+    object-fit: contain;
+  }
+
+
+  .couri-hero {
+    margin: 10px 0 24px;
+    text-align: center;
+  }
+  
+  .couri-hero h1 {
+    font-size: 28px;
+    line-height: 1.2;
+    margin: 6px 0 8px;
+    font-weight: 700;
+    color: #000;
+  }
+  
+  .couri-sub {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    color: #4b5563;
+    font-size: 15px;
+    margin-top: 12px;
+  }
+  
+  .couri-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #cdd7eb;
+  }
+  
+  .couri-avatar span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .couri-card {
+    margin: 16px 0 14px;
+    margin-right: auto;
+    border: 1.5px solid #000;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 12px 12px 14px;
+    gap: 12px;
+    width: 90%;
+    max-width: 90%;
+    box-sizing: border-box;
+    background: #fff;
+  }
+  
+  .couri-item-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  
+  .couri-title {
+    font-size: 13px;
+    font-weight: normal;
+    line-height: 1.25;
+    color: #111;
+    margin: 0;
+    word-wrap: break-word;
+  }
+  
+  .couri-thumb {
+    flex: 0 0 82px;
+    width: 82px;
+    height: 82px;
+    border-radius: 8px;
+    background: #e6e6e6;
+    border: 1.5px solid #000;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .couri-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto;
+  }
+
+  .couri-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    color: #4b5563;
+    font-size: 13px;
+    margin: 6px 0 20px;
+  }
+  
+  .couri-fb {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  
+  .couri-fb svg {
+    display: block;
+  }
+
+  .couri-btn {
+    display: block;
+    width: 362px;
+    height: 57px;
+    margin: 0 0 12px 0;
+    margin-right: auto;
+    padding: 0;
+    border-radius: 26px;
+    text-align: center;
+    font-weight: 700;
+    border: 0;
+    cursor: pointer;
+    font-size: 16px;
+    background: #171715;
+    color: #fff;
+    box-shadow: 0 6px 12px rgba(0,0,0,.18);
+    font-family: inherit;
+  }
+  
+  .couri-btn:hover {
+    background: #0f0f0d;
+  }
+  
+  .couri-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  .couri-decline {
+    display: block;
+    text-align: center;
+    color: #111;
+    text-decoration: underline;
+    font-size: 15px;
+    margin: 2px auto 0;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+  }
+
+  .couri-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, #eef3ff, #e6ebf7);
+    padding: 20px 40px 16px;
+    z-index: 10;
+  }
+  
+  .couri-safety {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .couri-badge {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 3px 8px rgba(0,0,0,.06);
+  }
+  
+  .couri-badge img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+  }
+  
+  .couri-tag {
+    font-size: 12.4px;
+    letter-spacing: .3px;
+    color: #111;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 414px) {
+    .couri-invite-main {
+      padding: 30px 16px 130px;
+    }
+    
+    .couri-logo-container {
+      margin-bottom: 20px;
+    }
+    
+    .couri-logo {
+      height: 39px;
+      width: 88px;
+    }
+    
+    .couri-logo img {
+      height: 39px;
+      width: 88px;
+    }
+    
+    .couri-footer {
+      padding: 20px 30px 16px;
+    }
+    
+    .couri-hero h1 {
+      font-size: 26px;
+    }
+    
+      
+    .couri-card {
+      padding: 14px;
+    }
+    
+    .couri-btn {
+      width: 362px;
+      height: 57px;
+      max-width: calc(100% - 32px);
+    }
+  }
+</style>
+
+<div class="couri-invite-container">
+  <div class="couri-invite-main">
+    <div class="couri-logo-container">
+      <div class="couri-logo">
+        <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Logo_Dark.png" alt="Couri Logo" />
+      </div>
+    </div>
+    
+    <section class="couri-hero">
+      <h1>You've been invited<br/>to a transaction</h1>
+      <div class="couri-sub">
+        with <span class="couri-inviter-name">User</span>
+        <span class="couri-avatar">
+          <span class="couri-avatar-initial">U</span>
+        </span>
+      </div>
+    </section>
+
+    <section class="couri-card">
+      <div class="couri-item-info">
+        <p class="couri-title" id="couri-item-title">"Loading..."</p>
+      </div>
+      <div class="couri-thumb">
+        <img id="couri-item-image" src="" alt="Item thumbnail" style="display: none;"/>
+      </div>
+    </section>
+
+    <div class="couri-source">
+      <span class="couri-fb" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 12.06C22 6.504 17.523 2 12 2S2 6.504 2 12.06C2 17.083 5.657 21.246 10.438 22v-7.02H7.898v-2.92h2.54V9.846c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.196 2.238.196v2.48h-1.26c-1.242 0-1.63.776-1.63 1.572v1.885h2.774l-.443 2.92h-2.331V22C18.343 21.246 22 17.083 22 12.06z" fill="#1877F2"/>
+        </svg>
+      </span>
+      <span class="couri-source-text">from Facebook Marketplace</span>
+    </div>
+
+    <button class="couri-btn" id="couri-join-btn" onclick="couriHandleJoinTransaction(); return false;">Join Transaction</button>
+    <button class="couri-decline" onclick="couriHandleDecline()">Decline</button>
+  </div>
+
+  <footer class="couri-footer">
+    <div class="couri-safety">
+      <div class="couri-badge" aria-hidden="true">
+        <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Mark%202%20Dark.png" alt="Couri Logo" />
+      </div>
+      <div class="couri-tag">SECURE PAYMENTS, SAFE PICKUP & DELIVERY</div>
+    </div>
+  </footer>
+</div>
+
+<script>
+  (function() {
+    const CONFIG = {
+      SUPABASE_URL: 'https://nfkykasruwdzpcjuufdu.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ma3lrYXNydXdkenBjanV1ZmR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTU5OTcsImV4cCI6MjA2NTc3MTk5N30._-SBo_yqk0ABeXNHYGsKjBn2HwrFP-QCjCkJn2KqtOw',
+      APP_STORE_URL: 'https://apps.apple.com/app/couri/id6736088504'
+    };
+    
+    let transactionData = null;
+    let supabaseClient = null;
+
+    function getTransactionId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const transactionId = urlParams.get('id') || urlParams.get('transaction_id') || urlParams.get('t');
+      return transactionId;
+    }
+
+    async function loadTransaction() {
+      try {
+        const transactionId = getTransactionId();
+        
+        if (!transactionId) {
+          document.querySelector('.couri-hero h1').textContent = 'Invalid Link';
+          document.querySelector('.couri-sub').textContent = 'Please check your invitation link and try again.';
+          document.querySelector('.couri-card').style.display = 'none';
+          document.querySelector('.couri-source').style.display = 'none';
+          document.querySelector('.couri-btn').style.display = 'none';
+          document.querySelector('.couri-decline').style.display = 'none';
+          return;
+        }
+
+        const { data: transactions, error } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .eq('id', transactionId);
+
+        if (error) {
+          console.error('Error:', error);
+          showLoadingError();
+          return;
+        }
+
+        if (!transactions || transactions.length === 0) {
+          showLoadingError();
+          return;
+        }
+
+        const transaction = transactions[0];
+        
+        transactionData = {
+          ...transaction,
+          item_title: transaction.metadata?.item_title || transaction.metadata?.title || 'Untitled Item',
+          item_image: transaction.metadata?.item_image || transaction.metadata?.image || null,
+          source: transaction.metadata?.source || 'Facebook Marketplace'
+        };
+        
+        const inviterName = transaction.metadata?.inviter_name || 
+                           transaction.metadata?.userAddress?.full_name || 
+                           transaction.metadata?.userAddress?.name || 
+                           'User';
+
+        displayTransaction(inviterName);
+        
+      } catch (error) {
+        console.error('Error:', error);
+        showLoadingError();
+      }
+    }
+
+    function displayTransaction(inviterName) {
+      if (!transactionData) return;
+
+      document.querySelector('.couri-inviter-name').textContent = inviterName;
+      document.querySelector('.couri-avatar-initial').textContent = inviterName.charAt(0).toUpperCase();
+      
+      const titleEl = document.getElementById('couri-item-title');
+      if (titleEl) {
+        titleEl.textContent = `"${transactionData.item_title}"`;
+      }
+      
+      const thumbImg = document.getElementById('couri-item-image');
+      if (thumbImg && transactionData.item_image) {
+        thumbImg.src = transactionData.item_image;
+        thumbImg.style.display = 'block';
+        thumbImg.onerror = function() {
+          this.style.display = 'none';
+        };
+      }
+
+      const sourceText = document.querySelector('.couri-source-text');
+      if (sourceText) {
+        sourceText.textContent = `from ${transactionData.source}`;
+      }
+    }
+
+    function showLoadingError() {
+      document.querySelector('.couri-hero h1').textContent = 'Unable to Load';
+      document.querySelector('.couri-sub').textContent = 'The invitation link may be invalid or expired.';
+      document.querySelector('.couri-card').style.display = 'none';
+      document.querySelector('.couri-source').style.display = 'none';
+      document.querySelector('.couri-btn').style.display = 'none';
+      document.querySelector('.couri-decline').style.display = 'none';
+    }
+
+    window.couriHandleJoinTransaction = function() {
+      try {
+        const joinBtn = document.getElementById('couri-join-btn');
+        if (joinBtn) {
+          joinBtn.disabled = true;
+          joinBtn.textContent = 'Processing...';
+        }
+        
+        const transactionId = getTransactionId();
+        console.log('Join Transaction - transactionId:', transactionId);
+        
+        // Update transaction status (fire and forget)
+        if (transactionId && supabaseClient) {
+          supabaseClient
+            .from('transactions')
+            .update({ status: 'accepted', updated_at: new Date().toISOString() })
+            .eq('id', transactionId)
+            .catch(err => console.error('Update error:', err));
+        }
+        
+        // Redirect immediately - use absolute URL for Squarespace
+        const baseUrl = window.location.origin;
+        const successUrl = `${baseUrl}/continue1?id=${transactionId || ''}`;
+        console.log('Redirecting to:', successUrl);
+        
+        // Force redirect - try multiple methods
+        setTimeout(() => {
+          try {
+            window.location.replace(successUrl);
+          } catch (e) {
+            window.location.href = successUrl;
+          }
+        }, 50);
+      } catch (error) {
+        console.error('Error in couriHandleJoinTransaction:', error);
+        // Fallback redirect
+        const transactionId = getTransactionId();
+        window.location.href = `/continue1?id=${transactionId || ''}`;
+      }
+    };
+
+    window.couriHandleDecline = function() {
+      const transactionId = getTransactionId();
+      if (transactionId && supabaseClient) {
+        supabaseClient
+          .from('transactions')
+          .update({ status: 'declined', updated_at: new Date().toISOString() })
+          .eq('id', transactionId)
+          .catch(err => console.error('Update error:', err));
+      }
+      
+      document.querySelector('.couri-hero h1').textContent = 'Transaction Declined';
+      document.querySelector('.couri-sub').textContent = 'This transaction is closed.';
+      document.querySelector('.couri-card').style.display = 'none';
+      document.querySelector('.couri-source').style.display = 'none';
+      document.querySelector('.couri-btn').style.display = 'none';
+      document.querySelector('.couri-decline').style.display = 'none';
+    };
+
+    function init() {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      script.onload = () => {
+        supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        loadTransaction();
+      };
+      script.onerror = () => {
+        showLoadingError();
+      };
+      document.head.appendChild(script);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>
