@@ -561,7 +561,7 @@ export default function CreateAccountScreen({ navigation, route }) {
                 style={styles.backArrowImage}
               />
             </Pressable>
-            <Text style={styles.headerTitle}>CREATE ACCOUNT</Text>
+            <Text style={styles.headerTitle}>SIGN UP</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -582,50 +582,53 @@ export default function CreateAccountScreen({ navigation, route }) {
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
 
+          <View style={styles.dividerLine} />
+
           <View style={styles.socialBox}>
-            <Text style={styles.socialLabel}>or continue with</Text>
+            <Text style={styles.socialLabel}>or</Text>
 
-            <View style={styles.providerRow}>
-              {/* Apple */}
-              <TouchableOpacity
-                style={[styles.providerButton, appleLoading && { opacity: 0.7 }]}
-                onPress={handleAppleSignUp}
-                disabled={appleLoading}
-              >
-                <Image
-                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
-                  style={styles.providerLogo}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
+            {/* Apple - Commented out */}
+            {/* <TouchableOpacity
+              style={[styles.providerButton, appleLoading && { opacity: 0.7 }]}
+              onPress={handleAppleSignUp}
+              disabled={appleLoading}
+            >
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
+                style={styles.providerLogo}
+                resizeMode="contain"
+              />
+            </TouchableOpacity> */}
 
-              {/* Google */}
-              <TouchableOpacity
-                style={[styles.providerButton, (googleLoading || loading) && { opacity: 0.7 }]}
-                onPress={handleGoogleSignIn}
-                disabled={googleLoading || loading}
-              >
-                <Image
-                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
-                  style={styles.providerLogo}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
+            {/* Google - Full width button */}
+            <TouchableOpacity
+              style={[styles.googleButton, (googleLoading || loading) && { opacity: 0.7 }]}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+            >
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
+                style={styles.providerLogo}
+                resizeMode="contain"
+              />
+              <Text style={styles.googleButtonText}>Sign up with Google</Text>
+            </TouchableOpacity>
 
-              {/* Facebook - Hidden but functionality preserved */}
-              {/* <TouchableOpacity
- style={[styles.providerButton, facebookLoading && { opacity: 0.7 }]}
- onPress={handleFacebookSignUp}
- disabled={facebookLoading}
- >
- <Image
- source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }}
- style={styles.providerLogo}
- resizeMode="contain"
- />
- </TouchableOpacity> */}
-            </View>
+            {/* Facebook - Hidden but functionality preserved */}
+            {/* <TouchableOpacity
+              style={[styles.providerButton, facebookLoading && { opacity: 0.7 }]}
+              onPress={handleFacebookSignUp}
+              disabled={facebookLoading}
+            >
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }}
+                style={styles.providerLogo}
+                resizeMode="contain"
+              />
+            </TouchableOpacity> */}
           </View>
+
+          <View style={styles.spacer} />
 
           <View style={styles.signUpRow}>
             <Text style={styles.bottomText}>Already have an account? </Text>
@@ -693,6 +696,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000'
   },
+  dividerLine: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16
+  },
   socialLabel: {
     fontSize: 14,
     marginBottom: 16,
@@ -717,6 +725,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     elevation: 4
   },
+  googleButton: {
+    width: '100%',
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginLeft: 12
+  },
   providerLogo: {
     width: 24,
     height: 24
@@ -731,10 +757,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center'
   },
+  spacer: {
+    flex: 1
+  },
   signUpRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 10
+    paddingBottom: 20
   },
   bottomText: {
     textAlign: 'center',

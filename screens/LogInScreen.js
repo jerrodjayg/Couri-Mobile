@@ -1464,50 +1464,50 @@ export default function LogInScreen({ navigation, route }) {
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
 
+          <View style={styles.dividerLine} />
+
           <View style={styles.socialBox}>
-            <Text style={styles.socialLabel}>or continue with</Text>
+            <Text style={styles.socialLabel}>or</Text>
 
+            {/* Apple - Commented out */}
+            {/* <TouchableOpacity
+              style={[styles.providerButton, appleLoading && { opacity: 0.7 }]}
+              onPress={handleAppleSignIn}
+              disabled={appleLoading}
+            >
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
+                style={styles.providerLogo}
+                resizeMode="contain"
+              />
+            </TouchableOpacity> */}
 
-            <View style={styles.providerRow}>
-              {/* Apple */}
-              <TouchableOpacity
-                style={[styles.providerButton, appleLoading && { opacity: 0.7 }]}
-                onPress={handleAppleSignIn}
-                disabled={appleLoading}
-              >
-                <Image
-                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/appleicon.png' }}
-                  style={styles.providerLogo}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
+            {/* Google - Full width button */}
+            <TouchableOpacity
+              style={[styles.googleButton, (googleLoading || isProcessingSignIn) && { opacity: 0.7 }]}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading || isProcessingSignIn}
+            >
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
+                style={styles.providerLogo}
+                resizeMode="contain"
+              />
+              <Text style={styles.googleButtonText}>Log In with Google</Text>
+            </TouchableOpacity>
 
-              {/* Google */}
-              <TouchableOpacity
-                style={[styles.providerButton, (googleLoading || isProcessingSignIn) && { opacity: 0.7 }]}
-                onPress={handleGoogleSignIn}
-                disabled={googleLoading || isProcessingSignIn}
-              >
-                <Image
-                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/googleicon.png' }}
-                  style={styles.providerLogo}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-
-              {/* Facebook - Hidden but functionality preserved */}
-              {/* <TouchableOpacity
-                style={[styles.providerButton, facebookLoading && { opacity: 0.7 }]}
-                onPress={handleFacebookSignIn}
-                disabled={facebookLoading}
-              >
-                <Image
-                  source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }}
-                  style={styles.providerLogo}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity> */}
-            </View>
+            {/* Facebook - Hidden but functionality preserved */}
+            {/* <TouchableOpacity
+              style={[styles.providerButton, facebookLoading && { opacity: 0.7 }]}
+              onPress={handleFacebookSignIn}
+              disabled={facebookLoading}
+            >
+              <Image
+                source={{ uri: 'https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/facebookicon.png' }}
+                style={styles.providerLogo}
+                resizeMode="contain"
+              />
+            </TouchableOpacity> */}
           </View>
 
           {/* Biometric Login Section - Moved to bottom */}
@@ -1594,6 +1594,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000'
   },
+  dividerLine: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16
+  },
   socialLabel: {
     fontSize: 14,
     marginBottom: 16,
@@ -1621,6 +1626,24 @@ const styles = StyleSheet.create({
   providerLogo: {
     width: 24,
     height: 24
+  },
+  googleButton: {
+    width: '100%',
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#000',
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginLeft: 12
   },
   biometricButton: {
     flexDirection: 'row',
