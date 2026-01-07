@@ -408,16 +408,41 @@ export default function PersonalInfoScreen({ navigation, route }) {
       return;
     }
 
-    // Check if email already exists in database
-    console.log('🔍 PersonalInfoScreen DEBUG - Checking if email already exists in database');
+    // Check if email already exists in database - ALWAYS do a fresh check
+    console.log('🔍 PersonalInfoScreen DEBUG - Checking if email already exists in database (fresh check)');
     try {
-      const { exists } = await UserService.checkUserExists(form.email.toLowerCase());
+      // Direct database query to ensure we get the latest data
+      const emailToCheck = form.email.toLowerCase().trim();
+      console.log('🔍 PersonalInfoScreen DEBUG - Checking email:', emailToCheck);
+      
+      // Query the users table directly with a fresh query
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .ilike('email', emailToCheck)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 = no rows returned (which is fine)
+        console.error('❌ PersonalInfoScreen DEBUG - Error checking email existence:', checkError);
+        // Continue with account creation if database check fails
+      } else if (existingUser) {
+        console.log('🔍 PersonalInfoScreen DEBUG - Email already exists in database:', existingUser.email);
+        setError('emailExists');
+        return;
+      } else {
+        console.log('🔍 PersonalInfoScreen DEBUG - Email is available (no existing user found)');
+      }
+      
+      // Also check using UserService as a secondary check
+      const { exists } = await UserService.checkUserExists(emailToCheck);
       if (exists) {
-        console.log('🔍 PersonalInfoScreen DEBUG - Email already exists in database');
+        console.log('🔍 PersonalInfoScreen DEBUG - UserService also confirms email exists');
         setError('emailExists');
         return;
       }
-      console.log('🔍 PersonalInfoScreen DEBUG - Email is available');
+      
+      console.log('🔍 PersonalInfoScreen DEBUG - Email is available (confirmed by both checks)');
     } catch (dbError) {
       console.error('❌ PersonalInfoScreen DEBUG - Error checking email existence:', dbError);
       // Continue with account creation if database check fails

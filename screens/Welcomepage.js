@@ -879,6 +879,83 @@ export default function Welcomepage({ route, navigation }) {
     checkUser();
   }, [contextUser]);
 
+  // Save user to database when they first reach Welcomepage after account creation
+  useEffect(() => {
+    const saveUserToDatabase = async () => {
+      try {
+        // Check if user just completed account creation
+        const justCreatedAccount = await AsyncStorage.getItem('justCreatedAccount');
+        const hasBeenSaved = await AsyncStorage.getItem('userSavedToDatabase');
+        
+        // Only save if they just created account and haven't been saved yet
+        if (justCreatedAccount === 'true' && hasBeenSaved !== 'true') {
+          console.log('🔄 Welcomepage - User just completed account creation, saving to database...');
+          
+          // Get user data from AsyncStorage
+          const tempUserData = await AsyncStorage.getItem('tempUserData');
+          const userProfileData = await AsyncStorage.getItem('userProfileData');
+          const userData = tempUserData ? JSON.parse(tempUserData) : (userProfileData ? JSON.parse(userProfileData) : null);
+          
+          if (!userData || !userData.email) {
+            console.log('⚠️ Welcomepage - No user data found in AsyncStorage');
+            return;
+          }
+          
+          // Get current Supabase session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user) {
+            console.log('⚠️ Welcomepage - No Supabase session found');
+            return;
+          }
+          
+          const userId = session.user.id;
+          const isGoogleAuth = userData.isGoogleAuth || session.user.app_metadata?.provider === 'google';
+          
+          // Prepare user data for database
+          const userDataForDatabase = {
+            id: userId,
+            email: userData.email.toLowerCase(),
+            first_name: userData.firstName || userData.first_name || '',
+            last_name: userData.lastName || userData.last_name || '',
+            phone: userData.phone || '',
+            address_line_1: userData.address1 || userData.address_line_1 || '',
+            address_line_2: userData.address2 || userData.address_line_2 || null,
+            city: userData.city || '',
+            state: userData.state || '',
+            zip_code: userData.zip || userData.zip_code || '',
+            avatar_url: userData.avatar_url || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          console.log('🔄 Welcomepage - Saving user to database:', userDataForDatabase);
+          
+          // Save to users table
+          const { data: savedData, error: saveError } = await supabase
+            .from('users')
+            .upsert(userDataForDatabase, {
+              onConflict: 'email'
+            })
+            .select();
+          
+          if (saveError) {
+            console.error('❌ Welcomepage - Error saving user to database:', saveError);
+          } else {
+            console.log('✅ Welcomepage - User successfully saved to database:', savedData);
+            // Mark that user has been saved
+            await AsyncStorage.setItem('userSavedToDatabase', 'true');
+            // Clear the justCreatedAccount flag
+            await AsyncStorage.removeItem('justCreatedAccount');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Welcomepage - Error in saveUserToDatabase:', error);
+      }
+    };
+    
+    saveUserToDatabase();
+  }, []);
+
   // Load marketplace preview data from AsyncStorage or route params
   useEffect(() => {
     const loadMarketplacePreview = async () => {

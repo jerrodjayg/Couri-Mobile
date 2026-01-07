@@ -505,24 +505,28 @@ const saveRegularUserToDatabase = async () => {
 
     console.log('🧪 [saveRegularUserToDatabase] Upserting row:', JSON.stringify(row, null, 2));
 
+    // NOTE: Database save moved to Welcomepage - do not save here
+    // User will be saved to database when they reach Welcomepage
+    console.log('⏸️ [saveRegularUserToDatabase] Skipping database save - will save on Welcomepage');
+    
     // 4) Upsert on a UNIQUE column you actually have (email or auth_user_id)
-    // If you added a unique constraint on auth_user_id, you can switch onConflict to 'auth_user_id'
-    const { data, error } = await supabase
-      .from('users')
-      .upsert(row, { onConflict: 'email' }) // or 'auth_user_id' if you made it UNIQUE
-      .select();
+    // COMMENTED OUT - Database save moved to Welcomepage
+    // const { data, error } = await supabase
+    //   .from('users')
+    //   .upsert(row, { onConflict: 'email' }) // or 'auth_user_id' if you made it UNIQUE
+    //   .select();
 
-    if (error) {
-      console.error('❌ [saveRegularUserToDatabase] Upsert error:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-      return; // Don't throw; just log so the UI flow can proceed
-    }
+    // if (error) {
+    //   console.error('❌ [saveRegularUserToDatabase] Upsert error:', {
+    //     code: error.code,
+    //     message: error.message,
+    //     details: error.details,
+    //     hint: error.hint,
+    //   });
+    //   return; // Don't throw; just log so the UI flow can proceed
+    // }
 
-    console.log('✅ [saveRegularUserToDatabase] Upsert success:', data);
+    // console.log('✅ [saveRegularUserToDatabase] Upsert success:', data);
 
     // 5) Cache a lightweight profile locally for next screens (no DB surrogate id here)
     const cached = {
@@ -715,37 +719,42 @@ const saveRegularUserToDatabase = async () => {
       console.log('  - zip_code type:', typeof userDataForUsersTable.zip_code, 'value:', userDataForUsersTable.zip_code);
       console.log('🔍 Attempting to save Google user to users table with data:', JSON.stringify(userDataForUsersTable, null, 2));
 
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .upsert(userDataForUsersTable, {
-          onConflict: 'email'  // Use email for conflict resolution since we're not providing an ID
-        });
+      // NOTE: Database save moved to Welcomepage - do not save here
+      // User will be saved to database when they reach Welcomepage
+      console.log('⏸️ [saveGoogleUserToDatabase] Skipping database save - will save on Welcomepage');
+      
+      // COMMENTED OUT - Database save moved to Welcomepage
+      // const { data: usersData, error: usersError } = await supabase
+      //   .from('users')
+      //   .upsert(userDataForUsersTable, {
+      //     onConflict: 'email'  // Use email for conflict resolution since we're not providing an ID
+      //   });
 
-      if (usersError) {
-        console.error('❌ Error saving to users table:', usersError);
-        console.error('❌ Users table error details:', {
-          code: usersError.code,
-          message: usersError.message,
-          details: usersError.details,
-          hint: usersError.hint
-        });
-        
-        // Log the error for debugging
-        console.error('❌ Error saving to users table:', usersError);
-        console.log('🔍 Error details:', {
-          code: usersError.code,
-          message: usersError.message,
-          details: usersError.details,
-          hint: usersError.hint
-        });
-        
-        // Don't throw the error, just log it so the UI flow can continue
-        console.log('⚠️ Continuing despite database error - user data saved to AsyncStorage');
-        
+      // if (usersError) {
+      //   console.error('❌ Error saving to users table:', usersError);
+      //   console.error('❌ Users table error details:', {
+      //     code: usersError.code,
+      //     message: usersError.message,
+      //     details: usersError.details,
+      //     hint: usersError.hint
+      //   });
+      //   
+      //   // Log the error for debugging
+      //   console.error('❌ Error saving to users table:', usersError);
+      //   console.log('🔍 Error details:', {
+      //     code: usersError.code,
+      //     message: usersError.message,
+      //     details: usersError.details,
+      //     hint: usersError.hint
+      //   });
+      //   
+      //   // Don't throw the error, just log it so the UI flow can continue
+      //   console.log('⚠️ Continuing despite database error - user data saved to AsyncStorage');
+      //   
 
-      } else {
-        console.log('✅ Google user data successfully saved to users table:', usersData);
-      }
+      // } else {
+      //   console.log('✅ Google user data successfully saved to users table:', usersData);
+      // }
 
       // CRITICAL FIX: Store complete user data in AsyncStorage for the welcome screen
       const userDataToStore = {
@@ -882,6 +891,8 @@ const saveRegularUserToDatabase = async () => {
       if (isDriverFlow) {
         navigation.replace('DriverPortal');
       } else {
+        // Mark that user just completed account creation (will save to DB on Welcomepage)
+        await AsyncStorage.setItem('justCreatedAccount', 'true');
         // Navigate to Tutorial for new users (account creation flow)
         navigation.replace('Tutorial', { 
           userInfo: userFromParams,
@@ -907,6 +918,8 @@ const saveRegularUserToDatabase = async () => {
        if (isDriverFlow) {
          navigation.replace('DriverPortal');
        } else {
+         // Mark that user just completed account creation (will save to DB on Welcomepage)
+         await AsyncStorage.setItem('justCreatedAccount', 'true');
          // Navigate to Tutorial for new users (account creation flow)
          navigation.replace('Tutorial', { 
            userInfo: userFromParams,

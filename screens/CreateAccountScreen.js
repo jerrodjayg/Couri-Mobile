@@ -335,18 +335,8 @@ export default function CreateAccountScreen({ navigation, route }) {
         if (userData) {
           console.log('✅ User data found:', userData.email);
 
-          // Try to save user data to database (non-blocking)
-          try {
-            await UserService.saveGoogleAuthUser(userData, {
-              email: userData.email,
-              firstName: userData.user_metadata?.first_name || (userData.user_metadata?.name?.split(' ') || [])[0] || '',
-              lastName: userData.user_metadata?.last_name || (userData.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '',
-            });
-            console.log('✅ User data saved to database successfully');
-          } catch (dbError) {
-            console.error('❌ Failed to save user to database:', dbError);
-            console.log('⚠️ Continuing with navigation despite database error...');
-          }
+          // NOTE: User will be saved to database when they reach Welcomepage
+          // Do not save here - wait until account creation is complete
 
           // Navigate to PersonalInfoScreen
           navigation.replace('PersonalInfo', {
@@ -381,18 +371,8 @@ export default function CreateAccountScreen({ navigation, route }) {
           if (session?.user) {
             console.log('✅ Session found in Supabase:', session.user.email);
 
-            // Try to save user data to database (non-blocking)
-            try {
-              await UserService.saveGoogleAuthUser(session.user, {
-                email: session.user.email,
-                firstName: session.user.user_metadata?.first_name || (session.user.user_metadata?.name?.split(' ') || [])[0] || '',
-                lastName: session.user.user_metadata?.last_name || (session.user.user_metadata?.name?.split(' ') || []).slice(1).join(' ') || '',
-              });
-              console.log('✅ User data saved to database successfully');
-            } catch (dbError) {
-              console.error('❌ Failed to save user to database:', dbError);
-              console.log('⚠️ Continuing with navigation despite database error...');
-            }
+            // NOTE: User will be saved to database when they reach Welcomepage
+            // Do not save here - wait until account creation is complete
 
             // Navigate to PersonalInfoScreen
             navigation.replace('PersonalInfo', {
