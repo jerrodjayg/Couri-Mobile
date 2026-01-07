@@ -161,7 +161,7 @@ export default function CreateAccountScreen({ navigation, route }) {
   const { signIn: signInFacebook, loading: facebookLoading } = useFacebookAuth();
   const { signIn: signInApple, loading: appleLoading } = useAppleAuth();
 
-  // Add debugging useEffect
+  // Add debugging useEffect and clear session on focus
   useEffect(() => {
     console.log('🔍 CreateAccountScreen DEBUG - Component mounted successfully');
     console.log('🔍 CreateAccountScreen DEBUG - Navigation state:', navigation.getState()?.routes?.map(r => r.name));
@@ -170,11 +170,32 @@ export default function CreateAccountScreen({ navigation, route }) {
     const canGoBack = navigation.canGoBack();
     console.log('🔍 CreateAccountScreen DEBUG - Can go back:', canGoBack);
 
-    // Add focus listener to reset loading states when user returns to this screen
-    const unsubscribe = navigation.addListener('focus', () => {
+    // Add focus listener to reset loading states and clear session when user returns to this screen
+    const unsubscribe = navigation.addListener('focus', async () => {
       setLoading(false);
       setIsHandlingGoogleSignIn(false);
       console.log('🔍 CreateAccountScreen DEBUG - Screen focused, reset loading states');
+      
+      // Clear any existing Supabase session to ensure fresh data on next Google sign-in
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('🔄 CreateAccountScreen DEBUG - Clearing existing session from previous attempt');
+          await supabase.auth.signOut();
+          console.log('✅ CreateAccountScreen DEBUG - Session cleared successfully');
+        }
+      } catch (error) {
+        console.error('❌ CreateAccountScreen DEBUG - Error clearing session:', error);
+      }
+      
+      // Clear any cached user data from AsyncStorage
+      try {
+        await AsyncStorage.removeItem('tempUserData');
+        await AsyncStorage.removeItem('userProfileData');
+        console.log('✅ CreateAccountScreen DEBUG - Cached user data cleared');
+      } catch (error) {
+        console.error('❌ CreateAccountScreen DEBUG - Error clearing cached data:', error);
+      }
     });
 
     return () => {
@@ -252,6 +273,28 @@ export default function CreateAccountScreen({ navigation, route }) {
   const handleGoogleSignIn = async () => {
     console.log('🔄 handleGoogleSignIn function called');
     console.log('🔍 CreateAccountScreen DEBUG - Starting Google sign-in flow');
+    
+    // Clear any existing session before starting new Google sign-in
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('🔄 CreateAccountScreen DEBUG - Clearing existing session before new Google sign-in');
+        await supabase.auth.signOut();
+        console.log('✅ CreateAccountScreen DEBUG - Session cleared before Google sign-in');
+      }
+    } catch (error) {
+      console.error('❌ CreateAccountScreen DEBUG - Error clearing session before Google sign-in:', error);
+    }
+    
+    // Clear any cached user data from AsyncStorage
+    try {
+      await AsyncStorage.removeItem('tempUserData');
+      await AsyncStorage.removeItem('userProfileData');
+      console.log('✅ CreateAccountScreen DEBUG - Cached user data cleared before Google sign-in');
+    } catch (error) {
+      console.error('❌ CreateAccountScreen DEBUG - Error clearing cached data:', error);
+    }
+    
     setLoading(true);
     setIsHandlingGoogleSignIn(true);
 

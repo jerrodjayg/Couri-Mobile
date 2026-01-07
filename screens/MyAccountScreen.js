@@ -148,17 +148,17 @@ export default function MyAccountScreen({ navigation, route }) {
       // Set flag to indicate user logged out (but keep data)
       await AsyncStorage.setItem('userLastAction', 'sign_out');
       
-      // Navigate to BiometricAuth screen (purple Face ID login) - always show after logout
+      // Navigate to Home screen after logout
       navigation.reset({
         index: 0,
-        routes: [{ name: 'BiometricAuth' }],
+        routes: [{ name: 'Home' }],
       });
     } catch (error) {
       console.error('❌ Logout error:', error);
-      // Still navigate to BiometricAuth even if logout fails
+      // Still navigate to Home even if logout fails
       navigation.reset({
         index: 0,
-        routes: [{ name: 'BiometricAuth' }],
+        routes: [{ name: 'Home' }],
       });
     }
   };
