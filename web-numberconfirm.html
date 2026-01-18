@@ -1,0 +1,535 @@
+<!-- 
+  SQUARESPACE CODE BLOCK VERSION - Phone Number Confirmation Page
+  Paste ONLY the content below into a Squarespace Code Block on the "numberconfirm" page
+  Do NOT include <!DOCTYPE>, <html>, <head>, or <body> tags
+  Squarespace will wrap this content automatically
+-->
+
+<style>
+    /* Force remove ALL Squarespace padding and centering issues */
+    .sqs-block-content {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+  
+    .content-wrapper,
+    .content {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+  
+    /* Override Squarespace styles */
+    #siteWrapper,
+    #siteWrapper * {
+      box-sizing: border-box;
+    }
+  
+    /* Hide Squarespace default header/navigation */
+    #header,
+    #topNav,
+    .Header,
+    .Mobile-bar,
+    .Mobile-nav-toggle,
+    header,
+    nav[role="navigation"],
+    .site-header {
+      display: none !important;
+    }
+  
+    /* Force the container to use the viewport width (prevents wrapper weirdness) */
+    html,
+    body,
+    #siteWrapper,
+    #page,
+    .Main-content,
+    .page-section,
+    .content-wrapper {
+      border-top: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      background: #fff !important;
+      overflow-x: hidden !important;
+    }
+
+    /* Nuke any remaining Squarespace “gutter” padding with higher specificity */
+    #siteWrapper .sqs-layout,
+    #siteWrapper .sqs-block,
+    #siteWrapper .sqs-block-content,
+    #siteWrapper .sqs-block-code,
+    #siteWrapper .code-block,
+    #siteWrapper .content-wrapper,
+    #siteWrapper .content {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
+  
+    /* Ensure Squarespace page containers are full width */
+    #siteWrapper {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  
+    /* Force full width and white background on all Squarespace containers */
+    .sqs-layout,
+    .sqs-block,
+    .sqs-block-content,
+    .sqs-block-code,
+    .code-block {
+      width: 100% !important;
+      max-width: 100% !important;
+      background: #fff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  
+    .couri-numberconfirm-container {
+      margin: 0 auto !important;
+      left: 0 !important;
+      right: 0 !important;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #000;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+  
+    .couri-numberconfirm-main {
+      flex: 1;
+      padding: 24px 20px 160px;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      text-align: center;
+      transform: translateX(-8px);
+    }
+  
+    .couri-success-icon {
+      width: 36px;
+      height: 36px;
+      background: #10B981;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+    }
+  
+    .couri-success-text {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 16px;
+      font-weight: 400;
+    }
+  
+    .couri-title {
+      font-size: 28px;
+      font-weight: 500;
+      color: #000;
+      margin-bottom: 10px;
+      line-height: 1.2;
+    }
+  
+    .couri-description {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 18px;
+      line-height: 1.4;
+      max-width: 360px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  
+    .couri-input-group {
+      text-align: left;
+      max-width: 360px;
+      margin: 0 auto 14px;
+    }
+  
+    .couri-input-group label {
+      display: block;
+      font-size: 13px;
+      color: #111;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+  
+    .couri-input {
+      width: 100%;
+      height: 44px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+    }
+  
+    .couri-input:focus {
+      border-color: #111;
+    }
+  
+    .couri-error {
+      color: #b91c1c;
+      font-size: 12px;
+      margin-top: 6px;
+      min-height: 14px;
+    }
+  
+    .couri-continue-button {
+      width: 100%;
+      max-width: 360px;
+      background: #111;
+      color: #fff;
+      border: none;
+      padding: 14px 18px;
+      border-radius: 24px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin: 6px auto 6px;
+      display: block;
+      box-shadow: 0 6px 12px rgba(0,0,0,.18);
+    }
+  
+    .couri-continue-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  
+    .couri-note {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 18px;
+    }
+  
+    .couri-preview-card {
+      border: 1px solid #000;
+      border-radius: 12px;
+      padding: 12px 14px;
+      max-width: 360px;
+      margin: 0 auto;
+      background: #fff;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .couri-preview-info {
+      flex: 1;
+      min-width: 0;
+    }
+  
+    .couri-preview-price {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+  
+    .couri-preview-title {
+      font-size: 13px;
+      color: #111;
+      margin-bottom: 6px;
+    }
+  
+    .couri-preview-source {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+  
+    .couri-preview-with {
+      font-size: 12px;
+      color: #111;
+      text-align: center;
+      margin-top: 8px;
+    }
+  
+    .couri-preview-thumb {
+      flex: 0 0 46%;
+      max-width: 140px;
+      aspect-ratio: 4 / 3;
+      border-radius: 8px;
+      border: 1px solid #000;
+      overflow: hidden;
+      background: #f3f4f6;
+      flex-shrink: 0;
+    }
+  
+    .couri-preview-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  
+    .couri-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, #eef3ff, #e6ebf7);
+      padding: 12px 40px 10px;
+      z-index: 10;
+    }
+  
+    .couri-safety {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+  
+    .couri-badge {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 3px 8px rgba(0,0,0,.06);
+    }
+  
+    .couri-badge img {
+      width: 60%;
+      height: 60%;
+      object-fit: contain;
+    }
+  
+    .couri-tag {
+      font-size: 12.4px;
+      letter-spacing: .3px;
+      color: #111;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+  
+    @media (max-width: 414px) {
+      .couri-numberconfirm-main {
+        padding: 18px 16px 155px;
+      }
+  
+      .couri-title {
+        font-size: 24px;
+      }
+    }
+  </style>
+  
+  <div class="couri-numberconfirm-container">
+    <div class="couri-numberconfirm-main">
+      <div class="couri-success-icon">✓</div>
+      <div class="couri-success-text">Transaction accepted!</div>
+  
+      <div class="couri-title">Secure your transaction</div>
+      <div class="couri-description">
+        Add your mobile number to safely link this transaction and receive delivery updates.
+        Your number will not be shared with the other party.
+      </div>
+  
+      <div class="couri-input-group">
+        <label for="couri-phone-input">Mobile number*</label>
+        <input class="couri-input" id="couri-phone-input" type="tel" inputmode="tel" placeholder="(555) 123-4567" />
+        <div class="couri-error" id="couri-phone-error"></div>
+      </div>
+  
+      <button class="couri-continue-button" id="couri-continue-btn">Continue</button>
+      <div class="couri-note">We'll send a one-time code to verify it's you.</div>
+  
+      <div class="couri-preview-card">
+        <div class="couri-preview-info">
+          <div class="couri-preview-price" id="couri-item-price">$0</div>
+          <div class="couri-preview-title" id="couri-item-title">"Loading..."</div>
+          <div class="couri-preview-source" id="couri-item-source">from Facebook Marketplace</div>
+        </div>
+        <div class="couri-preview-thumb">
+          <img id="couri-item-image" src="" alt="Item thumbnail" style="display: none;" />
+        </div>
+      </div>
+      <div class="couri-preview-with">with <span id="couri-inviter-name">User</span></div>
+    </div>
+  
+    <footer class="couri-footer">
+      <div class="couri-safety">
+        <div class="couri-badge">
+          <img src="https://nfkykasruwdzpcjuufdu.supabase.co/storage/v1/object/public/app-icons/Mark%202%20Dark.png" alt="Couri Logo" />
+        </div>
+        <div class="couri-tag">SECURE PAYMENTS, SAFE PICKUP & DELIVERY</div>
+      </div>
+    </footer>
+  </div>
+  
+  <script>
+    (function() {
+      const CONFIG = {
+        SUPABASE_URL: 'https://nfkykasruwdzpcjuufdu.supabase.co',
+        SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ma3lrYXNydXdkenBjanV1ZmR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxOTU5OTcsImV4cCI6MjA2NTc3MTk5N30._-SBo_yqk0ABeXNHYGsKjBn2HwrFP-QCjCkJn2KqtOw'
+      };
+  
+      let supabaseClient = null;
+      let transactionData = null;
+  
+      function getTransactionId() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('id') || urlParams.get('transaction_id') || urlParams.get('t');
+      }
+  
+      function formatCurrency(amount) {
+        const numeric = Number(amount);
+        if (Number.isNaN(numeric)) return '$0';
+        return numeric.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+      }
+  
+      function normalizePhone(rawValue) {
+        const digits = (rawValue || '').replace(/\D/g, '');
+        if (!digits) return { digits: '', e164: '' };
+        if (digits.length === 10) return { digits, e164: `+1${digits}` };
+        if (digits.length === 11 && digits.startsWith('1')) return { digits, e164: `+${digits}` };
+        return { digits, e164: `+${digits}` };
+      }
+  
+      function setError(message) {
+        const errorEl = document.getElementById('couri-phone-error');
+        if (errorEl) {
+          errorEl.textContent = message || '';
+        }
+      }
+  
+      async function loadTransaction() {
+        const transactionId = getTransactionId();
+        if (!transactionId || !supabaseClient) {
+          setError('Invalid or expired link.');
+          return;
+        }
+  
+        const { data: transactions, error } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .eq('id', transactionId);
+  
+        if (error || !transactions || transactions.length === 0) {
+          setError('Unable to load transaction.');
+          return;
+        }
+  
+        transactionData = transactions[0];
+        const metadata = transactionData.metadata || {};
+  
+        const title = metadata.item_title || metadata.title || transactionData.item_title || 'Untitled Item';
+        const image = metadata.item_image || metadata.image || transactionData.item_image || null;
+        const source = metadata.source || transactionData.source || 'Facebook Marketplace';
+        const amount = metadata.amount != null ? metadata.amount : transactionData.amount;
+  
+        const inviterName = metadata.inviter_name ||
+          metadata.userAddress?.full_name ||
+          metadata.userAddress?.name ||
+          'User';
+  
+        document.getElementById('couri-item-title').textContent = `"${title}"`;
+        document.getElementById('couri-item-source').textContent = `from ${source}`;
+        document.getElementById('couri-inviter-name').textContent = inviterName;
+        document.getElementById('couri-item-price').textContent = formatCurrency(amount);
+  
+        const imgEl = document.getElementById('couri-item-image');
+        if (imgEl && image) {
+          imgEl.src = image;
+          imgEl.style.display = 'block';
+          imgEl.onerror = function() {
+            this.style.display = 'none';
+          };
+        }
+      }
+  
+      async function handleContinue() {
+        const inputEl = document.getElementById('couri-phone-input');
+        const btnEl = document.getElementById('couri-continue-btn');
+        const rawValue = inputEl ? inputEl.value.trim() : '';
+        const normalized = normalizePhone(rawValue);
+  
+        if (!normalized.digits || normalized.digits.length < 10) {
+          setError('Please enter a valid phone number.');
+          return;
+        }
+  
+        if (!transactionData || !supabaseClient) {
+          setError('Unable to update transaction.');
+          return;
+        }
+  
+        setError('');
+        if (btnEl) {
+          btnEl.disabled = true;
+          btnEl.textContent = 'Saving...';
+        }
+  
+        const updatedMetadata = {
+          ...(transactionData.metadata || {}),
+          invitee_phone: rawValue,
+          invitee_phone_normalized: normalized.digits,
+          invitee_phone_e164: normalized.e164
+        };
+  
+        const { error } = await supabaseClient
+          .from('transactions')
+          .update({
+            metadata: updatedMetadata,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', transactionData.id);
+  
+        if (error) {
+          console.error('Error saving phone:', error);
+          setError('Failed to save phone number. Please try again.');
+          if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.textContent = 'Continue';
+          }
+          return;
+        }
+  
+      const deepLink = `couri://transaction/${transactionData.id}`;
+      window.location.href = deepLink;
+      }
+  
+      function init() {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.onload = () => {
+          supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+          loadTransaction();
+        };
+        script.onerror = () => {
+          setError('Unable to load transaction.');
+        };
+        document.head.appendChild(script);
+  
+        const btnEl = document.getElementById('couri-continue-btn');
+        if (btnEl) {
+          btnEl.addEventListener('click', handleContinue);
+        }
+      }
+  
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>

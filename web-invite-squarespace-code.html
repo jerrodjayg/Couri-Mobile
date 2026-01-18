@@ -82,7 +82,7 @@
   
   .couri-invite-main {
     flex: 1;
-    padding: 40px 20px 140px;
+    padding: 40px 0 140px;
     width: 100%;
     max-width: 500px;
     margin: 0 auto;
@@ -92,6 +92,8 @@
     display: flex;
     justify-content: center;
     margin-bottom: 25px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   
   .couri-logo {
@@ -112,6 +114,8 @@
   .couri-hero {
     margin: 10px 0 24px;
     text-align: center;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   
   .couri-hero h1 {
@@ -130,6 +134,8 @@
     color: #4b5563;
     font-size: 15px;
     margin-top: 12px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   
   .couri-avatar {
@@ -150,8 +156,7 @@
   }
 
   .couri-card {
-    margin: 16px 0 14px;
-    margin-right: auto;
+    margin: 16px auto 14px;
     border: 1.5px solid #000;
     border-radius: 12px;
     display: flex;
@@ -209,6 +214,8 @@
     color: #4b5563;
     font-size: 13px;
     margin: 6px 0 20px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   
   .couri-fb {
@@ -226,8 +233,7 @@
     display: block;
     width: 362px;
     height: 57px;
-    margin: 0 0 12px 0;
-    margin-right: auto;
+    margin: 0 auto 12px;
     padding: 0;
     border-radius: 26px;
     text-align: center;
@@ -239,6 +245,7 @@
     color: #fff;
     box-shadow: 0 6px 12px rgba(0,0,0,.18);
     font-family: inherit;
+    max-width: calc(100% - 40px);
   }
   
   .couri-btn:hover {
@@ -262,6 +269,82 @@
     border: none;
     padding: 0;
     font-family: inherit;
+    width: fit-content;
+  }
+
+  .couri-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 9999;
+  }
+
+  .couri-modal-overlay.is-open {
+    display: flex;
+  }
+
+  .couri-modal {
+    width: 100%;
+    max-width: 360px;
+    background: #fff;
+    border-radius: 18px;
+    padding: 22px 20px 18px;
+    text-align: center;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .couri-modal-icon {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 10px;
+    background: #f3e8ff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #7c3aed;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .couri-modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #111;
+  }
+
+  .couri-modal-text {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+
+  .couri-modal-primary {
+    width: 100%;
+    background: #111;
+    color: #fff;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 22px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .couri-modal-secondary {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #111;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .couri-footer {
@@ -308,11 +391,13 @@
 
   @media (max-width: 414px) {
     .couri-invite-main {
-      padding: 30px 16px 130px;
+      padding: 30px 0 130px;
     }
     
     .couri-logo-container {
       margin-bottom: 20px;
+      padding-left: 16px;
+      padding-right: 16px;
     }
     
     .couri-logo {
@@ -323,6 +408,21 @@
     .couri-logo img {
       height: 39px;
       width: 88px;
+    }
+    
+    .couri-hero {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    
+    .couri-sub {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    
+    .couri-source {
+      padding-left: 16px;
+      padding-right: 16px;
     }
     
     .couri-footer {
@@ -383,7 +483,7 @@
     </div>
 
     <button class="couri-btn" id="couri-join-btn" onclick="couriHandleJoinTransaction(); return false;">Join Transaction</button>
-    <button class="couri-decline" onclick="couriHandleDecline()">Decline</button>
+    <button class="couri-decline" onclick="couriOpenDeclineModal()">Decline</button>
   </div>
 
   <footer class="couri-footer">
@@ -394,6 +494,19 @@
       <div class="couri-tag">SECURE PAYMENTS, SAFE PICKUP & DELIVERY</div>
     </div>
   </footer>
+</div>
+
+<div class="couri-modal-overlay" id="couri-decline-modal">
+  <div class="couri-modal" role="dialog" aria-modal="true" aria-labelledby="couri-decline-title">
+    <div class="couri-modal-icon">!</div>
+    <div class="couri-modal-title" id="couri-decline-title">Are you sure?</div>
+    <div class="couri-modal-text">
+      Declining means you'll miss out on this transaction, and you can't rejoin it later.
+      Are you sure you'd like to decline?
+    </div>
+    <button class="couri-modal-primary" id="couri-decline-confirm">Decline Transaction</button>
+    <span class="couri-modal-secondary" id="couri-decline-cancel">Nevermind, go back</span>
+  </div>
 </div>
 
 <script>
@@ -522,7 +635,7 @@
         
         // Redirect immediately - use absolute URL for Squarespace
         const baseUrl = window.location.origin;
-        const successUrl = `${baseUrl}/continue1?id=${transactionId || ''}`;
+        const successUrl = `${baseUrl}/numberconfirm/?id=${transactionId || ''}`;
         console.log('Redirecting to:', successUrl);
         
         // Force redirect - try multiple methods
@@ -537,8 +650,22 @@
         console.error('Error in couriHandleJoinTransaction:', error);
         // Fallback redirect
         const transactionId = getTransactionId();
-        window.location.href = `/continue1?id=${transactionId || ''}`;
+        window.location.href = `/numberconfirm/?id=${transactionId || ''}`;
       }
+    };
+
+    function closeDeclineModal() {
+      const modal = document.getElementById('couri-decline-modal');
+      if (modal) modal.classList.remove('is-open');
+    }
+
+    function openDeclineModal() {
+      const modal = document.getElementById('couri-decline-modal');
+      if (modal) modal.classList.add('is-open');
+    }
+
+    window.couriOpenDeclineModal = function() {
+      openDeclineModal();
     };
 
     window.couriHandleDecline = function() {
@@ -550,7 +677,8 @@
           .eq('id', transactionId)
           .catch(err => console.error('Update error:', err));
       }
-      
+
+      closeDeclineModal();
       document.querySelector('.couri-hero h1').textContent = 'Transaction Declined';
       document.querySelector('.couri-sub').textContent = 'This transaction is closed.';
       document.querySelector('.couri-card').style.display = 'none';
@@ -570,6 +698,22 @@
         showLoadingError();
       };
       document.head.appendChild(script);
+
+      const declineConfirmBtn = document.getElementById('couri-decline-confirm');
+      const declineCancelBtn = document.getElementById('couri-decline-cancel');
+      const declineModal = document.getElementById('couri-decline-modal');
+
+      if (declineConfirmBtn) {
+        declineConfirmBtn.addEventListener('click', () => window.couriHandleDecline());
+      }
+      if (declineCancelBtn) {
+        declineCancelBtn.addEventListener('click', closeDeclineModal);
+      }
+      if (declineModal) {
+        declineModal.addEventListener('click', (event) => {
+          if (event.target === declineModal) closeDeclineModal();
+        });
+      }
     }
 
     if (document.readyState === 'loading') {
