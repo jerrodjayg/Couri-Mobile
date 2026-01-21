@@ -177,34 +177,21 @@ export default function LogInScreen({ navigation, route }) {
       setIsProcessingSignIn(false);
       console.log('🔍 LogInScreen DEBUG - Screen focused, reset loading states');
 
-      // Refresh biometric availability in case user enabled it in another screen
+      // Refresh biometric availability when returning (e.g. user enabled Face ID in device settings)
       try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        const shouldShowBiometric = hasHardware && isEnrolled;
+        setHasBiometricHardware(shouldShowBiometric);
         const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
-        const hasEnabledBiometrics = biometricEnabled === 'true';
-
-        if (hasEnabledBiometrics && !hasUserEnabledBiometrics) {
-          console.log('🔍 LogInScreen DEBUG - User enabled biometrics, refreshing availability');
-          // Re-check biometric availability
-          const hasHardware = await LocalAuthentication.hasHardwareAsync();
-          const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-          // Check if user has previously logged in (not a brand new user)
-          const hasLoggedInBefore = await AsyncStorage.getItem('hasLoggedInBefore');
-          const isReturningUser = hasLoggedInBefore === 'true';
-
-          // Only show biometric login if user is a returning user
-          const shouldShowBiometric = hasHardware && isEnrolled && hasEnabledBiometrics && isReturningUser;
-
-          setHasBiometricHardware(shouldShowBiometric);
-          setHasUserEnabledBiometrics(hasEnabledBiometrics);
-        }
+        setHasUserEnabledBiometrics(biometricEnabled === 'true');
       } catch (error) {
         console.log('⚠️ Error refreshing biometric availability:', error);
       }
     });
 
     return unsubscribe;
-  }, [navigation, hasUserEnabledBiometrics]);
+  }, [navigation]);
 
   // Check biometric availability and user preferences
   useEffect(() => {
@@ -213,11 +200,11 @@ export default function LogInScreen({ navigation, route }) {
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
-        // Check if user has previously enabled biometrics
+        // Check if user has previously enabled biometrics (for optional use in handleBiometricLogin)
         const biometricEnabled = await AsyncStorage.getItem('biometricEnabled');
         const hasEnabledBiometrics = biometricEnabled === 'true';
 
-        // Check if user has previously logged in (not a brand new user)
+        // Check if user has previously logged in (for optional use in handleBiometricLogin)
         const hasLoggedInBefore = await AsyncStorage.getItem('hasLoggedInBefore');
         const isReturningUser = hasLoggedInBefore === 'true';
 
@@ -230,11 +217,10 @@ export default function LogInScreen({ navigation, route }) {
           isReturningUser
         });
 
-        // Only show biometric login if:
-        // 1. Device has biometric hardware AND is enrolled
-        // 2. User has previously enabled biometrics
-        // 3. User is a returning user (not brand new)
-        const shouldShowBiometric = hasHardware && isEnrolled && hasEnabledBiometrics && isReturningUser;
+        // Show "Log in with Face ID" whenever the device supports biometrics (hasHardware + isEnrolled).
+        // This ensures the button appears in TestFlight and production; handleBiometricLogin still
+        // requires cached user data and will show "Create account first" if none.
+        const shouldShowBiometric = hasHardware && isEnrolled;
 
         setHasBiometricHardware(shouldShowBiometric);
         setHasUserEnabledBiometrics(hasEnabledBiometrics);
@@ -566,8 +552,8 @@ export default function LogInScreen({ navigation, route }) {
   const waitForSession = () => {
     return new Promise((resolve, reject) => {
       let attempts = 0;
-      const maxAttempts = 20; // Increased to 20 attempts
-      const interval = 500; // Check every 500ms
+      const maxAttempts = 10;
+      const interval = 400;
 
       const checkSession = async () => {
         attempts++;
@@ -608,7 +594,7 @@ export default function LogInScreen({ navigation, route }) {
       };
 
       // Start checking after a brief delay to allow auth state change to process
-      setTimeout(checkSession, 1000);
+      setTimeout(checkSession, 500);
     });
   };
 
@@ -752,8 +738,16 @@ export default function LogInScreen({ navigation, route }) {
       }
 
       if (result.type !== 'success') {
-        // Reset loading states and return without error screen
         setIsProcessingSignIn(false);
+        // Don't show error for user cancellation; show for OAuth/server errors
+        if (result.type === 'cancel' || result.type === 'dismiss') {
+          return;
+        }
+        Alert.alert(
+          "Google auth isn't working",
+          "We couldn't sign you in with Google. Please try again or use another method.",
+          [{ text: 'OK' }]
+        );
         return;
       }
 
@@ -814,11 +808,11 @@ export default function LogInScreen({ navigation, route }) {
               
               const exchangePromise = supabase.auth.exchangeCodeForSession(code);
               
-              // Add a shorter timeout first to see if it responds at all
+              // Shorter timeout to detect no response quickly
               const quickTimeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => {
-                  reject(new Error('Code exchange quick timeout (5s) - no response yet'));
-                }, 5000)
+                  reject(new Error('Code exchange quick timeout (3s) - no response yet'));
+                }, 3000)
               );
               
               // Race between quick timeout and actual exchange
@@ -828,12 +822,12 @@ export default function LogInScreen({ navigation, route }) {
               ]);
               
               if (quickCheck.type === 'timeout') {
-                console.warn('⚠️ LogInScreen DEBUG - Exchange not responding after 5s, continuing to wait...');
-                // Continue with full timeout
+                console.warn('⚠️ LogInScreen DEBUG - Exchange not responding after 3s, continuing to wait...');
+                // Continue with remaining timeout
                 const fullTimeoutPromise = new Promise((_, reject) =>
                   setTimeout(() => {
-                    reject(new Error('Code exchange timeout (30s total)'));
-                  }, 25000) // Remaining 25 seconds
+                    reject(new Error('Code exchange timeout (10s total)'));
+                  }, 7000) // Remaining 7 seconds (3s + 7s = 10s)
                 );
                 
                 const exchangeResult = await Promise.race([
@@ -923,7 +917,7 @@ export default function LogInScreen({ navigation, route }) {
             console.log('🔍 LogInScreen DEBUG - Code length:', code?.length || 0);
 
             if (code) {
-              console.log('🔑 LogInScreen DEBUG - Attempting code exchange (30s timeout)...');
+              console.log('🔑 LogInScreen DEBUG - Attempting code exchange (12s timeout)...');
               const exchangeStartTime = Date.now();
 
               try {
@@ -932,7 +926,7 @@ export default function LogInScreen({ navigation, route }) {
                 const timeoutPromise = new Promise((_, reject) =>
                   setTimeout(() => {
                     reject(new Error('Code exchange timeout'));
-                  }, 30000)
+                  }, 12000)
                 );
 
                 const exchangeResult = await Promise.race([
@@ -971,8 +965,12 @@ export default function LogInScreen({ navigation, route }) {
 
         // If still no email, reset loading state and return
         if (!userEmail) {
-          // Reset loading states before returning
           setIsProcessingSignIn(false);
+          Alert.alert(
+            "Google auth isn't working",
+            "We couldn't sign you in with Google. Please try again or use another method.",
+            [{ text: 'OK' }]
+          );
           return;
         }
       }
@@ -1124,11 +1122,13 @@ export default function LogInScreen({ navigation, route }) {
 
         } catch (error) {
           console.error('❌ Error creating new Google user session:', error);
-
-          // Fallback: sign out and reset loading state
           await supabase.auth.signOut();
-          // Reset loading states before returning
           setIsProcessingSignIn(false);
+          Alert.alert(
+            "Google auth isn't working",
+            "We couldn't sign you in with Google. Please try again or use another method.",
+            [{ text: 'OK' }]
+          );
           return;
         }
       }
@@ -1271,6 +1271,12 @@ export default function LogInScreen({ navigation, route }) {
               [{ text: 'OK' }]
             );
           }, 100);
+        } else {
+          Alert.alert(
+            "Google auth isn't working",
+            "We couldn't sign you in with Google. Please try again or use another method.",
+            [{ text: 'OK' }]
+          );
         }
       }
     } catch (error) {
@@ -1286,8 +1292,12 @@ export default function LogInScreen({ navigation, route }) {
         clearTimeout(timeoutId);
       }
 
-      // Reset loading states and return
       setIsProcessingSignIn(false);
+      Alert.alert(
+        "Google auth isn't working",
+        "We couldn't sign you in with Google. Please try again or use another method.",
+        [{ text: 'OK' }]
+      );
     } finally {
       // Always ensure loading state is reset, even if there are unexpected errors
       console.log('🔄 Google sign-in process completed, resetting loading state');

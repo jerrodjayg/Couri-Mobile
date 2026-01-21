@@ -486,8 +486,8 @@ export default function LogInScreen({ navigation }) {
   const waitForSession = () => {
     return new Promise((resolve, reject) => {
       let attempts = 0;
-      const maxAttempts = 20; // Increased to 20 attempts
-      const interval = 500; // Check every 500ms
+      const maxAttempts = 10;
+      const interval = 400;
       
       const checkSession = async () => {
         attempts++;
@@ -528,7 +528,7 @@ export default function LogInScreen({ navigation }) {
       };
       
       // Start checking after a brief delay to allow auth state change to process
-      setTimeout(checkSession, 1000);
+      setTimeout(checkSession, 500);
     });
   };
 
@@ -573,16 +573,20 @@ export default function LogInScreen({ navigation }) {
 
       if (result.type !== 'success') {
         console.log('🔍 LogInScreen DEBUG - Google sign-in failed or incomplete');
-        
-        // Handle specific error messages from the hook
         if (result.message) {
           console.log('🔍 LogInScreen DEBUG - Error message from hook:', result.message);
         } else {
           console.log('🔍 LogInScreen DEBUG - Generic error message');
         }
-        
-        // Reset loading states and return without error screen
         setIsProcessingSignIn(false);
+        if (result.type === 'cancel' || result.type === 'dismiss') {
+          return;
+        }
+        Alert.alert(
+          "Google auth isn't working",
+          "We couldn't sign you in with Google. Please try again or use another method.",
+          [{ text: 'OK' }]
+        );
         return;
       }
 
@@ -642,15 +646,15 @@ export default function LogInScreen({ navigation }) {
               
               try {
                 console.log('🔍 LogInScreen DEBUG - Creating exchange promise...');
-                // Add timeout to prevent hanging - increased to 30 seconds
+                // Timeout to fail faster and show error sooner
                 const exchangePromise = supabase.auth.exchangeCodeForSession(code);
                 console.log('🔍 LogInScreen DEBUG - Exchange promise created, starting race with timeout...');
                 
                 const timeoutPromise = new Promise((_, reject) => 
                   setTimeout(() => {
-                    console.log('🔍 LogInScreen DEBUG - Timeout reached (30 seconds)');
+                    console.log('🔍 LogInScreen DEBUG - Timeout reached (12 seconds)');
                     reject(new Error('Code exchange timeout'));
-                  }, 30000)
+                  }, 12000)
                 );
                 
                 console.log('🔍 LogInScreen DEBUG - Racing exchange promise with timeout...');
@@ -701,8 +705,12 @@ export default function LogInScreen({ navigation }) {
         // If still no email, reset loading state and return
         if (!userEmail) {
           console.log('🔍 LogInScreen DEBUG - Still no email available, resetting loading state');
-          // Reset loading states before returning
           setIsProcessingSignIn(false);
+          Alert.alert(
+            "Google auth isn't working",
+            "We couldn't sign you in with Google. Please try again or use another method.",
+            [{ text: 'OK' }]
+          );
           return;
         }
       }
@@ -816,11 +824,13 @@ export default function LogInScreen({ navigation }) {
 
         } catch (error) {
           console.error('❌ LogInScreen DEBUG - Error creating new Google user session:', error);
-          
-          // Fallback: sign out and reset loading state
           await supabase.auth.signOut();
-          // Reset loading states before returning
           setIsProcessingSignIn(false);
+          Alert.alert(
+            "Google auth isn't working",
+            "We couldn't sign you in with Google. Please try again or use another method.",
+            [{ text: 'OK' }]
+          );
           return;
         }
       }
@@ -930,8 +940,12 @@ export default function LogInScreen({ navigation }) {
 
       } catch (error) {
         console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
-        // Reset loading states and return
         setIsProcessingSignIn(false);
+        Alert.alert(
+          "Google auth isn't working",
+          "We couldn't sign you in with Google. Please try again or use another method.",
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       console.error('❌ LogInScreen DEBUG - Google sign-in error (outer catch):', error);
@@ -939,11 +953,13 @@ export default function LogInScreen({ navigation }) {
       console.error('❌ LogInScreen DEBUG - Error stack:', error.stack);
       console.error('❌ LogInScreen DEBUG - Full error details:', JSON.stringify(error, null, 2));
       
-      // Clear the timeout
       clearTimeout(errorTimeoutId);
-      
-      // Reset loading states and return
       setIsProcessingSignIn(false);
+      Alert.alert(
+        "Google auth isn't working",
+        "We couldn't sign you in with Google. Please try again or use another method.",
+        [{ text: 'OK' }]
+      );
     }
   };
 

@@ -911,13 +911,17 @@ export default function Welcomepage({ route, navigation }) {
           const userId = session.user.id;
           const isGoogleAuth = userData.isGoogleAuth || session.user.app_metadata?.provider === 'google';
           
-          // Prepare user data for database
+          // Prepare user data for database (includes phone from sign-up flow)
+          // Note: Do NOT include 'id' - users.id is bigint (auto-generated).
+          // Store Supabase Auth UUID in auth_user_id.
+          const phoneFromStorage = userData.phone || userData.phoneNumber || '';
+          const phoneFromParams = route.params?.userData?.phone || route.params?.phone || '';
           const userDataForDatabase = {
-            id: userId,
+            auth_user_id: userId,
             email: userData.email.toLowerCase(),
             first_name: userData.firstName || userData.first_name || '',
             last_name: userData.lastName || userData.last_name || '',
-            phone: userData.phone || '',
+            phone: phoneFromStorage || phoneFromParams || '',
             address_line_1: userData.address1 || userData.address_line_1 || '',
             address_line_2: userData.address2 || userData.address_line_2 || null,
             city: userData.city || '',

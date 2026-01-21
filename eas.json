@@ -12,6 +12,8 @@
       "distribution": "internal"
     },
     "production": {
+      "distribution": "store",
+      "channel": "production",
       "ios": {
         "cocoapods": "1.15.2"
       }

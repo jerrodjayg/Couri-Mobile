@@ -363,8 +363,8 @@ export default function CreateAccountScreen({ navigation, route }) {
         // If no user data in result, try to get from Supabase session
         console.log('🔄 No user data in result, checking Supabase session...');
 
-        // Wait a bit longer for session to be established
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait briefly for session to be established
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -412,37 +412,50 @@ export default function CreateAccountScreen({ navigation, route }) {
         }
 
         console.log('❌ No user data found in any location');
-        // Reset loading states and return
         setLoading(false);
         setIsHandlingGoogleSignIn(false);
+        Alert.alert(
+          "Google auth isn't working",
+          "We couldn't complete sign-up with Google. Please try again or use another method.",
+          [{ text: 'OK' }]
+        );
         return;
 
       } else if (result.type === 'error') {
         console.log('❌ Google sign-in failed with error type');
-        // Reset loading states and return
-        if (result.shouldShowErrorScreen !== false) {
-          setLoading(false);
-          setIsHandlingGoogleSignIn(false);
-          return;
-        }
-      } else {
-        console.log('❌ Google sign-in failed with unknown type:', result.type);
-        // Reset loading states and return
         setLoading(false);
         setIsHandlingGoogleSignIn(false);
+        if (result.shouldShowErrorScreen !== false) {
+          Alert.alert(
+            "Google auth isn't working",
+            "We couldn't complete sign-up with Google. Please try again or use another method.",
+            [{ text: 'OK' }]
+          );
+        }
+        return;
+      } else {
+        console.log('❌ Google sign-in failed with unknown type:', result.type);
+        setLoading(false);
+        setIsHandlingGoogleSignIn(false);
+        Alert.alert(
+          "Google auth isn't working",
+          "We couldn't complete sign-up with Google. Please try again or use another method.",
+          [{ text: 'OK' }]
+        );
         return;
       }
 
     } catch (error) {
       console.error('❌ Google sign-in error:', error);
 
-      // Clear the timeout
       clearTimeout(errorTimeoutId);
-
-      // Reset loading states and return
       setLoading(false);
       setIsHandlingGoogleSignIn(false);
-      // Don't navigate to error screen, just reset state
+      Alert.alert(
+        "Google auth isn't working",
+        "We couldn't complete sign-up with Google. Please try again or use another method.",
+        [{ text: 'OK' }]
+      );
     }
   };
 

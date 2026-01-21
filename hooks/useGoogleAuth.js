@@ -235,13 +235,13 @@ export function useGoogleAuth() {
             // The session should be established now
             console.log('🔄 Waiting for Supabase to establish session...');
             
-            // Wait a bit for the session to be established
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Wait briefly for the session to be established
+            await new Promise(resolve => setTimeout(resolve, 800));
             
-            // Check for session with a more generous timeout
+            // Check for session
             const sessionPromise = supabase.auth.getSession();
             const sessionTimeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Session check timeout')), 10000)
+              setTimeout(() => reject(new Error('Session check timeout')), 5000)
             );
             
             try {
@@ -303,7 +303,7 @@ export function useGoogleAuth() {
                 console.log('🔑 Attempting manual code exchange with code:', code.substring(0, 10) + '...');
                 
                 // Exchange the code for a session with timeout
-                console.log('⏰ Starting code exchange (15s timeout)...');
+                console.log('⏰ Starting code exchange (8s timeout)...');
                 const exchangeStartTime = Date.now();
                 
                 let exchangeTimeoutId;
@@ -315,8 +315,8 @@ export function useGoogleAuth() {
                 
                 const exchangeTimeoutPromise = new Promise((_, reject) => {
                   exchangeTimeoutId = setTimeout(() => {
-                    reject(new Error('Code exchange timeout - took more than 15 seconds'));
-                  }, 15000);
+                    reject(new Error('Code exchange timeout - took more than 8 seconds'));
+                  }, 8000);
                 });
                 
                 let exchangeData, exchangeError;

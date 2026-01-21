@@ -11,6 +11,7 @@ import {
   Pressable
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import imagePreloader from '../utils/imagePreloader';
 import { useFocusEffect } from '@react-navigation/native';
@@ -65,6 +66,42 @@ export default function SplashScreen({ navigation }) {
     preWarmLocationPermissions();
     preloadCriticalAssets();
   }, []);
+
+  // If user stayed logged in (session persisted), auto-navigate to Welcomepage on app open
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId = null;
+    const checkSessionAndNavigate = async () => {
+      try {
+        // If app was opened via an invite deep link, let App's handler navigate (with invite params)
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl && (initialUrl.includes('/i/') || initialUrl.includes('/deeplink/i/'))) {
+          return;
+        }
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        if (error) {
+          console.log('⚠️ Splash: getSession error (will show splash):', error?.message);
+          return;
+        }
+        if (session?.user) {
+          // User stayed logged in — auto-login and go to Welcomepage after a brief splash
+          timeoutId = setTimeout(() => {
+            if (!isMounted) return;
+            navigation.replace('Welcomepage');
+          }, 400);
+        }
+        // No session: user sees splash and taps to pick role (Buy/Sell or Driver) → Home
+      } catch (e) {
+        if (isMounted) console.log('⚠️ Splash: checkSession error:', e?.message);
+      }
+    };
+    checkSessionAndNavigate();
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [navigation]);
 
   const handleSplashPress = () => {
     setShowPopup(true);
