@@ -504,8 +504,8 @@
           return;
         }
   
-      const deepLink = `couri://transaction/${transactionData.id}`;
-      window.location.href = deepLink;
+            const successUrl = `${window.location.origin}/web-accepted.html?id=${transactionData.id}`;
+      window.location.href = successUrl;
       }
   
       function init() {
