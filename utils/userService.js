@@ -1,5 +1,6 @@
 // utils/userService.js
 import { supabase } from '../screens/supabaseClient';
+import { shouldSyncUserToSupabase } from './supabaseSyncGuard';
 import * as FileSystem from 'expo-file-system';
 import { decode as b64decode } from 'base-64';
 
@@ -141,6 +142,10 @@ export class UserService {
       updated_at: new Date().toISOString(),
     };
 
+    if (!shouldSyncUserToSupabase()) {
+      return { success: true, user: payload };
+    }
+
     const { data, error } = await supabase
       .from('users')
       .upsert(payload, { onConflict: 'email' })
@@ -193,6 +198,11 @@ export class UserService {
       console.log('  - auth_user_id:', payload.auth_user_id, '(type:', typeof payload.auth_user_id, ')');
       console.log('  - created_at:', payload.created_at, '(type:', typeof payload.created_at, ')');
       console.log('  - updated_at:', payload.updated_at, '(type:', typeof payload.updated_at, ')');
+
+      if (!shouldSyncUserToSupabase()) {
+        console.log('ℹ️ saveGoogleAuthUser: Skipping Supabase write (Expo Go); TestFlight only.');
+        return { success: true, user: { ...payload, id: null }, isUpdate: false };
+      }
 
       // Check if user already exists
       const { data: existingUser, error: checkError } = await supabase
@@ -290,6 +300,10 @@ export class UserService {
       }
       
       console.log('🔍 handleExistingGoogleUser: Update payload:', updatePayload);
+
+      if (!shouldSyncUserToSupabase()) {
+        return { success: true, user: existingUser, isUpdate: false };
+      }
       
       // Only update if we have changes
       if (Object.keys(updatePayload).length > 1) { // More than just updated_at
@@ -323,6 +337,10 @@ export class UserService {
     if (!userEmail) throw new Error('Email is required to update user profile');
     const patch = { ...profileData, updated_at: new Date().toISOString() };
 
+    if (!shouldSyncUserToSupabase()) {
+      return { success: true, user: patch };
+    }
+
     const { data, error } = await supabase
       .from('users')
       .update(patch)
@@ -346,6 +364,21 @@ export class UserService {
       .maybeSingle();
     if (error && error.code !== 'PGRST116') console.log('getUserByEmail error:', error);
     return { user: data || null };
+  }
+
+  /** Find user by phone (normalized 10 digits). DB may store "(804) 317-1234" or "8043171234". */
+  static async getUserByPhone(normalizedPhone10) {
+    if (!normalizedPhone10 || String(normalizedPhone10).replace(/\D/g, '').length !== 10) {
+      return { user: null };
+    }
+    const digits = String(normalizedPhone10).replace(/\D/g, '');
+    const { data: rows, error } = await supabase.from('users').select('*');
+    if (error) {
+      console.log('getUserByPhone error:', error);
+      return { user: null };
+    }
+    const user = (rows || []).find((r) => String(r.phone || '').replace(/\D/g, '') === digits) || null;
+    return { user };
   }
 
   /**

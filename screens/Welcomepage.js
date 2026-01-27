@@ -3,6 +3,7 @@ import { useUser } from '../contexts/UserContext';
 import { supabase } from './supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserService } from '../utils/userService';
+import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { Linking as RNLinking } from 'react-native';
@@ -933,24 +934,28 @@ export default function Welcomepage({ route, navigation }) {
           };
           
           console.log('🔄 Welcomepage - Saving user to database:', userDataForDatabase);
-          
-          // Save to users table
-          const { data: savedData, error: saveError } = await supabase
-            .from('users')
-            .upsert(userDataForDatabase, {
-              onConflict: 'email'
-            })
-            .select();
-          
-          if (saveError) {
-            console.error('❌ Welcomepage - Error saving user to database:', saveError);
+
+          // Only write to Supabase when NOT in Expo Go (TestFlight/standalone only)
+          if (shouldSyncUserToSupabase()) {
+            const { data: savedData, error: saveError } = await supabase
+              .from('users')
+              .upsert(userDataForDatabase, {
+                onConflict: 'email'
+              })
+              .select();
+
+            if (saveError) {
+              console.error('❌ Welcomepage - Error saving user to database:', saveError);
+            } else {
+              console.log('✅ Welcomepage - User successfully saved to database:', savedData);
+            }
           } else {
-            console.log('✅ Welcomepage - User successfully saved to database:', savedData);
-            // Mark that user has been saved
-            await AsyncStorage.setItem('userSavedToDatabase', 'true');
-            // Clear the justCreatedAccount flag
-            await AsyncStorage.removeItem('justCreatedAccount');
+            console.log('ℹ️ Welcomepage - Skipping Supabase write (Expo Go); user will be saved in TestFlight builds only.');
           }
+
+          // Mark that user has been saved (flow continues the same in both Expo Go and TestFlight)
+          await AsyncStorage.setItem('userSavedToDatabase', 'true');
+          await AsyncStorage.removeItem('justCreatedAccount');
         }
       } catch (error) {
         console.error('❌ Welcomepage - Error in saveUserToDatabase:', error);
@@ -2099,8 +2104,7 @@ const handleSignOut = async () => {
       await supabase.auth.signOut();
     }
     try {
-      await AsyncStorage.removeItem('tempUserData');
-      await AsyncStorage.removeItem('userProfileData');
+      // Keep tempUserData and userProfileData so "Log in with Face ID" can restore the user
       await AsyncStorage.setItem('userLastAction', 'sign_out');
       // Clear user journey tracking
       await AsyncStorage.removeItem('userJourney_gotItClicked');
@@ -2110,11 +2114,10 @@ const handleSignOut = async () => {
       await AsyncStorage.removeItem('userJourney_confirmationCompleted');
     } catch { }
     if (setCustomUser) setCustomUser(null);
-    // Navigate to BiometricAuth screen (purple Face ID login) - always show after logout
-    navigation.reset({ index: 0, routes: [{ name: 'BiometricAuth' }] });
+    // Navigate to Home (Create Account / Log In buttons; user can tap Log In → "Log in with Face ID" to return)
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   } catch {
-    // Navigate to BiometricAuth even if logout fails
-    navigation.reset({ index: 0, routes: [{ name: 'BiometricAuth' }] });
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   }
 };
 

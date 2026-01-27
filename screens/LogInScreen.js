@@ -398,11 +398,13 @@ export default function LogInScreen({ navigation, route }) {
                 console.log('ℹ️ Database query timed out (likely RLS blocking)');
                 console.log('✅ Using cached data from AsyncStorage for Face ID login');
 
-                // Mark that user has logged in before (for biometric login visibility)
+                // Persist user data so Welcomepage shows all saved data
+                await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
+                await AsyncStorage.setItem('userProfileData', JSON.stringify(userData));
+                await AsyncStorage.setItem('userProfile', JSON.stringify(userData));
+                await AsyncStorage.setItem('userSavedToDatabase', 'true');
                 await AsyncStorage.setItem('hasLoggedInBefore', 'true');
-                console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for timeout fallback');
 
-                // Navigate to appropriate screen based on flow
                 if (isDriverFlow) {
                   navigation.replace('DriverPortal');
                 } else {
@@ -439,7 +441,7 @@ export default function LogInScreen({ navigation, route }) {
             console.log('✅ User first name:', existingUser.first_name);
             console.log('✅ User last name:', existingUser.last_name);
 
-            // Update userData with database info to ensure consistency
+            // Update userData with database info to ensure consistency (all data saved before they logged out)
             userData = {
               ...userData,
               id: existingUser.id,
@@ -452,15 +454,21 @@ export default function LogInScreen({ navigation, route }) {
               city: existingUser.city || userData.city,
               state: existingUser.state || userData.state,
               zip: existingUser.zip_code || userData.zip,
+              address_line_1: existingUser.address_line_1 || userData.address1,
+              address_line_2: existingUser.address_line_2 || userData.address2,
+              zip_code: existingUser.zip_code || userData.zip,
             };
 
             console.log('✅ Face ID login successful, proceeding to appropriate screen');
 
-            // Mark that user has logged in before (for biometric login visibility)
+            // Persist merged user data so Welcomepage shows all saved data
+            await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
+            await AsyncStorage.setItem('userProfileData', JSON.stringify(userData));
+            await AsyncStorage.setItem('userProfile', JSON.stringify(userData));
+            await AsyncStorage.setItem('userSavedToDatabase', 'true');
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
-            console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for biometric login');
 
-            // Navigate to appropriate screen based on flow
+            // Navigate to Welcomepage with full data
             if (isDriverFlow) {
               navigation.replace('DriverPortal');
             } else {
@@ -474,11 +482,13 @@ export default function LogInScreen({ navigation, route }) {
             console.log('ℹ️ Database verification failed, but proceeding with cached data');
             console.log('✅ Using AsyncStorage data for Face ID login');
 
-            // Mark that user has logged in before (for biometric login visibility)
+            // Persist user data so Welcomepage shows all saved data
+            await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
+            await AsyncStorage.setItem('userProfileData', JSON.stringify(userData));
+            await AsyncStorage.setItem('userProfile', JSON.stringify(userData));
+            await AsyncStorage.setItem('userSavedToDatabase', 'true');
             await AsyncStorage.setItem('hasLoggedInBefore', 'true');
-            console.log('✅ LogInScreen DEBUG - Set hasLoggedInBefore flag for biometric login fallback');
 
-            // Allow login with cached data even if database check fails
             if (isDriverFlow) {
               navigation.replace('DriverPortal');
             } else {
@@ -499,19 +509,65 @@ export default function LogInScreen({ navigation, route }) {
       Alert.alert('Error', 'Something went wrong during biometric authentication.');
     }
   };
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!phoneNumber || phoneNumber.trim().length === 0) {
       Alert.alert('Error', 'Please enter your mobile number');
       return;
     }
 
-    // Clean the phone number and check if it has exactly 10 digits
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     if (cleanPhone.length !== 10) {
       Alert.alert('Error', 'Please enter a valid 10-digit phone number');
       return;
     }
-    navigation.navigate('Home');
+
+    setIsLoading(true);
+    try {
+      const { user } = await UserService.getUserByPhone(cleanPhone);
+      if (!user) {
+        Alert.alert(
+          'No Account Found',
+          'This phone number is not linked to an account. Please create an account.',
+          [
+            { text: 'Create Account', onPress: () => navigation.navigate('CreateAccount') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+      const userDataForCode = {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+        full_name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+        phone: user.phone || phoneNumber,
+        phoneNumber: user.phone || phoneNumber,
+        address1: user.address_line_1 || '',
+        address2: user.address_line_2 || '',
+        address_line_1: user.address_line_1 || '',
+        address_line_2: user.address_line_2 || '',
+        city: user.city || '',
+        state: user.state || '',
+        zip: user.zip_code || '',
+        zip_code: user.zip_code || '',
+        avatar_url: user.avatar_url || null,
+      };
+      const formattedPhone = `(${cleanPhone.slice(0, 3)}) ${cleanPhone.slice(3, 6)}-${cleanPhone.slice(6)}`;
+      navigation.navigate('CodeVerify', {
+        phone: formattedPhone,
+        type: 'login',
+        userData: userDataForCode,
+      });
+    } catch (err) {
+      console.error('Login phone check error:', err);
+      Alert.alert('Error', 'Could not verify phone number. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAppleSignIn = async () => {
@@ -1008,8 +1064,10 @@ export default function LogInScreen({ navigation, route }) {
         console.log('⚠️ Could not check user last action:', actionError);
       }
 
-      // Check if this email already exists in our DB (users table)
+      // Wait 3 seconds after Google auth for session/DB to settle, then check database
+      await new Promise((r) => setTimeout(r, 3000));
 
+      // Check if this email already exists in our DB (users table)
       // Add timeout to prevent hanging - reduced to 10 seconds for better UX
       const checkUserPromise = UserService.checkUserExists(email);
       const timeoutPromise = new Promise((_, reject) =>
@@ -1043,104 +1101,37 @@ export default function LogInScreen({ navigation, route }) {
       }
 
       if (!exists) {
-        console.log('🔍 USER FLOW DEBUG - User NOT found in database, treating as NEW user');
-        // New Google user - create a minimal user session and navigate to Welcomepage
-        try {
-          // Create user data from Google information
-          const googleUserData = {
-            id: userData.id,
-            email: userData.email,
-            name: userData.user_metadata?.full_name || userData.user_metadata?.name || '',
-            full_name: userData.user_metadata?.full_name || userData.user_metadata?.name || '',
-            firstName: userData.user_metadata?.full_name?.split(' ')[0] || '',
-            lastName: userData.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-            avatar_url: userData.user_metadata?.avatar_url || userData.user_metadata?.picture || '',
-            profileImageUri: userData.user_metadata?.avatar_url || userData.user_metadata?.picture || '',
-            isGoogleAuth: true,
-            hasSkippedPhoto: false, // Google users have profile pictures
-            userInitials: userData.user_metadata?.full_name ?
-              userData.user_metadata.full_name.split(' ').map(n => n.charAt(0)).join('').toUpperCase() :
-              userData.email.charAt(0).toUpperCase()
-          };
-
-          // Save the Google user to the database
-          try {
-            const saveResult = await UserService.saveGoogleAuthUser(userData, googleUserData);
-            if (saveResult.success && saveResult.user) {
-              // Update googleUserData with the database user data
-              const dbUser = saveResult.user;
-              googleUserData.id = dbUser.id; // Use the database ID
-              googleUserData.firstName = dbUser.first_name || googleUserData.firstName;
-              googleUserData.lastName = dbUser.last_name || googleUserData.lastName;
-            }
-          } catch (saveError) {
-            console.error('❌ Error saving Google user to database:', saveError);
-            // Continue with AsyncStorage even if database save fails
-          }
-
-          // Store the Google user data in AsyncStorage for the session
-          await AsyncStorage.setItem('tempUserData', JSON.stringify(googleUserData));
-          await AsyncStorage.setItem('userProfileData', JSON.stringify(googleUserData));
-
-          // Navigate to appropriate screen based on flow
-          console.log('🚀 NEW USER NAVIGATION DEBUG - About to navigate');
-
-          try {
-            // Mark that user has logged in before (for biometric login visibility)
-            await AsyncStorage.setItem('hasLoggedInBefore', 'true');
-
-            if (isDriverFlow) {
-              navigation.replace('DriverPortal');
-              console.log('✅ NEW USER NAVIGATION DEBUG - Navigation.replace() to DriverPortal called successfully');
-            } else {
-              navigation.replace('BiometricSetup', {
-                userInfo: googleUserData,
-                savedUser: null, // No saved user yet
-                isGoogleAuth: true,
-                googleUserData: googleUserData
-              });
-              console.log('✅ NEW USER NAVIGATION DEBUG - Navigation.replace() to BiometricSetup called successfully');
-            }
-
-            // Wait a moment and check if navigation actually happened
-            setTimeout(() => {
-              // Navigation completed
-            }, 1000);
-
-          } catch (navError) {
-            console.error('❌ Navigation error:', navError);
-          }
-
-          // Mark OAuth as completed (user reached BiometricSetup)
-          oauthCompleted = true;
-          console.log('✅ OAuth flow completed successfully - new user reached BiometricSetup');
-
-          // Clear the completion timeout since OAuth completed successfully
-          clearTimeout(completionTimeoutId);
-
-          return;
-
-        } catch (error) {
-          console.error('❌ Error creating new Google user session:', error);
-          await supabase.auth.signOut();
-          setIsProcessingSignIn(false);
-          Alert.alert(
-            "Google auth isn't working",
-            "We couldn't sign you in with Google. Please try again or use another method.",
-            [{ text: 'OK' }]
-          );
-          return;
-        }
+        console.log('🔍 USER FLOW DEBUG - Email not in database; this is login, so no account');
+        await supabase.auth.signOut();
+        setIsProcessingSignIn(false);
+        clearTimeout(completionTimeoutId);
+        Alert.alert(
+          'No Account Found',
+          'This email is not linked to an account. Please create an account.',
+          [
+            { text: 'Create Account', onPress: () => navigation.navigate('CreateAccount') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
       }
 
       console.log('🔍 USER FLOW DEBUG - User found in database, treating as RETURNING user');
-      // User exists in database - proceed with sign-in
-      // Use the new function to handle existing Google users gracefully
+      // User exists in database - fetch full user for Welcomepage (checkUserExists returns partial row)
+      let fullUser = existingUser;
       try {
-        const result = await UserService.handleExistingGoogleUser(userData, existingUser);
+        const { user: fromDb } = await UserService.getUserByEmail(email);
+        if (fromDb) fullUser = fromDb;
+      } catch (e) {
+        console.warn('⚠️ getUserByEmail failed, using existingUser:', e?.message);
+      }
+
+      // Sync profile (avatar/name) and proceed with sign-in
+      try {
+        const result = await UserService.handleExistingGoogleUser(userData, fullUser);
 
         // Use the updated user data if available
-        const userToUse = result.user;
+        const userToUse = result.user || fullUser;
 
         // Store complete user data in AsyncStorage for the app to use
         try {
@@ -1168,6 +1159,7 @@ export default function LogInScreen({ navigation, route }) {
           // Store in both tempUserData and userProfileData for consistency
           await AsyncStorage.setItem('tempUserData', JSON.stringify(completeUserData));
           await AsyncStorage.setItem('userProfileData', JSON.stringify(completeUserData));
+          await AsyncStorage.setItem('userSavedToDatabase', 'true');
 
 
         } catch (storageError) {
@@ -1229,6 +1221,14 @@ export default function LogInScreen({ navigation, route }) {
         } catch (navError) {
           console.error('❌ LogInScreen DEBUG - Navigation error for returning user:', navError);
           console.error('❌ LogInScreen DEBUG - Navigation error message:', navError.message);
+          setIsProcessingSignIn(false);
+          clearTimeout(completionTimeoutId);
+          Alert.alert(
+            'Something Went Wrong',
+            'There was an error. Please try Google auth again.',
+            [{ text: 'OK' }]
+          );
+          return;
         }
 
         console.log('✅ LogInScreen DEBUG - Navigation to Welcomepage completed with complete user data');
@@ -1241,7 +1241,7 @@ export default function LogInScreen({ navigation, route }) {
         clearTimeout(completionTimeoutId);
 
       } catch (error) {
-        console.error('❌ LogInScreen DEBUG - Google sign-in error:', error);
+        console.error('❌ LogInScreen DEBUG - Google sign-in error (user was in DB):', error);
 
         // Clear ALL timeouts to ensure clean state
         clearTimeout(browserTimeoutId);
@@ -1254,30 +1254,12 @@ export default function LogInScreen({ navigation, route }) {
         setIsProcessingSignIn(false);
         console.log('✅ Reset isProcessingSignIn to false after error');
 
-        // Check if it's specifically a signInGoogle timeout
-        if (error.message === 'signInGoogle timeout') {
-          const timeoutSeconds = Platform.OS === 'web' ? 45 : 120;
-          console.error('❌ signInGoogle function timed out after', timeoutSeconds, 'seconds');
-          console.error('❌ This suggests the OAuth flow is not starting or completing');
-          console.error('❌ Platform:', Platform.OS);
-          console.error('❌ Check if Google OAuth is properly configured');
-          console.error('❌ Check network connectivity and try again');
-          
-          // Use setTimeout to ensure state update is processed before showing alert
-          setTimeout(() => {
-            Alert.alert(
-              'Sign-in Timeout',
-              `Google sign-in is taking too long. This might be due to:\n\n• Slow internet connection\n• OAuth browser not opening\n• Network issues\n\nPlease check your connection and try again.`,
-              [{ text: 'OK' }]
-            );
-          }, 100);
-        } else {
-          Alert.alert(
-            "Google auth isn't working",
-            "We couldn't sign you in with Google. Please try again or use another method.",
-            [{ text: 'OK' }]
-          );
-        }
+        // User's info was in the database but we didn't reach Welcomepage — ask them to try again
+        Alert.alert(
+          'Something Went Wrong',
+          'There was an error. Please try Google auth again.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       console.error('❌ Google sign-in error (outer catch):', error);

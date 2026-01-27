@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
+import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -87,20 +88,22 @@ export default function EditEmailScreen({ navigation, route }) {
       }
 
       const currentUserEmail = currentUser.email;
-      
-      // Update in database
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          email: email.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', currentUserEmail);
 
-      if (error) {
-        console.error('❌ Error updating email:', error);
-        Alert.alert('Error', 'Failed to update email. Please try again.');
-        return;
+      // Update in database (TestFlight/standalone only; skip in Expo Go)
+      if (shouldSyncUserToSupabase()) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            email: email.trim().toLowerCase(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', currentUserEmail);
+
+        if (error) {
+          console.error('❌ Error updating email:', error);
+          Alert.alert('Error', 'Failed to update email. Please try again.');
+          return;
+        }
       }
 
       // Update local storage

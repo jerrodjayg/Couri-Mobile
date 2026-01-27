@@ -148,14 +148,13 @@ export default function MyAccountScreen({ navigation, route }) {
       // Set flag to indicate user logged out (but keep data)
       await AsyncStorage.setItem('userLastAction', 'sign_out');
       
-      // Navigate to Home screen after logout
+      // Navigate to Home screen (Create Account / Log In buttons) after logout
       navigation.reset({
         index: 0,
         routes: [{ name: 'Home' }],
       });
     } catch (error) {
       console.error('❌ Logout error:', error);
-      // Still navigate to Home even if logout fails
       navigation.reset({
         index: 0,
         routes: [{ name: 'Home' }],

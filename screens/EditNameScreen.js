@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
+import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -79,21 +80,23 @@ export default function EditNameScreen({ navigation, route }) {
       }
 
       const userEmail = currentUser.email;
-      
-      // Update in database
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', userEmail);
 
-      if (error) {
-        console.error('❌ Error updating name:', error);
-        Alert.alert('Error', 'Failed to update name. Please try again.');
-        return;
+      // Update in database (TestFlight/standalone only; skip in Expo Go)
+      if (shouldSyncUserToSupabase()) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', userEmail);
+
+        if (error) {
+          console.error('❌ Error updating name:', error);
+          Alert.alert('Error', 'Failed to update name. Please try again.');
+          return;
+        }
       }
 
       // Update local storage

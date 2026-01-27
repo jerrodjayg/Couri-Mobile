@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
+import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -113,20 +114,22 @@ export default function EditPhoneScreen({ navigation, route }) {
       }
 
       const userEmail = currentUser.email;
-      
-      // Update in database
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          phone: phone.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', userEmail);
 
-      if (error) {
-        console.error('❌ Error updating phone:', error);
-        Alert.alert('Error', 'Failed to update phone number. Please try again.');
-        return;
+      // Update in database (TestFlight/standalone only; skip in Expo Go)
+      if (shouldSyncUserToSupabase()) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            phone: phone.trim(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', userEmail);
+
+        if (error) {
+          console.error('❌ Error updating phone:', error);
+          Alert.alert('Error', 'Failed to update phone number. Please try again.');
+          return;
+        }
       }
 
       // Update local storage

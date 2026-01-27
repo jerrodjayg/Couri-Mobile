@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import imagePreloader from '../utils/imagePreloader';
+import { UserService } from '../utils/userService';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 
@@ -38,6 +39,10 @@ export default function SplashScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
   const [driverModalVisible, setDriverModalVisible] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const [sessionResult, setSessionResult] = useState(null); // null | { action: 'welcome', name, userData } | { action: 'newuser' }
+  const hasProceededRef = useRef(false);
+  const MIN_SPLASH_MS = 1800;
 
   useEffect(() => {
     const preWarmLocationPermissions = async () => {
@@ -67,41 +72,141 @@ export default function SplashScreen({ navigation }) {
     preloadCriticalAssets();
   }, []);
 
-  // If user stayed logged in (session persisted), auto-navigate to Welcomepage on app open
+  // Minimum splash display time — then we fade out and continue automatically
+  useEffect(() => {
+    const t = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // If user stayed logged in (session persisted) and didn't sign out/delete account, check DB; result drives Welcomepage vs new-user flow after fade
   useEffect(() => {
     let isMounted = true;
-    let timeoutId = null;
     const checkSessionAndNavigate = async () => {
       try {
         // If app was opened via an invite deep link, let App's handler navigate (with invite params)
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && (initialUrl.includes('/i/') || initialUrl.includes('/deeplink/i/'))) {
+          if (isMounted) setSessionResult({ action: 'newuser' });
           return;
         }
+
+        // If user explicitly signed out or deleted account before closing, don't auto-login
+        const userLastAction = await AsyncStorage.getItem('userLastAction');
+        if (userLastAction === 'sign_out' || userLastAction === 'delete_account') {
+          await AsyncStorage.removeItem('userLastAction');
+          if (isMounted) setSessionResult({ action: 'newuser' });
+          return;
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         if (!isMounted) return;
         if (error) {
           console.log('⚠️ Splash: getSession error (will show splash):', error?.message);
+          setSessionResult({ action: 'newuser' });
           return;
         }
-        if (session?.user) {
-          // User stayed logged in — auto-login and go to Welcomepage after a brief splash
-          timeoutId = setTimeout(() => {
-            if (!isMounted) return;
-            navigation.replace('Welcomepage');
-          }, 400);
+
+        if (!session?.user) {
+          if (isMounted) setSessionResult({ action: 'newuser' });
+          return;
         }
-        // No session: user sees splash and taps to pick role (Buy/Sell or Driver) → Home
+
+        const email = (session.user.email || '').toLowerCase().trim();
+        if (!email) {
+          if (isMounted) setSessionResult({ action: 'newuser' });
+          return;
+        }
+
+        const { exists } = await UserService.checkUserExists(email);
+        if (!isMounted) return;
+
+        if (!exists) {
+          try {
+            await supabase.auth.signOut();
+            await AsyncStorage.removeItem('tempUserData');
+            await AsyncStorage.removeItem('userProfileData');
+            await AsyncStorage.removeItem('userProfile');
+            await AsyncStorage.removeItem('userSavedToDatabase');
+            await AsyncStorage.removeItem('hasLoggedInBefore');
+          } catch (clearErr) {
+            console.log('⚠️ Splash: error clearing session/storage for new-user flow:', clearErr?.message);
+          }
+          if (isMounted) setSessionResult({ action: 'newuser' });
+          return;
+        }
+
+        const { user: dbUser } = await UserService.getUserByEmail(email);
+        if (!isMounted) return;
+        if (!dbUser) {
+          setSessionResult({ action: 'newuser' });
+          return;
+        }
+
+        const userDataForApp = {
+          id: dbUser.id,
+          email: dbUser.email,
+          firstName: dbUser.first_name || '',
+          lastName: dbUser.last_name || '',
+          first_name: dbUser.first_name || '',
+          last_name: dbUser.last_name || '',
+          name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
+          full_name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
+          phone: dbUser.phone || '',
+          phoneNumber: dbUser.phone || '',
+          address1: dbUser.address_line_1 || '',
+          address2: dbUser.address_line_2 || '',
+          address_line_1: dbUser.address_line_1 || '',
+          address_line_2: dbUser.address_line_2 || '',
+          city: dbUser.city || '',
+          state: dbUser.state || '',
+          zip: dbUser.zip_code || '',
+          zip_code: dbUser.zip_code || '',
+          avatar_url: dbUser.avatar_url || null,
+          isGoogleAuth: session.user.app_metadata?.provider === 'google',
+        };
+
+        await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataForApp));
+        await AsyncStorage.setItem('userProfileData', JSON.stringify(userDataForApp));
+        await AsyncStorage.setItem('userProfile', JSON.stringify(userDataForApp));
+        await AsyncStorage.setItem('userSavedToDatabase', 'true');
+        await AsyncStorage.setItem('hasLoggedInBefore', 'true');
+
+        const firstName = dbUser.first_name || 'there';
+        if (isMounted) setSessionResult({ action: 'welcome', name: firstName, userData: userDataForApp });
       } catch (e) {
-        if (isMounted) console.log('⚠️ Splash: checkSession error:', e?.message);
+        if (isMounted) {
+          console.log('⚠️ Splash: checkSession error:', e?.message);
+          setSessionResult({ action: 'newuser' });
+        }
       }
     };
     checkSessionAndNavigate();
-    return () => {
-      isMounted = false;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    return () => { isMounted = false; };
   }, [navigation]);
+
+  // When min time has passed and we know welcome vs new-user: fade out, then navigate or show role modal
+  useEffect(() => {
+    if (!minTimeElapsed || !sessionResult || hasProceededRef.current) return;
+
+    hasProceededRef.current = true;
+
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      if (sessionResult.action === 'welcome') {
+        navigation.replace('Welcomepage', {
+          name: sessionResult.name,
+          userData: sessionResult.userData,
+        });
+      } else {
+        setShowPopup(true);
+        setModalVisible(true);
+      }
+    });
+  }, [minTimeElapsed, sessionResult, fadeAnim, navigation]);
 
   const handleSplashPress = () => {
     setShowPopup(true);
@@ -127,10 +232,7 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Pressable
-        style={styles.splashPressable}
-        onPress={handleSplashPress}
-      >
+      <View style={styles.splashPressable}>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           <Image
             source={require('../assets/Logo_Dark.png')}
@@ -138,7 +240,7 @@ export default function SplashScreen({ navigation }) {
             resizeMode="contain"
           />
         </Animated.View>
-      </Pressable>
+      </View>
 
       {/* Main Role Selection Modal */}
       <Modal

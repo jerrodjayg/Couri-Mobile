@@ -338,7 +338,7 @@ export default function CreateAccountScreen({ navigation, route }) {
           // NOTE: User will be saved to database when they reach Welcomepage
           // Do not save here - wait until account creation is complete
 
-          // Navigate to PersonalInfoScreen
+          // Navigate to PersonalInfoScreen with firstName, lastName, email pre-filled from Google
           navigation.replace('PersonalInfo', {
             phone: '',
             userInfo: {
@@ -374,7 +374,7 @@ export default function CreateAccountScreen({ navigation, route }) {
             // NOTE: User will be saved to database when they reach Welcomepage
             // Do not save here - wait until account creation is complete
 
-            // Navigate to PersonalInfoScreen
+            // Navigate to PersonalInfoScreen with firstName, lastName, email pre-filled from Google
             navigation.replace('PersonalInfo', {
               phone: '',
               userInfo: {
@@ -552,14 +552,15 @@ export default function CreateAccountScreen({ navigation, route }) {
           provider: session.user.app_metadata?.provider
         });
 
-        // Navigate to PersonalInfoScreen (first screen in the sequence)
+        // Navigate to PersonalInfoScreen with firstName, lastName, email pre-filled
         console.log('✅ Navigating to PersonalInfoScreen...');
         navigation.replace('PersonalInfo', {
+          phone: '',
           userInfo: {
             firstName: (fullName?.split(' ') || [])[0] || '',
             lastName: (fullName?.split(' ') || []).slice(1).join(' ') || '',
             email: session.user.email || '',
-            phone: '', // Will be filled in PersonalInfoScreen
+            phone: '',
             address1: '',
             address2: '',
             city: '',
@@ -568,7 +569,6 @@ export default function CreateAccountScreen({ navigation, route }) {
           },
           isGoogleAuth: session.user.app_metadata?.provider === 'google',
           googleUserData: session.user,
-          // Add flag to indicate this is a Google sign-up flow
           isGoogleSignUp: true,
           isDriverFlow
         });

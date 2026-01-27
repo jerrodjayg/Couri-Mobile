@@ -8,76 +8,94 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  StatusBar,
+  Pressable,
+  Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
 import { useFocusEffect } from '@react-navigation/native';
 
+const VALID_CODE = '1111'; // Placeholder until real SMS is set up
+
 export default function CodeVerify({ route, navigation }) {
-  // Disable swipe back gesture
   useFocusEffect(
     React.useCallback(() => {
-      navigation.getParent()?.setOptions({
-        gestureEnabled: false,
-      });
-      
-      return () => {
-        navigation.getParent()?.setOptions({
-          gestureEnabled: true,
-        });
-      };
+      navigation.getParent()?.setOptions({ gestureEnabled: false });
+      return () => navigation.getParent()?.setOptions({ gestureEnabled: true });
     }, [navigation])
   );
 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const { phone, type } = route.params;
+  const { phone = '', type, userData } = route.params || {};
+
+  const displayPhone = phone || '(XXX) XXX-XXXX';
 
   const handleVerify = async () => {
-    if (code.length !== 6) {
-      Alert.alert('Error', 'Please enter a 6-digit code');
+    if (code.length !== 4) {
+      Alert.alert('Error', 'Please enter the 4-digit code');
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: phone,
-        token: code,
-        type: 'sms'
-      });
-
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        // Successfully verified - navigate to account setup for create account flow
-        if (type === 'create') {
-          navigation.replace('PersonalInfoScreen', { user: data.user });
-        } else {
-          navigation.replace('Home');
+      if (type === 'login') {
+        // Placeholder: accept only 1111 until real SMS is set up
+        if (code !== VALID_CODE) {
+          Alert.alert('Invalid Code', 'Please enter the correct 4-digit code we sent to you.');
+          setLoading(false);
+          return;
         }
+        if (userData) {
+          await AsyncStorage.setItem('tempUserData', JSON.stringify(userData));
+          await AsyncStorage.setItem('userProfileData', JSON.stringify(userData));
+          await AsyncStorage.setItem('userProfile', JSON.stringify(userData));
+          await AsyncStorage.setItem('userSavedToDatabase', 'true');
+          await AsyncStorage.setItem('hasLoggedInBefore', 'true');
+        }
+        const firstName = userData?.firstName || userData?.first_name || 'there';
+        navigation.replace('Welcomepage', {
+          name: firstName,
+          userData: userData || {},
+        });
+        return;
       }
+
+      if (type === 'create') {
+        const { data, error } = await supabase.auth.verifyOtp({
+          phone,
+          token: code,
+          type: 'sms',
+        });
+        if (error) {
+          Alert.alert('Error', error.message);
+          return;
+        }
+        navigation.replace('PersonalInfoScreen', { user: data?.user });
+        return;
+      }
+
+      navigation.replace('Home');
     } catch (error) {
-      Alert.alert('Error', 'Failed to verify code');
+      Alert.alert('Error', 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResendCode = async () => {
+    if (type === 'login') {
+      Alert.alert('Resend Code', 'SMS is not set up yet. Use code 1111 to continue.');
+      return;
+    }
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: phone
-      });
-
-      if (error) {
-        Alert.alert('Error', error.message);
-      } else {
-        Alert.alert('Success', 'Verification code resent');
-      }
-    } catch (error) {
+      const { error } = await supabase.auth.signInWithOtp({ phone });
+      if (error) Alert.alert('Error', error.message);
+      else Alert.alert('Success', 'Verification code resent');
+    } catch (e) {
       Alert.alert('Error', 'Failed to resend code');
     } finally {
       setLoading(false);
@@ -85,64 +103,101 @@ export default function CodeVerify({ route, navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : null}
-      style={styles.container}
-    >
-      <View style={styles.innerContainer}>
-        <Text style={styles.instructionText}>
-          Enter the code we sent to {phone}
-        </Text>
-        
-        <View style={styles.codeContainer}>
-          {[...Array(6)].map((_, index) => (
-            <View key={index} style={styles.codeSlot}>
-              <Text style={[styles.codeDigit, code[index] && styles.codeDigitFilled]}>
-                {code[index] ? code[index] : '0'}
-              </Text>
-              <View style={styles.underline} />
-            </View>
-          ))}
-          <TextInput
-            style={styles.hiddenInput}
-            value={code}
-            onChangeText={setCode}
-            keyboardType="number-pad"
-            maxLength={6}
-            autoFocus
-          />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <Pressable onPress={() => navigation.goBack()}>
+            <Image
+              source={require('../assets/backarrow1.png')}
+              style={styles.backArrowImage}
+            />
+          </Pressable>
+          <Text style={styles.headerTitle}>Verify</Text>
+          <View style={{ width: 36 }} />
         </View>
 
-        <TouchableOpacity 
-          style={[styles.verifyButton, loading && { opacity: 0.7 }]} 
-          onPress={handleVerify}
-          disabled={loading}
-        >
-          <Text style={styles.verifyText}>
-            {loading ? 'Verifying...' : 'Verify'}
+        <View style={styles.innerContainer}>
+          <Text style={styles.instructionText}>
+            Enter the code we sent to {displayPhone}
           </Text>
-        </TouchableOpacity>
 
-        <Text style={styles.resendInfo}>Didn't receive a code?</Text>
-        <TouchableOpacity onPress={handleResendCode} disabled={loading}>
-          <Text style={[styles.resendLink, loading && { opacity: 0.7 }]}>
-            Resend Code
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.codeContainer}>
+            {[0, 1, 2, 3].map((index) => (
+              <View key={index} style={styles.codeSlot}>
+                <Text style={[styles.codeDigit, code[index] && styles.codeDigitFilled]}>
+                  {code[index] || '_'}
+                </Text>
+                <View style={styles.underline} />
+              </View>
+            ))}
+            <TextInput
+              style={styles.hiddenInput}
+              value={code}
+              onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 4))}
+              keyboardType="number-pad"
+              maxLength={4}
+              autoFocus
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.verifyButton, loading && { opacity: 0.7 }]}
+            onPress={handleVerify}
+            disabled={loading}
+          >
+            <Text style={styles.verifyText}>
+              {loading ? 'Verifying...' : 'Verify'}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.resendInfo}>Didn't receive a code?</Text>
+          <TouchableOpacity onPress={handleResendCode} disabled={loading}>
+            <Text style={[styles.resendLink, loading && { opacity: 0.7 }]}>
+              Resend Code
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backArrowImage: {
+    width: 36,
+    height: 36,
+    resizeMode: 'contain',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
   innerContainer: {
     flex: 1,
     paddingHorizontal: 24,
-    justifyContent: 'center',
+    paddingTop: 40,
     alignItems: 'center',
   },
   instructionText: {
@@ -155,8 +210,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 7,
-    paddingHorizontal: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
     position: 'relative',
   },
   codeSlot: {
@@ -165,16 +220,16 @@ const styles = StyleSheet.create({
   },
   codeDigit: {
     fontSize: 32,
-    color: 'gray',
+    color: '#999',
     textAlign: 'center',
   },
   codeDigitFilled: {
-    color: 'black',
+    color: '#000',
   },
   underline: {
     height: 2,
-    backgroundColor: '#000',
-    width: '60%',
+    backgroundColor: '#222',
+    width: '80%',
     marginTop: 8,
   },
   hiddenInput: {
@@ -184,29 +239,30 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   verifyButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
+    backgroundColor: '#000',
+    borderWidth: 1,
     borderColor: '#000',
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 60,
-    borderRadius: 999,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 20,
-    width: 300,
-    marginBottom: 40,
+    width: '100%',
+    maxWidth: 320,
+    marginBottom: 24,
   },
   verifyText: {
-    color: '#000',
-    fontSize: 20,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   resendInfo: {
-    fontSize: 20.5,
-    color: 'gray',
+    fontSize: 14,
+    color: '#666',
     marginBottom: 4,
   },
   resendLink: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#000',
     textDecorationLine: 'underline',
     fontWeight: '600',

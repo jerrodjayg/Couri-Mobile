@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
+import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 import { useUser } from '../contexts/UserContext';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -139,24 +140,26 @@ export default function EditAddressScreen({ navigation, route }) {
       }
 
       const userEmail = currentUser.email;
-      
-      // Update in database
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          address_line_1: address1.trim(),
-          address_line_2: address2.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          zip_code: zip.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', userEmail);
 
-      if (error) {
-        console.error('❌ Error updating address:', error);
-        Alert.alert('Error', 'Failed to update address. Please try again.');
-        return;
+      // Update in database (TestFlight/standalone only; skip in Expo Go)
+      if (shouldSyncUserToSupabase()) {
+        const { error } = await supabase
+          .from('users')
+          .update({
+            address_line_1: address1.trim(),
+            address_line_2: address2.trim(),
+            city: city.trim(),
+            state: state.trim(),
+            zip_code: zip.trim(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', userEmail);
+
+        if (error) {
+          console.error('❌ Error updating address:', error);
+          Alert.alert('Error', 'Failed to update address. Please try again.');
+          return;
+        }
       }
 
       // Update local storage
