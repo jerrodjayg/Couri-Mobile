@@ -67,7 +67,7 @@ Update your App Store URL in the config files:
 ### 1. Creating Invitations
 - User taps "Copy web link" or "Share web link" in the Share screen
 - App creates transaction in Supabase database
-- Generates web URL: `https://gocouri.com/invite/[transaction-id]`
+- Generates web URL: `https://gocouri.com/invite/[transaction-id#web]`
 
 ### 2. Web Invitation Flow
 - Recipient clicks link → sees transaction details
@@ -150,3 +150,4 @@ If you encounter issues:
 2. Verify Supabase connection and credentials
 3. Test deep linking with a real device
 4. Check server logs for routing issues
+

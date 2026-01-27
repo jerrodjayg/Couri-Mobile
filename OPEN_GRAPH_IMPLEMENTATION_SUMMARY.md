@@ -67,8 +67,8 @@ When someone shares a Couri invitation link, the preview will show:
 1. **`utils/supabaseTransactionService_temp.js`**
    - Updated `generateWebInvitationUrl()` function
    - Now points to Edge Function with Open Graph support
-   - Changed from: `https://gocouri.com/invite1/?id=xxx`
-   - Changed to: `https://nfkykasruwdzpcjuufdu.functions.supabase.co/invite-preview?id=xxx`
+   - Changed from: `https://gocouri.com/invite1/?id=xxx`#web
+   - Changed to: `https://nfkykasruwdzpcjuufdu.functions.supabase.co/invite-preview?id=xxx`#web
 
 ## How to Deploy (Super Easy!)
 
@@ -151,7 +151,7 @@ Images are automatically optimized for:
 
 ### How It Works:
 1. User creates invitation → App saves transaction to Supabase
-2. App generates URL: `https://...functions.supabase.co/invite-preview?id=xxx`
+2. App generates URL: `https://...functions.supabase.co/invite-preview?id=xxx`#web
 3. User shares link on Facebook
 4. Facebook scrapes the URL → Calls Edge Function
 5. Edge Function fetches transaction data from Supabase
@@ -256,4 +256,5 @@ npx supabase functions deploy invite-preview
 Or double-click: `deploy-invite-preview.bat`
 
 That's it! Your invitation links will now show beautiful previews everywhere! 🎉
+
 

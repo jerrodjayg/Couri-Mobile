@@ -21,7 +21,7 @@ This document explains the complete invitation flow where Person 1 creates an in
      - Returns transaction ID
 
 3. **Web Invitation URL Generated**:
-   - Format: `https://gocouri.com/invite1/?id={transactionId}`
+   - Format: `https://gocouri.com/invite1/?id={transactionId}`#web
    - Person 1 shares this link via any platform (text, email, social media, etc.)
 
 4. **Person 1 clicks "I sent the invite"**:
@@ -32,7 +32,7 @@ This document explains the complete invitation flow where Person 1 creates an in
 ### Person 2 (Invitee) - Receiving and Accepting the Invitation
 
 1. **Person 2 clicks the link in any web browser**:
-   - Opens `web-invite-accept.html` hosted at `https://gocouri.com/invite1/`
+   - Opens `web-invite-accept.html` hosted at `https://gocouri.com/invite1/`#web
    - Page fetches transaction details from Supabase Edge Function:
      - Calls: `GET https://{projectRef}.functions.supabase.co/accept-invite-by-id?transactionId={id}`
      - Edge function: `supabase/functions/accept-invite-by-id/index.ts`
@@ -293,4 +293,5 @@ The invitation flow is now complete and functional:
 - ✅ Person 1 receives notification of acceptance
 
 The system uses Supabase for database, Edge Functions for API, and Realtime for instant notifications. No unnecessary pages were added, and the existing UI was preserved.
+
 

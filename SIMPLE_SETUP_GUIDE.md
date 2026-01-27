@@ -20,8 +20,8 @@
    ```
 
 3. **Test the URL:**
-   - Your invitation URLs will be: `https://gocouri.com/invite1/?id=[transaction-id]`
-   - Example: `https://gocouri.com/invite1/?id=abc123`
+   - Your invitation URLs will be: `https://gocouri.com/invite1/?id=[transaction-id#web]`
+   - Example: `https://gocouri.com/invite1/?id=abc123`#web
 
 ### Option 2: Use a Free Hosting Service (If you can't modify gocouri.com)
 
@@ -35,7 +35,7 @@
 ```javascript
 // In utils/supabaseTransactionService_temp.js
 export const generateWebInvitationUrl = (transactionId) => {
-  return `https://amazing-name-123456.netlify.app/invite/${transactionId}`;
+  return `https://amazing-name-123456.netlify.app/invite/${transactionId}`;#web
 };
 ```
 
@@ -58,9 +58,9 @@ After setting up the web pages, update your app's URL generation:
 // In utils/supabaseTransactionService_temp.js
 export const generateWebInvitationUrl = (transactionId) => {
   // Choose one of these:
-  return `https://gocouri.com/invite/${transactionId}`; // Option 1
-  // return `https://your-netlify-url.netlify.app/invite/${transactionId}`; // Option 2
-  // return `https://your-domain.com/invite/${transactionId}`; // Option 3
+  return `https://gocouri.com/invite/${transactionId}`;#web // Option 1
+  // return `https://your-netlify-url.netlify.app/invite/${transactionId}`;#web // Option 2
+  // return `https://your-domain.com/invite/${transactionId}`;#web // Option 3
 };
 ```
 
@@ -75,3 +75,4 @@ export const generateWebInvitationUrl = (transactionId) => {
 ## 🚀 That's It!
 
 Your web invitation system will work with any of these options. The easiest is Option 2 (Netlify) if you can't modify gocouri.com.
+

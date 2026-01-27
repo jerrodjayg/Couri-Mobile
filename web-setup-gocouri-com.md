@@ -122,7 +122,7 @@ In your React Native app, update the URL generation:
 
 ```javascript
 // For subdirectory approach
-const INVITE_BASE_URL = 'https://gocouri.com/invite';
+const INVITE_BASE_URL = 'https://gocouri.com/invite';#web
 
 // For subdomain approach  
 const INVITE_BASE_URL = 'https://invite.gocouri.com';
@@ -137,3 +137,4 @@ export const generateWebInvitationUrl = (transactionId) => {
 
 ## Recommended Solution:
 **Use Option 1 (Subdirectory)** - it's the cleanest and most professional approach.
+

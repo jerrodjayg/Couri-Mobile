@@ -1,7 +1,7 @@
 # Squarespace Invite Page Setup Instructions
 
 ## The Problem
-You're getting a 404 error when accessing `https://gocouri.com/invite?id=TRANSACTION_ID`
+You're getting a 404 error when accessing `https://gocouri.com/invite?id=TRANSACTION_ID`#web
 
 This means the page doesn't exist or isn't configured correctly on Squarespace.
 
@@ -35,9 +35,9 @@ This means the page doesn't exist or isn't configured correctly on Squarespace.
 9. Click **Publish** (top right)
 
 ### Step 4: Test the Page
-1. Visit: `https://gocouri.com/invite`
+1. Visit: `https://gocouri.com/invite`#web
 2. You should see the invitation page (even without an ID, it will show "Invalid Link")
-3. Test with a transaction ID: `https://gocouri.com/invite?id=TEST123`
+3. Test with a transaction ID: `https://gocouri.com/invite?id=TEST123`#web
 
 ## Alternative: If You Can't Create the Page
 
@@ -60,8 +60,9 @@ Host the page on a subdomain like:
 
 ## Quick Test
 Try accessing these URLs directly in your browser:
-- `https://gocouri.com/invite` - Should show the page (or 404 if it doesn't exist)
-- `https://gocouri.com/invite/` - With trailing slash
-- `https://www.gocouri.com/invite` - With www
+- `https://gocouri.com/invite`#web - Should show the page (or 404 if it doesn't exist)
+- `https://gocouri.com/invite/`#web - With trailing slash
+- `https://www.gocouri.com/invite`#web - With www
 
 Let me know which one works (or if they all give 404) and I'll update the code accordingly.
+

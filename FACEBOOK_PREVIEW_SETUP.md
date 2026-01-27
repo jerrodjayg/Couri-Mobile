@@ -34,12 +34,12 @@ This function:
 
 Changed from:
 ```javascript
-https://gocouri.com/invite1/?id=xxx
+https://gocouri.com/invite1/?id=xxx#web
 ```
 
 To:
 ```javascript
-https://nfkykasruwdzpcjuufdu.functions.supabase.co/invite-preview?id=xxx
+https://nfkykasruwdzpcjuufdu.functions.supabase.co/invite-preview?id=xxx#web
 ```
 
 ## Deployment Instructions
@@ -63,7 +63,7 @@ npx supabase functions deploy invite-preview
 
 Test the function by visiting:
 ```
-https://nfkykasruwdzpcjuufdu.functions.supabase.co/invite-preview?id=YOUR_TRANSACTION_ID
+https://nfkykasruwdzpcjuufdu.functions.supabase.co/invite-preview?id=YOUR_TRANSACTION_ID#web
 ```
 
 Replace `YOUR_TRANSACTION_ID` with an actual transaction ID from your database.
@@ -251,4 +251,5 @@ If you encounter any issues:
 - [Facebook Sharing Best Practices](https://developers.facebook.com/docs/sharing/best-practices)
 - [Supabase Edge Functions Docs](https://supabase.com/docs/guides/functions)
 - [Twitter Card Validator](https://cards-dev.twitter.com/validator)
+
 

@@ -82,7 +82,7 @@ $$ language 'plpgsql';
 CREATE OR REPLACE FUNCTION generate_invitation_url(transaction_id UUID)
 RETURNS TEXT AS $$
 BEGIN
-  RETURN 'https://gocouri.com/invite/' || transaction_id::text;
+  RETURN 'https://gocouri.com/invite/' || transaction_id::text || '#web';
 END;
 $$ language 'plpgsql';
 
@@ -119,3 +119,4 @@ FROM information_schema.columns
 WHERE table_name = 'transactions' 
 AND table_schema = 'public'
 ORDER BY ordinal_position;
+

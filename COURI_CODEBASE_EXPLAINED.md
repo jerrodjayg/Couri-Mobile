@@ -180,7 +180,7 @@ const { user } = await supabase.auth.signInWithPassword({ email, password });
 When someone clicks a link and it opens your app (instead of a browser).
 
 ```
-https://gocouri.com/invite/12345
+https://gocouri.com/invite/12345#web
 ↓
 Opens your app
 ↓
@@ -438,7 +438,7 @@ HandtoBuyer (Complete delivery)
    ↓
 6. Edge Function returns transaction ID
    ↓
-7. Share.js generates web URL: https://gocouri.com/invite/{id}
+7. Share.js generates web URL: https://gocouri.com/invite/{id}#web
    ↓
 8. Share.js saves preview data to AsyncStorage
    ↓
@@ -452,7 +452,7 @@ HandtoBuyer (Complete delivery)
 ### Example: Seller Accepts Invitation
 
 ```
-1. Seller clicks link: https://gocouri.com/invite/12345
+1. Seller clicks link: https://gocouri.com/invite/12345#web
    ↓
 2. Web page loads, fetches transaction from Edge Function
    ↓
@@ -842,4 +842,5 @@ If you have questions about specific parts, just search the codebase for keyword
 *Generated for: Someone who was just vibe coding but wants to understand what they built*  
 *Date: 2025*  
 *App: Couri (Jerrod)*
+
 
