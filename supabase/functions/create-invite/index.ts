@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
     // Generate web URL for the invitation
     // This should point to your hosted web-invite.html page
     const baseUrl = Deno.env.get('WEB_BASE_URL') || 'https://gocouri.com'
-    const url = `${baseUrl}/invite/${transactionId}`
+    const url = `${baseUrl}/invite/${transactionId}#web`
 
     return jsonResponse({
       success: true,

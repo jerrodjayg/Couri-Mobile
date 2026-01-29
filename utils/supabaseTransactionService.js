@@ -141,7 +141,7 @@ export const getUserTransactions = async (userId = null) => {
 
 // Generate web invitation URL
 export const generateWebInvitationUrl = (transactionId) => {
-  return `https://gocouri.com/invite/${transactionId}`;
+  return `https://gocouri.com/invite/${transactionId}#web`;
 };
 
 // Generate deep link URL for app
