@@ -7,8 +7,11 @@ export default {
     
     console.log('📍 Request received:', url.pathname);
     
-    // Handle Apple App Site Association file
-    if (url.pathname === '/.well-known/apple-app-site-association') {
+    // Handle Apple App Site Association file (modern + legacy path)
+    if (
+      url.pathname === '/.well-known/apple-app-site-association' ||
+      url.pathname === '/apple-app-site-association'
+    ) {
       console.log('📱 Serving AASA file for gocouri.com');
       
       const aasa = {
@@ -16,7 +19,7 @@ export default {
           "apps": [],
           "details": [
             {
-              "appID": "S4VHGX8378.com.anonymous.jerrod",
+              "appID": "S4VHGX8378.com.couri.app",
               "paths": [
                 "/deeplink/i/*",
                 "/i/*",
