@@ -10,7 +10,7 @@
     "sdkVersion": "54.0.0",
     "platforms": ["ios", "android", "web"],
     "newArchEnabled": false,
-    "scheme": "com.anonymous.jerrod",
+    "scheme": "com.couri.app",
 
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -22,7 +22,7 @@
       "config":{
         "googleMapsApiKey": "AIzaSyDb06-8lffU7CmFoZtJJkR0d6dQkZqA_mw"
       },
-      "bundleIdentifier": "com.anonymous.jerrod",
+      "bundleIdentifier": "com.couri.app",
       "supportsTablet": true,
       "associatedDomains": [
         "applinks:gocouri.com",
@@ -45,7 +45,7 @@
           "apiKey": "AIzaSyAefIF36UbqayA10CzzBSKq3eI_j3e_9Ak"
         }
       },
-      "package": "com.anonymous.jerrod",
+      "package": "com.couri.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -62,7 +62,7 @@
           "action": "VIEW",
           "autoVerify": true,
           "category": ["BROWSABLE", "DEFAULT"],
-          "data": [{ "scheme": "com.anonymous.jerrod" }]
+          "data": [{ "scheme": "com.couri.app" }]
         }
       ],
       "runtimeVersion": { "policy": "appVersion" }
