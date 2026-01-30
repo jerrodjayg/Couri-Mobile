@@ -1,9 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from './supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserService } from '../utils/userService';
-import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import { Linking as RNLinking } from 'react-native';
@@ -880,89 +879,13 @@ export default function Welcomepage({ route, navigation }) {
     checkUser();
   }, [contextUser]);
 
-  // Save user to database when they first reach Welcomepage after account creation
-  useEffect(() => {
-    const saveUserToDatabase = async () => {
-      try {
-        // Check if user just completed account creation
-        const justCreatedAccount = await AsyncStorage.getItem('justCreatedAccount');
-        const hasBeenSaved = await AsyncStorage.getItem('userSavedToDatabase');
-        
-        // Only save if they just created account and haven't been saved yet
-        if (justCreatedAccount === 'true' && hasBeenSaved !== 'true') {
-          console.log('🔄 Welcomepage - User just completed account creation, saving to database...');
-          
-          // Get user data from AsyncStorage
-          const tempUserData = await AsyncStorage.getItem('tempUserData');
-          const userProfileData = await AsyncStorage.getItem('userProfileData');
-          const userData = tempUserData ? JSON.parse(tempUserData) : (userProfileData ? JSON.parse(userProfileData) : null);
-          
-          if (!userData || !userData.email) {
-            console.log('⚠️ Welcomepage - No user data found in AsyncStorage');
-            return;
-          }
-          
-          // Get current Supabase session
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.user) {
-            console.log('⚠️ Welcomepage - No Supabase session found');
-            return;
-          }
-          
-          const userId = session.user.id;
-          const isGoogleAuth = userData.isGoogleAuth || session.user.app_metadata?.provider === 'google';
-          
-          // Prepare user data for database (includes phone from sign-up flow)
-          // Note: Do NOT include 'id' - users.id is bigint (auto-generated).
-          // Store Supabase Auth UUID in auth_user_id.
-          const phoneFromStorage = userData.phone || userData.phoneNumber || '';
-          const phoneFromParams = route.params?.userData?.phone || route.params?.phone || '';
-          const userDataForDatabase = {
-            auth_user_id: userId,
-            email: userData.email.toLowerCase(),
-            first_name: userData.firstName || userData.first_name || '',
-            last_name: userData.lastName || userData.last_name || '',
-            phone: phoneFromStorage || phoneFromParams || '',
-            address_line_1: userData.address1 || userData.address_line_1 || '',
-            address_line_2: userData.address2 || userData.address_line_2 || null,
-            city: userData.city || '',
-            state: userData.state || '',
-            zip_code: userData.zip || userData.zip_code || '',
-            avatar_url: userData.avatar_url || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          console.log('🔄 Welcomepage - Saving user to database:', userDataForDatabase);
-
-          // Only write to Supabase when NOT in Expo Go (TestFlight/standalone only)
-          if (shouldSyncUserToSupabase()) {
-            const { data: savedData, error: saveError } = await supabase
-              .from('users')
-              .upsert(userDataForDatabase, {
-                onConflict: 'email'
-              })
-              .select();
-
-            if (saveError) {
-              console.error('❌ Welcomepage - Error saving user to database:', saveError);
-            } else {
-              console.log('✅ Welcomepage - User successfully saved to database:', savedData);
-            }
-          } else {
-            console.log('ℹ️ Welcomepage - Skipping Supabase write (Expo Go); user will be saved in TestFlight builds only.');
-          }
-
-          // Mark that user has been saved (flow continues the same in both Expo Go and TestFlight)
-          await AsyncStorage.setItem('userSavedToDatabase', 'true');
-          await AsyncStorage.removeItem('justCreatedAccount');
-        }
-      } catch (error) {
-        console.error('❌ Welcomepage - Error in saveUserToDatabase:', error);
-      }
-    };
-    
-    saveUserToDatabase();
+  // Save user to database as soon as Welcomepage mounts (useLayoutEffect = before paint, so DB write starts immediately)
+  useLayoutEffect(() => {
+    UserService.saveNewUserFromCreateAccountFlow(route.params ?? undefined).then((result) => {
+      if (result.skipped) return;
+      if (result.saved) console.log('✅ Welcomepage - User saved to database');
+      else if (result.error) console.error('❌ Welcomepage - Save failed:', result.error);
+    });
   }, []);
 
   // Load marketplace preview data from AsyncStorage or route params

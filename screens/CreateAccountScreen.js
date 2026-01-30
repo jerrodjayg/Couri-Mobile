@@ -234,6 +234,26 @@ export default function CreateAccountScreen({ navigation, route }) {
       return;
     }
 
+    // Check if this phone number is already associated with an account (runs in all builds including TestFlight — DB read)
+    try {
+      const { user: existingUser } = await UserService.getUserByPhone(cleanPhone);
+      if (existingUser) {
+        console.log('❌ CreateAccountScreen DEBUG - Phone number already in use');
+        Alert.alert(
+          'Number already in use',
+          'There is already an account with this number. Log in or use another number.',
+          [
+            { text: 'Use another number', style: 'cancel' },
+            { text: 'Log in', onPress: () => navigation.navigate('Login') },
+          ]
+        );
+        return;
+      }
+    } catch (err) {
+      console.log('⚠️ CreateAccountScreen DEBUG - Error checking phone in DB:', err);
+      // Proceed with create-account if check fails (e.g. network); don't block user
+    }
+
     console.log('✅ CreateAccountScreen DEBUG - Validation passed, navigating to PersonalInfoScreen');
     console.log('🔍 CreateAccountScreen DEBUG - Navigation parameters:', {
       phone: phone,

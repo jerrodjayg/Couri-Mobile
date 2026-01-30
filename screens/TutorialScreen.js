@@ -10,6 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { UserService } from '../utils/userService';
 import { 
   TutorialWelcomeImage, 
   TutorialMeetupsImage, 
@@ -69,7 +70,8 @@ export default function TutorialScreen({ navigation, route }) {
     if (currentSlide < tutorialData.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      // Tutorial completed, go to Welcomepage
+      // Start DB save immediately so it completes within ~2s for downstream checks
+      UserService.saveNewUserFromCreateAccountFlow({ userData: userInfo }).catch(() => {});
       navigation.replace('Welcomepage', { 
         name: userInfo?.firstName || userInfo?.name || 'there',
         userData: userInfo
@@ -78,7 +80,8 @@ export default function TutorialScreen({ navigation, route }) {
   };
 
   const handleSkip = () => {
-    // Skip tutorial, go directly to Welcomepage
+    // Start DB save immediately so it completes within ~2s for downstream checks
+    UserService.saveNewUserFromCreateAccountFlow({ userData: userInfo }).catch(() => {});
     navigation.replace('Welcomepage', { 
       name: userInfo?.firstName || userInfo?.name || 'there',
       userData: userInfo

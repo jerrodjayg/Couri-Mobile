@@ -2,6 +2,7 @@
 import { supabase } from '../screens/supabaseClient';
 import { shouldSyncUserToSupabase } from './supabaseSyncGuard';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { decode as b64decode } from 'base-64';
 
 /** Convert a local file URI → uploadable payload (Blob on iOS, Base64→bytes fallback esp. for Android). */
@@ -379,6 +380,84 @@ export class UserService {
     }
     const user = (rows || []).find((r) => String(r.phone || '').replace(/\D/g, '') === digits) || null;
     return { user };
+  }
+
+  /**
+   * Save new user to Supabase when they complete create-account flow.
+   * Call from Welcomepage on mount and from TutorialScreen before navigating to Welcomepage
+   * so the DB write starts as early as possible and completes within ~2s for downstream checks.
+   * Idempotent: skips if already saved. Retries once on failure (500ms delay).
+   * @param {{ userData?: { phone?: string }, phone?: string } | null} routeParams - Optional; merge phone from route params if provided
+   * @returns {{ saved: boolean, skipped?: boolean, error?: any }}
+   */
+  static async saveNewUserFromCreateAccountFlow(routeParams = null) {
+    try {
+      const justCreatedAccount = await AsyncStorage.getItem('justCreatedAccount');
+      const hasBeenSaved = await AsyncStorage.getItem('userSavedToDatabase');
+      if (justCreatedAccount !== 'true' || hasBeenSaved === 'true') {
+        return { saved: false, skipped: true };
+      }
+
+      const tempUserData = await AsyncStorage.getItem('tempUserData');
+      const userProfileData = await AsyncStorage.getItem('userProfileData');
+      const userData = tempUserData ? JSON.parse(tempUserData) : (userProfileData ? JSON.parse(userProfileData) : null);
+      if (!userData || !userData.email) {
+        console.log('⚠️ saveNewUserFromCreateAccountFlow: No user data or email in AsyncStorage');
+        return { saved: false };
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id ?? null;
+      const phoneFromStorage = userData.phone || userData.phoneNumber || '';
+      const phoneFromParams = routeParams?.userData?.phone || routeParams?.phone || '';
+      const userDataForDatabase = {
+        auth_user_id: userId,
+        email: userData.email.toLowerCase(),
+        first_name: userData.firstName || userData.first_name || '',
+        last_name: userData.lastName || userData.last_name || '',
+        phone: phoneFromStorage || phoneFromParams || '',
+        address_line_1: userData.address1 || userData.address_line_1 || '',
+        address_line_2: userData.address2 || userData.address_line_2 || null,
+        city: userData.city || '',
+        state: userData.state || '',
+        zip_code: userData.zip || userData.zip_code || '',
+        avatar_url: userData.avatar_url || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      if (!shouldSyncUserToSupabase()) {
+        await AsyncStorage.setItem('userSavedToDatabase', 'true');
+        await AsyncStorage.removeItem('justCreatedAccount');
+        return { saved: true, skipped: false };
+      }
+
+      const doUpsert = async () => {
+        const { data, error } = await supabase
+          .from('users')
+          .upsert(userDataForDatabase, { onConflict: 'email' })
+          .select();
+        return { data, error };
+      };
+
+      let result = await doUpsert();
+      if (result.error) {
+        console.log('⚠️ saveNewUserFromCreateAccountFlow first attempt failed, retrying in 500ms:', result.error.message);
+        await new Promise((r) => setTimeout(r, 500));
+        result = await doUpsert();
+      }
+      if (result.error) {
+        console.error('❌ saveNewUserFromCreateAccountFlow failed:', result.error);
+        return { saved: false, error: result.error };
+      }
+      console.log('✅ saveNewUserFromCreateAccountFlow: user saved to database');
+      await AsyncStorage.setItem('userSavedToDatabase', 'true');
+      await AsyncStorage.removeItem('justCreatedAccount');
+      return { saved: true };
+    } catch (error) {
+      console.error('❌ saveNewUserFromCreateAccountFlow:', error);
+      return { saved: false, error };
+    }
   }
 
   /**

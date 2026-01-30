@@ -106,73 +106,129 @@ export default function SplashScreen({ navigation }) {
           return;
         }
 
-        if (!session?.user) {
-          if (isMounted) setSessionResult({ action: 'newuser' });
-          return;
-        }
-
-        const email = (session.user.email || '').toLowerCase().trim();
-        if (!email) {
-          if (isMounted) setSessionResult({ action: 'newuser' });
-          return;
-        }
-
-        const { exists } = await UserService.checkUserExists(email);
-        if (!isMounted) return;
-
-        if (!exists) {
-          try {
-            await supabase.auth.signOut();
-            await AsyncStorage.removeItem('tempUserData');
-            await AsyncStorage.removeItem('userProfileData');
-            await AsyncStorage.removeItem('userProfile');
-            await AsyncStorage.removeItem('userSavedToDatabase');
-            await AsyncStorage.removeItem('hasLoggedInBefore');
-          } catch (clearErr) {
-            console.log('⚠️ Splash: error clearing session/storage for new-user flow:', clearErr?.message);
+        // If we have a session, check DB and go to Welcomepage if user exists
+        if (session?.user) {
+          const email = (session.user.email || '').toLowerCase().trim();
+          if (!email) {
+            if (isMounted) setSessionResult({ action: 'newuser' });
+            return;
           }
-          if (isMounted) setSessionResult({ action: 'newuser' });
+
+          const { exists } = await UserService.checkUserExists(email);
+          if (!isMounted) return;
+
+          if (!exists) {
+            try {
+              await supabase.auth.signOut();
+              await AsyncStorage.removeItem('tempUserData');
+              await AsyncStorage.removeItem('userProfileData');
+              await AsyncStorage.removeItem('userProfile');
+              await AsyncStorage.removeItem('userSavedToDatabase');
+              await AsyncStorage.removeItem('hasLoggedInBefore');
+            } catch (clearErr) {
+              console.log('⚠️ Splash: error clearing session/storage for new-user flow:', clearErr?.message);
+            }
+            if (isMounted) setSessionResult({ action: 'newuser' });
+            return;
+          }
+
+          const { user: dbUser } = await UserService.getUserByEmail(email);
+          if (!isMounted) return;
+          if (!dbUser) {
+            setSessionResult({ action: 'newuser' });
+            return;
+          }
+
+          const userDataForApp = {
+            id: dbUser.id,
+            email: dbUser.email,
+            firstName: dbUser.first_name || '',
+            lastName: dbUser.last_name || '',
+            first_name: dbUser.first_name || '',
+            last_name: dbUser.last_name || '',
+            name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
+            full_name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
+            phone: dbUser.phone || '',
+            phoneNumber: dbUser.phone || '',
+            address1: dbUser.address_line_1 || '',
+            address2: dbUser.address_line_2 || '',
+            address_line_1: dbUser.address_line_1 || '',
+            address_line_2: dbUser.address_line_2 || '',
+            city: dbUser.city || '',
+            state: dbUser.state || '',
+            zip: dbUser.zip_code || '',
+            zip_code: dbUser.zip_code || '',
+            avatar_url: dbUser.avatar_url || null,
+            isGoogleAuth: session.user.app_metadata?.provider === 'google',
+          };
+
+          await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataForApp));
+          await AsyncStorage.setItem('userProfileData', JSON.stringify(userDataForApp));
+          await AsyncStorage.setItem('userProfile', JSON.stringify(userDataForApp));
+          await AsyncStorage.setItem('userSavedToDatabase', 'true');
+          await AsyncStorage.setItem('hasLoggedInBefore', 'true');
+
+          const firstName = dbUser.first_name || 'there';
+          if (isMounted) setSessionResult({ action: 'welcome', name: firstName, userData: userDataForApp });
           return;
         }
 
-        const { user: dbUser } = await UserService.getUserByEmail(email);
-        if (!isMounted) return;
-        if (!dbUser) {
-          setSessionResult({ action: 'newuser' });
-          return;
+        // No session: try to restore from AsyncStorage + DB (e.g. phone user or session lost after app close)
+        const saved = await AsyncStorage.getItem('userSavedToDatabase');
+        const tempUserData = await AsyncStorage.getItem('tempUserData');
+        if (saved === 'true' && tempUserData) {
+          try {
+            const parsed = JSON.parse(tempUserData);
+            const email = (parsed.email || '').toLowerCase().trim();
+            const phoneDigits = (parsed.phone || parsed.phoneNumber || '').replace(/\D/g, '');
+            let dbUser = null;
+            if (email) {
+              const res = await UserService.getUserByEmail(email);
+              dbUser = res.user;
+            }
+            if (!dbUser && phoneDigits.length === 10) {
+              const res = await UserService.getUserByPhone(phoneDigits);
+              dbUser = res.user;
+            }
+            if (!isMounted) return;
+            if (dbUser) {
+              const userDataForApp = {
+                id: dbUser.id,
+                email: dbUser.email,
+                firstName: dbUser.first_name || '',
+                lastName: dbUser.last_name || '',
+                first_name: dbUser.first_name || '',
+                last_name: dbUser.last_name || '',
+                name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
+                full_name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
+                phone: dbUser.phone || '',
+                phoneNumber: dbUser.phone || '',
+                address1: dbUser.address_line_1 || '',
+                address2: dbUser.address_line_2 || '',
+                address_line_1: dbUser.address_line_1 || '',
+                address_line_2: dbUser.address_line_2 || '',
+                city: dbUser.city || '',
+                state: dbUser.state || '',
+                zip: dbUser.zip_code || '',
+                zip_code: dbUser.zip_code || '',
+                avatar_url: dbUser.avatar_url || null,
+                isGoogleAuth: parsed.isGoogleAuth || false,
+              };
+              await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataForApp));
+              await AsyncStorage.setItem('userProfileData', JSON.stringify(userDataForApp));
+              await AsyncStorage.setItem('userProfile', JSON.stringify(userDataForApp));
+              await AsyncStorage.setItem('userSavedToDatabase', 'true');
+              await AsyncStorage.setItem('hasLoggedInBefore', 'true');
+              const firstName = dbUser.first_name || 'there';
+              if (isMounted) setSessionResult({ action: 'welcome', name: firstName, userData: userDataForApp });
+              return;
+            }
+          } catch (restoreErr) {
+            console.log('⚠️ Splash: restore from storage failed:', restoreErr?.message);
+          }
         }
 
-        const userDataForApp = {
-          id: dbUser.id,
-          email: dbUser.email,
-          firstName: dbUser.first_name || '',
-          lastName: dbUser.last_name || '',
-          first_name: dbUser.first_name || '',
-          last_name: dbUser.last_name || '',
-          name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
-          full_name: [dbUser.first_name, dbUser.last_name].filter(Boolean).join(' ') || dbUser.email,
-          phone: dbUser.phone || '',
-          phoneNumber: dbUser.phone || '',
-          address1: dbUser.address_line_1 || '',
-          address2: dbUser.address_line_2 || '',
-          address_line_1: dbUser.address_line_1 || '',
-          address_line_2: dbUser.address_line_2 || '',
-          city: dbUser.city || '',
-          state: dbUser.state || '',
-          zip: dbUser.zip_code || '',
-          zip_code: dbUser.zip_code || '',
-          avatar_url: dbUser.avatar_url || null,
-          isGoogleAuth: session.user.app_metadata?.provider === 'google',
-        };
-
-        await AsyncStorage.setItem('tempUserData', JSON.stringify(userDataForApp));
-        await AsyncStorage.setItem('userProfileData', JSON.stringify(userDataForApp));
-        await AsyncStorage.setItem('userProfile', JSON.stringify(userDataForApp));
-        await AsyncStorage.setItem('userSavedToDatabase', 'true');
-        await AsyncStorage.setItem('hasLoggedInBefore', 'true');
-
-        const firstName = dbUser.first_name || 'there';
-        if (isMounted) setSessionResult({ action: 'welcome', name: firstName, userData: userDataForApp });
+        if (isMounted) setSessionResult({ action: 'newuser' });
       } catch (e) {
         if (isMounted) {
           console.log('⚠️ Splash: checkSession error:', e?.message);

@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../contexts/UserContext';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
+import { shouldSyncUserToSupabase } from '../utils/supabaseSyncGuard';
 
 export default function LoginSecurityScreen({ navigation }) {
   // Disable swipe back gesture
@@ -219,17 +220,38 @@ export default function LoginSecurityScreen({ navigation }) {
 
       console.log('🔄 Using user ID for deletion:', currentUserId);
 
-      // Get user email for deletion
+      // Get user email and numeric users.id for deletion
       let userEmail = user?.email;
-      if (!userEmail) {
+      let numericUserId = null;
+      try {
+        const userProfileData = await AsyncStorage.getItem('userProfileData');
+        if (userProfileData) {
+          const parsedData = JSON.parse(userProfileData);
+          if (!userEmail) userEmail = parsedData.email;
+          if (parsedData.id != null && typeof parsedData.id === 'number') numericUserId = parsedData.id;
+        }
+      } catch (error) {
+        console.log('⚠️ Could not get email/id from AsyncStorage:', error);
+      }
+
+      // Remove from Supabase users table in real time (TestFlight/standalone)
+      // So the next create-account flow is not affected by an old row
+      if (shouldSyncUserToSupabase() && (userEmail || numericUserId)) {
         try {
-          const userProfileData = await AsyncStorage.getItem('userProfileData');
-          if (userProfileData) {
-            const parsedData = JSON.parse(userProfileData);
-            userEmail = parsedData.email;
+          let deleteQuery = supabase.from('users').delete();
+          if (userEmail) {
+            deleteQuery = deleteQuery.eq('email', userEmail.toLowerCase());
+          } else if (numericUserId) {
+            deleteQuery = deleteQuery.eq('id', numericUserId);
           }
-        } catch (error) {
-          console.log('⚠️ Could not get email from AsyncStorage:', error);
+          const { error: deleteError } = await deleteQuery;
+          if (deleteError) {
+            console.log('⚠️ Direct users table delete error (edge function may still succeed):', deleteError.message);
+          } else {
+            console.log('✅ User row removed from users table in real time');
+          }
+        } catch (directDeleteErr) {
+          console.log('⚠️ Direct delete failed:', directDeleteErr?.message);
         }
       }
 
